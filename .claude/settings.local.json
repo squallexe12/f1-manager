@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "Bash(bash \"C:/Users/kapsi/.claude/plugins/cache/superpowers-marketplace/superpowers/5.0.5/skills/brainstorming/scripts/start-server.sh\" --project-dir \"c:/Users/kapsi/OneDrive/Masaüstü/f1-simulation\")",
+      "Bash(cp -r .gitignore .next AGENTS.md README.md eslint.config.mjs next-env.d.ts next.config.ts package-lock.json package.json postcss.config.mjs public src tsconfig.json \"c:/Users/kapsi/OneDrive/Masaüstü/f1-simulation/\")",
+      "Bash(cp -r node_modules \"c:/Users/kapsi/OneDrive/Masaüstü/f1-simulation/\")",
+      "Bash(npm install:*)",
+      "Bash(ls \"c:/Users/kapsi/OneDrive/Masaüstü/f1-simulation\"/tailwind*)",
+      "Bash(ls \"c:/Users/kapsi/OneDrive/Masaüstü/f1-simulation\"/postcss*)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(npm ls:*)",
+      "Bash(timeout 20 npm run dev)",
+      "Bash(npx vitest:*)"
+    ]
+  }
+}
