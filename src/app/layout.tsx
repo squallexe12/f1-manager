@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google'
+import { ContrastProvider } from '@/components/layout/contrast-provider'
 import '../styles/tokens.css'
 import './globals.css'
 
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-bg-primary text-text-primary font-body antialiased">
+        <ContrastProvider />
         {children}
       </body>
     </html>

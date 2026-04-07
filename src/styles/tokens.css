@@ -18,4 +18,22 @@
     --font-body: 'Inter', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
   }
+
+  /* High contrast mode */
+  .high-contrast {
+    --bg-primary: #000000;
+    --bg-secondary: #0A0A0A;
+    --bg-surface: rgba(255, 255, 255, 0.06);
+    --border-default: rgba(255, 255, 255, 0.20);
+    --border-hover: rgba(255, 255, 255, 0.35);
+    --accent-lime: #DDFF33;
+    --accent-cyan: #33EEFF;
+    --accent-red: #FF5544;
+    --accent-amber: #FFD633;
+    --accent-purple: #CC66FF;
+    --text-primary: #FFFFFF;
+    --text-secondary: #CCCCCC;
+    --text-muted: #AAAAAA;
+    --text-dim: #777777;
+  }
 }

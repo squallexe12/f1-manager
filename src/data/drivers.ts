@@ -1,0 +1,245 @@
+import type { Driver } from '@/types/driver'
+
+const emptyStats = () => ({
+  points: 0, wins: 0, podiums: 0, dnfs: 0, penalties: 0, bestFinish: 99, averageFinish: 0,
+})
+
+export const DRIVERS: Driver[] = [
+  // --- McLaren ---
+  {
+    id: 'norris', firstName: 'Lando', lastName: 'Norris', shortName: 'NOR',
+    nationality: 'British', age: 26, teamId: 'mclaren',
+    attributes: { pace: 92, racecraft: 88, experience: 82, mentality: 80, marketability: 90, developmentPotential: 45 },
+    mood: { motivation: 90, frustration: 10, confidence: 88 },
+    contract: { salary: 30_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Win', value: 500_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
+  },
+  {
+    id: 'piastri', firstName: 'Oscar', lastName: 'Piastri', shortName: 'PIA',
+    nationality: 'Australian', age: 25, teamId: 'mclaren',
+    attributes: { pace: 88, racecraft: 84, experience: 75, mentality: 82, marketability: 78, developmentPotential: 65 },
+    mood: { motivation: 88, frustration: 8, confidence: 85 },
+    contract: { salary: 15_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Podium', value: 200_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
+  },
+  // --- Red Bull ---
+  {
+    id: 'verstappen', firstName: 'Max', lastName: 'Verstappen', shortName: 'VER',
+    nationality: 'Dutch', age: 28, teamId: 'red-bull',
+    attributes: { pace: 97, racecraft: 96, experience: 92, mentality: 90, marketability: 95, developmentPotential: 20 },
+    mood: { motivation: 85, frustration: 15, confidence: 95 },
+    contract: { salary: 55_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'WDC', value: 10_000_000 }], releaseClause: 200_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+  },
+  {
+    id: 'hadjar', firstName: 'Isack', lastName: 'Hadjar', shortName: 'HAD',
+    nationality: 'French', age: 21, teamId: 'red-bull',
+    attributes: { pace: 75, racecraft: 70, experience: 58, mentality: 72, marketability: 62, developmentPotential: 85 },
+    mood: { motivation: 95, frustration: 5, confidence: 70 },
+    contract: { salary: 2_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 10_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+  },
+  // --- Ferrari ---
+  {
+    id: 'leclerc', firstName: 'Charles', lastName: 'Leclerc', shortName: 'LEC',
+    nationality: 'Monegasque', age: 28, teamId: 'ferrari',
+    attributes: { pace: 93, racecraft: 90, experience: 85, mentality: 78, marketability: 92, developmentPotential: 30 },
+    mood: { motivation: 92, frustration: 12, confidence: 86 },
+    contract: { salary: 40_000_000, termEndSeason: 4, performanceBonuses: [{ condition: 'Win', value: 1_000_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
+  },
+  {
+    id: 'hamilton', firstName: 'Lewis', lastName: 'Hamilton', shortName: 'HAM',
+    nationality: 'British', age: 41, teamId: 'ferrari',
+    attributes: { pace: 88, racecraft: 95, experience: 99, mentality: 92, marketability: 99, developmentPotential: 5 },
+    mood: { motivation: 82, frustration: 18, confidence: 80 },
+    contract: { salary: 50_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'WDC', value: 15_000_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 32, declineRate: 1.2, isReserve: false, isF2: false,
+  },
+  // --- Mercedes ---
+  {
+    id: 'russell', firstName: 'George', lastName: 'Russell', shortName: 'RUS',
+    nationality: 'British', age: 28, teamId: 'mercedes',
+    attributes: { pace: 89, racecraft: 85, experience: 80, mentality: 84, marketability: 82, developmentPotential: 35 },
+    mood: { motivation: 88, frustration: 15, confidence: 82 },
+    contract: { salary: 25_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Podium', value: 300_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
+  },
+  {
+    id: 'antonelli', firstName: 'Kimi', lastName: 'Antonelli', shortName: 'ANT',
+    nationality: 'Italian', age: 19, teamId: 'mercedes',
+    attributes: { pace: 78, racecraft: 72, experience: 55, mentality: 70, marketability: 68, developmentPotential: 90 },
+    mood: { motivation: 95, frustration: 8, confidence: 72 },
+    contract: { salary: 3_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 15_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+  },
+  // --- Williams ---
+  {
+    id: 'albon', firstName: 'Alex', lastName: 'Albon', shortName: 'ALB',
+    nationality: 'Thai', age: 30, teamId: 'williams',
+    attributes: { pace: 82, racecraft: 80, experience: 78, mentality: 76, marketability: 72, developmentPotential: 20 },
+    mood: { motivation: 80, frustration: 20, confidence: 75 },
+    contract: { salary: 10_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: 20_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+  },
+  {
+    id: 'sainz', firstName: 'Carlos', lastName: 'Sainz', shortName: 'SAI',
+    nationality: 'Spanish', age: 31, teamId: 'williams',
+    attributes: { pace: 86, racecraft: 87, experience: 86, mentality: 82, marketability: 80, developmentPotential: 15 },
+    mood: { motivation: 78, frustration: 22, confidence: 78 },
+    contract: { salary: 18_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Podium', value: 500_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.6, isReserve: false, isF2: false,
+  },
+  // --- Racing Bulls ---
+  {
+    id: 'lawson', firstName: 'Liam', lastName: 'Lawson', shortName: 'LAW',
+    nationality: 'New Zealander', age: 24, teamId: 'racing-bulls',
+    attributes: { pace: 80, racecraft: 76, experience: 65, mentality: 78, marketability: 65, developmentPotential: 70 },
+    mood: { motivation: 88, frustration: 10, confidence: 78 },
+    contract: { salary: 4_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: 12_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
+  },
+  {
+    id: 'lindblad', firstName: 'Arvid', lastName: 'Lindblad', shortName: 'LIN',
+    nationality: 'British', age: 18, teamId: 'racing-bulls',
+    attributes: { pace: 73, racecraft: 68, experience: 52, mentality: 72, marketability: 58, developmentPotential: 88 },
+    mood: { motivation: 96, frustration: 5, confidence: 68 },
+    contract: { salary: 1_500_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 8_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+  },
+  // --- Aston Martin ---
+  {
+    id: 'alonso', firstName: 'Fernando', lastName: 'Alonso', shortName: 'ALO',
+    nationality: 'Spanish', age: 44, teamId: 'aston-martin',
+    attributes: { pace: 82, racecraft: 94, experience: 99, mentality: 95, marketability: 88, developmentPotential: 2 },
+    mood: { motivation: 75, frustration: 25, confidence: 82 },
+    contract: { salary: 20_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Podium', value: 500_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.5, isReserve: false, isF2: false,
+  },
+  {
+    id: 'stroll', firstName: 'Lance', lastName: 'Stroll', shortName: 'STR',
+    nationality: 'Canadian', age: 27, teamId: 'aston-martin',
+    attributes: { pace: 72, racecraft: 70, experience: 75, mentality: 65, marketability: 60, developmentPotential: 20 },
+    mood: { motivation: 68, frustration: 30, confidence: 65 },
+    contract: { salary: 10_000_000, termEndSeason: 4, performanceBonuses: [], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+  },
+  // --- Haas ---
+  {
+    id: 'ocon', firstName: 'Esteban', lastName: 'Ocon', shortName: 'OCO',
+    nationality: 'French', age: 29, teamId: 'haas',
+    attributes: { pace: 78, racecraft: 76, experience: 80, mentality: 68, marketability: 62, developmentPotential: 15 },
+    mood: { motivation: 72, frustration: 28, confidence: 70 },
+    contract: { salary: 8_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: 15_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+  },
+  {
+    id: 'bearman', firstName: 'Oliver', lastName: 'Bearman', shortName: 'BEA',
+    nationality: 'British', age: 20, teamId: 'haas',
+    attributes: { pace: 76, racecraft: 72, experience: 58, mentality: 74, marketability: 65, developmentPotential: 82 },
+    mood: { motivation: 92, frustration: 8, confidence: 72 },
+    contract: { salary: 2_500_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 10_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+  },
+  // --- Alpine ---
+  {
+    id: 'gasly', firstName: 'Pierre', lastName: 'Gasly', shortName: 'GAS',
+    nationality: 'French', age: 30, teamId: 'alpine',
+    attributes: { pace: 83, racecraft: 80, experience: 82, mentality: 75, marketability: 75, developmentPotential: 15 },
+    mood: { motivation: 74, frustration: 25, confidence: 72 },
+    contract: { salary: 12_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: 20_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+  },
+  {
+    id: 'colapinto', firstName: 'Franco', lastName: 'Colapinto', shortName: 'COL',
+    nationality: 'Argentine', age: 22, teamId: 'alpine',
+    attributes: { pace: 74, racecraft: 71, experience: 60, mentality: 72, marketability: 70, developmentPotential: 75 },
+    mood: { motivation: 90, frustration: 10, confidence: 72 },
+    contract: { salary: 2_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 8_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: false, isF2: false,
+  },
+  // --- Cadillac ---
+  {
+    id: 'bottas', firstName: 'Valtteri', lastName: 'Bottas', shortName: 'BOT',
+    nationality: 'Finnish', age: 36, teamId: 'cadillac',
+    attributes: { pace: 78, racecraft: 76, experience: 92, mentality: 72, marketability: 70, developmentPotential: 5 },
+    mood: { motivation: 65, frustration: 30, confidence: 68 },
+    contract: { salary: 8_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
+  },
+  {
+    id: 'perez', firstName: 'Sergio', lastName: 'Perez', shortName: 'PER',
+    nationality: 'Mexican', age: 36, teamId: 'cadillac',
+    attributes: { pace: 76, racecraft: 80, experience: 90, mentality: 68, marketability: 82, developmentPotential: 5 },
+    mood: { motivation: 62, frustration: 35, confidence: 60 },
+    contract: { salary: 10_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
+  },
+  // --- Audi ---
+  {
+    id: 'hulkenberg', firstName: 'Nico', lastName: 'Hulkenberg', shortName: 'HUL',
+    nationality: 'German', age: 38, teamId: 'audi',
+    attributes: { pace: 77, racecraft: 78, experience: 90, mentality: 74, marketability: 65, developmentPotential: 5 },
+    mood: { motivation: 70, frustration: 25, confidence: 70 },
+    contract: { salary: 6_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: null },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 0.8, isReserve: false, isF2: false,
+  },
+  {
+    id: 'bortoleto', firstName: 'Gabriel', lastName: 'Bortoleto', shortName: 'BOR',
+    nationality: 'Brazilian', age: 21, teamId: 'audi',
+    attributes: { pace: 76, racecraft: 72, experience: 55, mentality: 74, marketability: 68, developmentPotential: 85 },
+    mood: { motivation: 94, frustration: 6, confidence: 72 },
+    contract: { salary: 2_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 10_000_000 },
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+  },
+
+  // === Reserve / F2 Drivers ===
+  {
+    id: 'drugovich', firstName: 'Felipe', lastName: 'Drugovich', shortName: 'DRU',
+    nationality: 'Brazilian', age: 26, teamId: null,
+    attributes: { pace: 72, racecraft: 70, experience: 62, mentality: 70, marketability: 55, developmentPotential: 40 },
+    mood: { motivation: 78, frustration: 20, confidence: 65 },
+    contract: null,
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: true, isF2: false,
+  },
+  {
+    id: 'oward', firstName: 'Pato', lastName: "O'Ward", shortName: 'OWA',
+    nationality: 'Mexican', age: 27, teamId: null,
+    attributes: { pace: 74, racecraft: 73, experience: 60, mentality: 76, marketability: 68, developmentPotential: 35 },
+    mood: { motivation: 85, frustration: 15, confidence: 72 },
+    contract: null,
+    seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: true, isF2: false,
+  },
+  {
+    id: 'doohan', firstName: 'Jack', lastName: 'Doohan', shortName: 'DOO',
+    nationality: 'Australian', age: 23, teamId: null,
+    attributes: { pace: 71, racecraft: 68, experience: 58, mentality: 68, marketability: 55, developmentPotential: 55 },
+    mood: { motivation: 80, frustration: 22, confidence: 62 },
+    contract: null,
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: true, isF2: false,
+  },
+  {
+    id: 'maini', firstName: 'Kush', lastName: 'Maini', shortName: 'MAI',
+    nationality: 'Indian', age: 24, teamId: null,
+    attributes: { pace: 68, racecraft: 65, experience: 55, mentality: 66, marketability: 50, developmentPotential: 50 },
+    mood: { motivation: 82, frustration: 15, confidence: 62 },
+    contract: null,
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: false, isF2: true,
+  },
+  {
+    id: 'aron', firstName: 'Paul', lastName: 'Aron', shortName: 'ARO',
+    nationality: 'Estonian', age: 21, teamId: null,
+    attributes: { pace: 70, racecraft: 67, experience: 52, mentality: 70, marketability: 52, developmentPotential: 72 },
+    mood: { motivation: 90, frustration: 10, confidence: 68 },
+    contract: null,
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: true,
+  },
+  {
+    id: 'barnard', firstName: 'Zak', lastName: "O'Sullivan", shortName: 'OSU',
+    nationality: 'British', age: 21, teamId: null,
+    attributes: { pace: 69, racecraft: 66, experience: 50, mentality: 68, marketability: 48, developmentPotential: 70 },
+    mood: { motivation: 88, frustration: 12, confidence: 65 },
+    contract: null,
+    seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: true,
+  },
+]
