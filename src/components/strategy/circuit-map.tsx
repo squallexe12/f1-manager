@@ -1,8 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useCallback } from 'react'
-import type { TrackPoint } from '@/utils/openf1-track-mapper'
-import { TRACK_SPLINES } from '@/data/track-splines'
+import { TRACK_SPLINES, type TrackPoint } from '@/data/track-splines'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,7 +34,7 @@ const TRACK_IMAGE_MAP: Record<string, string> = {
   spa: 'belgium', zandvoort: 'netherlands', monza: 'italy-monza',
   baku: 'azerbaijan', singapore: 'singapore', austin: 'united-states',
   mexico: 'mexico', interlagos: 'brazil', 'las-vegas': 'las-vegas',
-  'abu-dhabi': 'abu-dhabi',
+  'abu-dhabi': 'abu-dhabi', qatar: 'qatar', hungary: 'hungary',
 }
 
 // ─── Math helpers ───────────────────────────────────────────────────────────
@@ -76,13 +75,9 @@ function drawCars(
     return
   }
 
-  // Padding to keep dots away from edges
-  const pad = 12
-  const drawW = w - pad * 2
-  const drawH = h - pad * 2
-
+  // Map normalized 0-1 spline coordinates directly to canvas pixel space
   function toCanvas(p: TrackPoint) {
-    return { x: pad + p.x * drawW, y: pad + p.y * drawH }
+    return { x: p.x * w, y: p.y * h }
   }
 
   // Draw cars back-to-front (leader on top)
@@ -254,7 +249,7 @@ export function CircuitMap({ circuitId, circuitName, currentLap, totalLaps, driv
         <img
           src={`/tracks/${trackImageFile}.avif`}
           alt={`${circuitName} circuit layout`}
-          className="absolute inset-0 w-full h-full object-fill"
+          className="absolute inset-0 w-full h-full object-cover"
           draggable={false}
         />
 

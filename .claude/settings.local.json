@@ -43,7 +43,16 @@
       "Bash(npx sharp-cli:*)",
       "Bash(where ffmpeg:*)",
       "Bash(node scripts/trace-tracks.js)",
-      "Bash(node scripts/verify-traces.js)"
+      "Bash(node scripts/verify-traces.js)",
+      "Bash(xargs grep:*)",
+      "Bash(identify /c/Users/kapsi/OneDrive/Masaüstü/f1-simulation/public/tracks/australia.avif)",
+      "Bash(grep -r \"aspectRatio\\\\|1252\\\\|704\" /c/Users/kapsi/OneDrive/Masaüstü/f1-simulation -type f --include=\"*.tsx\" --include=\"*.ts\" --include=\"*.css\" --include=\"*.json\")",
+      "Read(//tmp/**)",
+      "Bash(npm run:*)",
+      "Bash(ls -la c:/Users/kapsi/OneDrive/Masaüstü/f1-simulation/public/tracks/bahrain*)",
+      "Bash(npx identify:*)",
+      "Bash(python3 -c \"from PIL import Image; img=Image.open\\('public/tracks/australia.avif'\\); print\\(img.size\\)\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const buf=fs.readFileSync\\('public/tracks/australia.avif'\\);const hex=buf.toString\\('hex'\\);const ispeIdx=hex.indexOf\\('69737065'\\);if\\(ispeIdx>-1\\){const start=ispeIdx+16;const w=parseInt\\(hex.substring\\(start,start+8\\),16\\);const h=parseInt\\(hex.substring\\(start+8,start+16\\),16\\);console.log\\(w+'x'+h\\)}else{console.log\\('ispe not found'\\)}\")"
     ]
   }
 }

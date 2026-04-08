@@ -342,17 +342,22 @@ export function useRaceSimulation({ driverMeta, playerTeamId, onRaceEnd }: UseRa
     const interval = TICK_INTERVALS[String(speedRef.current)] ?? 2000
     nextTickTimeRef.current = now + interval
 
-    // Set per-driver progress anchor — position-based offset so cars are spread around track
-    const totalDrivers = sorted.length
+    // Set per-driver progress anchor using actual gap data.
+    // Leader anchored at progress 0.0, followers offset proportionally
+    // behind based on their time gap relative to a full lap time.
     const progressMap: Record<string, { progress: number; baseLapTime: number }> = {}
+    const leaderLapTime = sorted.length > 0 ? sorted[0].lapTime : 90
     for (let i = 0; i < sorted.length; i++) {
       const r = sorted[i]
-      // Leader at progress ~0.0, last car at ~0.8 behind
-      const positionOffset = (i / Math.max(1, totalDrivers - 1)) * 0.8
-      // Add gap-based micro-offset: each second of gap ≈ 1% of track
-      const gapOffset = Math.min(0.15, Math.abs(r.gapToLeader) * 0.01)
+      // Convert time gap to track distance: gap / lapTime gives fraction of lap behind leader
+      // Minimum spacing of 2% per position prevents overlapping dots
+      const gapFraction = Math.abs(r.gapToLeader) / Math.max(60, leaderLapTime)
+      const minSpacing = i * 0.02
+      const offset = Math.max(minSpacing, gapFraction)
+      // Cap at 0.85 so the last car doesn't wrap past the leader
+      const clampedOffset = Math.min(0.85, offset)
       progressMap[r.driverId] = {
-        progress: (1.0 - positionOffset - gapOffset + 1) % 1,
+        progress: ((1.0 - clampedOffset) % 1 + 1) % 1,
         baseLapTime: r.lapTime,
       }
     }
