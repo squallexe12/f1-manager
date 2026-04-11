@@ -1,0 +1,235 @@
+import { describe, it, expect } from 'vitest'
+import { initializeGame, type FullGameState } from '@/engine/core/state-manager'
+import {
+  advanceGamePhase,
+  processPostRacePhase,
+  processSeasonEndPhase,
+} from '@/engine/core/orchestrator'
+import type { RaceResult } from '@/engine/core/post-race-processor'
+
+/**
+ * Helper: deep-clone a FullGameState so we can verify no mutation.
+ */
+function snapshot(world: FullGameState): string {
+  return JSON.stringify(world)
+}
+
+/**
+ * Build a minimal set of race results for all 22 grid drivers.
+ */
+function buildRaceResults(world: FullGameState): RaceResult[] {
+  const gridDrivers = world.drivers.filter(d => d.teamId !== null)
+  return gridDrivers.map((d, i) => ({
+    driverId: d.id,
+    position: i + 1,
+    dnf: false,
+    fastestLap: i === 0,
+  }))
+}
+
+describe('orchestrator — advanceGamePhase', () => {
+  it('advances from management to practice without mutating input', () => {
+    const world = initializeGame('mclaren', 'golden-era', 42)
+    const before = snapshot(world)
+
+    const next = advanceGamePhase(world)
+
+    // Input not mutated
+    expect(snapshot(world)).toBe(before)
+    // Phase changed
+    expect(next.gameState.phase).toBe('practice')
+    // Round unchanged
+    expect(next.gameState.currentRound).toBe(1)
+  })
+
+  it('advances through a full standard weekend flow', () => {
+    let world = initializeGame('ferrari', 'golden-era', 100)
+    expect(world.gameState.phase).toBe('management')
+
+    world = advanceGamePhase(world) // management → practice
+    expect(world.gameState.phase).toBe('practice')
+
+    world = advanceGamePhase(world) // practice → qualifying
+    expect(world.gameState.phase).toBe('qualifying')
+
+    world = advanceGamePhase(world) // qualifying → race
+    expect(world.gameState.phase).toBe('race')
+
+    world = advanceGamePhase(world) // race → post-race
+    expect(world.gameState.phase).toBe('post-race')
+
+    world = advanceGamePhase(world) // post-race → next round management
+    expect(world.gameState.phase).toBe('management')
+    expect(world.gameState.currentRound).toBe(2)
+  })
+
+  it('advances through a sprint weekend flow', () => {
+    let world = initializeGame('red-bull', 'golden-era', 200)
+    const sprintRound = world.calendar.findIndex(r => r.isSprint) + 1
+    expect(sprintRound).toBeGreaterThan(0)
+
+    // Fast-forward to the sprint round
+    world = {
+      ...world,
+      gameState: { ...world.gameState, currentRound: sprintRound, phase: 'management' },
+    }
+
+    world = advanceGamePhase(world) // management → practice
+    expect(world.gameState.phase).toBe('practice')
+
+    world = advanceGamePhase(world) // practice → sprint-qualifying
+    expect(world.gameState.phase).toBe('sprint-qualifying')
+
+    world = advanceGamePhase(world) // sprint-qualifying → sprint
+    expect(world.gameState.phase).toBe('sprint')
+
+    world = advanceGamePhase(world) // sprint → qualifying
+    expect(world.gameState.phase).toBe('qualifying')
+
+    world = advanceGamePhase(world) // qualifying → race
+    expect(world.gameState.phase).toBe('race')
+
+    world = advanceGamePhase(world) // race → post-race
+    expect(world.gameState.phase).toBe('post-race')
+  })
+
+  it('transitions to season-end after the final round', () => {
+    let world = initializeGame('mercedes', 'golden-era', 300)
+    world = {
+      ...world,
+      gameState: { ...world.gameState, currentRound: world.gameState.totalRaces, phase: 'post-race' },
+    }
+
+    const next = advanceGamePhase(world)
+    expect(next.gameState.phase).toBe('season-end')
+  })
+
+  it('runs management entry processing when entering management phase', () => {
+    let world = initializeGame('mclaren', 'golden-era', 42)
+    world = {
+      ...world,
+      gameState: { ...world.gameState, phase: 'post-race' },
+    }
+
+    const before = snapshot(world)
+    const next = advanceGamePhase(world)
+
+    // Input not mutated
+    expect(snapshot(world)).toBe(before)
+    // Now in management for round 2
+    expect(next.gameState.phase).toBe('management')
+    expect(next.gameState.currentRound).toBe(2)
+    expect(next.teams).toBeDefined()
+    expect(next.drivers).toBeDefined()
+  })
+
+  it('is deterministic — same seed produces identical output', () => {
+    const worldA = initializeGame('mclaren', 'golden-era', 42)
+    const worldB = initializeGame('mclaren', 'golden-era', 42)
+
+    const stateA = { ...worldA, gameState: { ...worldA.gameState, phase: 'post-race' as const } }
+    const stateB = { ...worldB, gameState: { ...worldB.gameState, phase: 'post-race' as const } }
+
+    const nextA = advanceGamePhase(stateA)
+    const nextB = advanceGamePhase(stateB)
+
+    expect(snapshot(nextA)).toBe(snapshot(nextB))
+  })
+})
+
+describe('orchestrator — processPostRacePhase', () => {
+  it('processes race results without mutating input', () => {
+    const world = initializeGame('ferrari', 'golden-era', 500)
+    const cooldowns: Record<string, number> = {}
+    const results = buildRaceResults(world)
+    const before = snapshot(world)
+    const cooldownsBefore = JSON.stringify(cooldowns)
+
+    const update = processPostRacePhase(world, cooldowns, results, false)
+
+    // Input not mutated
+    expect(snapshot(world)).toBe(before)
+    expect(JSON.stringify(cooldowns)).toBe(cooldownsBefore)
+    // Output has expected shape
+    expect(update.world).toBeDefined()
+    expect(update.eventCooldowns).toBeDefined()
+    expect(update.world.teams).toHaveLength(11)
+    expect(update.world.drivers.length).toBeGreaterThanOrEqual(22)
+  })
+
+  it('updates driver season stats after race', () => {
+    const world = initializeGame('mclaren', 'golden-era', 600)
+    const results = buildRaceResults(world)
+    const update = processPostRacePhase(world, {}, results, false)
+
+    const winnerId = results[0].driverId
+    const winner = update.world.drivers.find(d => d.id === winnerId)
+    expect(winner).toBeDefined()
+    expect(winner!.seasonStats.points).toBeGreaterThan(0)
+  })
+
+  it('handles sprint race results with reduced points', () => {
+    const world = initializeGame('red-bull', 'golden-era', 700)
+    const results = buildRaceResults(world)
+
+    const update = processPostRacePhase(world, {}, results, true)
+
+    const winnerId = results[0].driverId
+    const winner = update.world.drivers.find(d => d.id === winnerId)
+    expect(winner).toBeDefined()
+    expect(winner!.seasonStats.points).toBeGreaterThan(0)
+    // Sprint winner gets 8 points + 1 fastest lap bonus = 9, not 25+1
+    expect(winner!.seasonStats.points).toBeLessThanOrEqual(9)
+  })
+
+  it('is deterministic — same inputs produce identical output', () => {
+    const worldA = initializeGame('ferrari', 'golden-era', 500)
+    const worldB = initializeGame('ferrari', 'golden-era', 500)
+    const resultsA = buildRaceResults(worldA)
+    const resultsB = buildRaceResults(worldB)
+
+    const updateA = processPostRacePhase(worldA, {}, resultsA, false)
+    const updateB = processPostRacePhase(worldB, {}, resultsB, false)
+
+    expect(snapshot(updateA.world)).toBe(snapshot(updateB.world))
+  })
+})
+
+describe('orchestrator — processSeasonEndPhase', () => {
+  it('advances to next season without mutating input', () => {
+    const world = initializeGame('williams', 'rebuild', 800)
+    const before = snapshot(world)
+
+    const { world: nextWorld, result } = processSeasonEndPhase(world)
+
+    // Input not mutated
+    expect(snapshot(world)).toBe(before)
+    // Season incremented
+    expect(nextWorld.gameState.season).toBe(2)
+    expect(nextWorld.gameState.currentRound).toBe(1)
+    expect(nextWorld.gameState.phase).toBe('management')
+    // Result has expected shape
+    expect(result.teams).toHaveLength(11)
+    expect(result.prizeMoney).toBeDefined()
+    expect(result.capBreaches).toBeDefined()
+  })
+
+  it('resets R&D upgrades for new season', () => {
+    const world = initializeGame('mclaren', 'golden-era', 900)
+    const { world: nextWorld } = processSeasonEndPhase(world)
+
+    for (const team of nextWorld.teams) {
+      expect(team.rndUpgrades.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('is deterministic — same seed produces identical output', () => {
+    const worldA = initializeGame('williams', 'rebuild', 800)
+    const worldB = initializeGame('williams', 'rebuild', 800)
+
+    const resultA = processSeasonEndPhase(worldA)
+    const resultB = processSeasonEndPhase(worldB)
+
+    expect(snapshot(resultA.world)).toBe(snapshot(resultB.world))
+  })
+})
