@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
-import { useRequireGame } from '@/hooks/use-require-game'
+import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
 import { PageShell } from '@/components/layout/page-shell'
 import { HealthWidget } from '@/components/paddock/health-widget'
 import { DriverSummaryCard } from '@/components/paddock/driver-summary-card'
@@ -13,13 +13,21 @@ import { calculateOverallRating } from '@/engine/engineering/car-performance'
 
 export default function PaddockPage() {
   const router = useRouter()
-  const world = useRequireGame()
+  useRequireGame() // guard only — redirects if no game
   const advancePhase = useGameStore((s) => s.advancePhase)
   const resolveEvent = useGameStore((s) => s.resolveEvent)
 
-  if (!world) return null
+  const slice = useGameSlice((w) => ({
+    gameState: w.gameState,
+    teams: w.teams,
+    drivers: w.drivers,
+    finance: w.finance,
+    narrativeEvents: w.narrativeEvents,
+  }))
 
-  const { gameState, teams, drivers, finance, narrativeEvents } = world
+  if (!slice) return null
+
+  const { gameState, teams, drivers, finance, narrativeEvents } = slice
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
   const playerDrivers = drivers.filter((d) => d.teamId === playerTeam.id && !d.isReserve)
   const playerFinance = finance[playerTeam.id]

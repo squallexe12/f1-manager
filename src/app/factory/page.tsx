@@ -1,7 +1,7 @@
 'use client'
 
 import { useGameStore } from '@/stores/game-store'
-import { useRequireGame } from '@/hooks/use-require-game'
+import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
 import { PageShell } from '@/components/layout/page-shell'
 import { RadarChart } from '@/components/charts/radar-chart'
 import { ComponentStatus } from '@/components/factory/component-status'
@@ -10,13 +10,18 @@ import { AeroAllocation } from '@/components/factory/aero-allocation'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
 
 export default function FactoryPage() {
-  const world = useRequireGame()
+  useRequireGame() // guard only
   const allocateRnD = useGameStore((s) => s.allocateRnD)
   const pauseRnD = useGameStore((s) => s.pauseRnD)
 
-  if (!world) return null
+  const slice = useGameSlice((w) => ({
+    teams: w.teams,
+    playerTeamId: w.gameState.playerTeamId,
+  }))
 
-  const playerTeam = world.teams.find((t) => t.id === world.gameState.playerTeamId)!
+  if (!slice) return null
+
+  const playerTeam = slice.teams.find((t) => t.id === slice.playerTeamId)!
   const overallRating = calculateOverallRating(playerTeam.car)
 
   return (

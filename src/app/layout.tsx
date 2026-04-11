@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google'
 import { ContrastProvider } from '@/components/layout/contrast-provider'
+import { PersistenceProvider } from '@/components/providers/persistence-provider'
 import '../styles/tokens.css'
 import './globals.css'
 
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
       <body className="bg-bg-primary text-text-primary font-body antialiased">
         <ContrastProvider />
+        <PersistenceProvider />
         {children}
       </body>
     </html>

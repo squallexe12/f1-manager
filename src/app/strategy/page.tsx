@@ -3,7 +3,7 @@
 import { useMemo, useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
-import { useRequireGame } from '@/hooks/use-require-game'
+import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
 import { useRaceSimulation, type TimingEntry } from '@/hooks/use-race-simulation'
 import { PageShell } from '@/components/layout/page-shell'
 import { TimingTower } from '@/components/strategy/timing-tower'
@@ -25,16 +25,23 @@ import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 
 export default function StrategyPage() {
   const router = useRouter()
-  const world = useRequireGame()
+  useRequireGame() // guard only
   const advancePhase = useGameStore((s) => s.advancePhase)
   const submitRaceResults = useGameStore((s) => s.submitRaceResults)
   const [driverStrategies, setDriverStrategies] = useState<DriverStrategies>({})
 
+  const slice = useGameSlice((w) => ({
+    gameState: w.gameState,
+    teams: w.teams,
+    drivers: w.drivers,
+    calendar: w.calendar,
+  }))
+
   // All hooks must be above early returns
-  const gameState = world?.gameState
-  const teams = world?.teams ?? []
-  const drivers = world?.drivers ?? []
-  const calendar = world?.calendar ?? []
+  const gameState = slice?.gameState
+  const teams = slice?.teams ?? []
+  const drivers = slice?.drivers ?? []
+  const calendar = slice?.calendar ?? []
   const playerTeamId = gameState?.playerTeamId ?? ''
 
   const playerTeam = teams.find((t) => t.id === playerTeamId)
@@ -72,7 +79,7 @@ export default function StrategyPage() {
     onRaceEnd,
   })
 
-  if (!world || !playerTeam || !gameState) return null
+  if (!slice || !playerTeam || !gameState) return null
 
   // After guard: gameState is guaranteed defined
   const state = gameState

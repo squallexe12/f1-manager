@@ -52,7 +52,17 @@
       "Bash(ls -la c:/Users/kapsi/OneDrive/Masaüstü/f1-simulation/public/tracks/bahrain*)",
       "Bash(npx identify:*)",
       "Bash(python3 -c \"from PIL import Image; img=Image.open\\('public/tracks/australia.avif'\\); print\\(img.size\\)\")",
-      "Bash(node -e \"const fs=require\\('fs'\\);const buf=fs.readFileSync\\('public/tracks/australia.avif'\\);const hex=buf.toString\\('hex'\\);const ispeIdx=hex.indexOf\\('69737065'\\);if\\(ispeIdx>-1\\){const start=ispeIdx+16;const w=parseInt\\(hex.substring\\(start,start+8\\),16\\);const h=parseInt\\(hex.substring\\(start+8,start+16\\),16\\);console.log\\(w+'x'+h\\)}else{console.log\\('ispe not found'\\)}\")"
+      "Bash(node -e \"const fs=require\\('fs'\\);const buf=fs.readFileSync\\('public/tracks/australia.avif'\\);const hex=buf.toString\\('hex'\\);const ispeIdx=hex.indexOf\\('69737065'\\);if\\(ispeIdx>-1\\){const start=ispeIdx+16;const w=parseInt\\(hex.substring\\(start,start+8\\),16\\);const h=parseInt\\(hex.substring\\(start+8,start+16\\),16\\);console.log\\(w+'x'+h\\)}else{console.log\\('ispe not found'\\)}\")",
+      "Bash(python -c \"import graphify\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(python -c \"import sys; open\\('.graphify_python', 'w'\\).write\\(sys.executable\\)\")",
+      "Bash(python -c ':*)",
+      "Bash(mkdir -p graphify-out)",
+      "Bash(rm -f .graphify_detect.json .graphify_extract.json .graphify_ast.json .graphify_semantic.json .graphify_analysis.json .graphify_labels.json .graphify_cached.json .graphify_uncached.txt .graphify_semantic_new.json .graphify_python graphify-out/.needs_update)",
+      "Bash(node -e \"require\\('zustand/react/shallow'\\)\")",
+      "Bash(New-Item -ItemType Directory -Force -Path graphify-out)",
+      "Bash(Out-Null)",
+      "Bash(rm -f .graphify_detect.json .graphify_extract.json .graphify_ast.json .graphify_semantic.json .graphify_analysis.json .graphify_labels.json .graphify_cached.json .graphify_uncached.txt .graphify_semantic_new.json .graphify_python)"
     ]
   }
 }

@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
+import { useSaveGame } from '@/hooks/use-save-game'
 import { Button } from '@/components/ui/button'
 
 export default function Home() {
   const router = useRouter()
-  const { world, loadGame, listSaves } = useGameStore()
+  const world = useGameStore((s) => s.world)
+  const { loadGame, listSaves } = useSaveGame()
   const [hasAutoSave, setHasAutoSave] = useState(false)
   const [checking, setChecking] = useState(true)
 
