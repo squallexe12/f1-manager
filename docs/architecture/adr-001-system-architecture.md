@@ -37,7 +37,7 @@ graph TB
     end
 
     subgraph Worker ["Web Worker (Off Main Thread — Target)"]
-        RaceWorker["race-sim-worker.ts<br/>Target: lap-by-lap simulation loop<br/>Current: not production-ready"]
+        RaceWorker["race-sim-worker.ts<br/>Contract hardened (IP-03):<br/>start payload = RaceBootstrapInput superset,<br/>command = RaceCommandEnvelope,<br/>emits ready/lapUpdate/commentary/incident/raceEnd/error.<br/>Not yet wired into production flow."]
         subgraph Engines ["Simulation Engines (Pure Functions)"]
             RaceSim["Race Simulator<br/>+ Tire Model<br/>+ Pit Strategy"]
             Weather["Weather Engine<br/>(dry/damp/wet FSM)"]
@@ -81,7 +81,7 @@ graph TB
 - **`game-store.ts`** is a thin dispatch layer. It holds `world`, `eventCooldowns`, `lastRaceResults`, and `lastSeasonEnd` but delegates all gameplay state transitions to `orchestrator.ts`.
 - **`orchestrator.ts`** owns the pure gameplay flow: `advanceGamePhase()`, `processPostRacePhase()`, `processSeasonEndPhase()`, and `processManagementEntry()`.
 - **Persistence** is fully decoupled from the store. Auto-save runs via a Zustand subscriber wired by `setupPersistence()`. Manual save/load flows through `useSaveGame()` hook. Both use a shared `SaveSystem` singleton.
-- **In-race authority** currently lives in the `useRaceSimulation` hook on the main thread, not in the Web Worker. The worker (`race-sim-worker.ts`) exists but is not production-ready.
+- **In-race authority** currently lives in the `useRaceSimulation` hook on the main thread, not in the Web Worker. As of IP-03 the worker message contract is production-grade and fully typed (`WorkerInMessage` / `WorkerOutMessage` in `src/types/race.ts`; adapters in `src/workers/race-worker-protocol.ts`), but the runtime authority switch is deferred to IP-04.
 - **Engines are pure functions.** They accept state and a seeded PRNG, return new state. No side effects. This is the single most important architectural invariant.
 - **IndexedDB** is the sole durable storage. No localStorage for game state (avoids 5MB ceiling).
 - **UI components** use `useShallow` selectors from Zustand to minimize re-render blast radius.
@@ -233,7 +233,7 @@ React Testing Library with mock Zustand stores. Focus on: TimingTower ordering, 
 
 ### 5.5 Worker Tests
 
-Mock `postMessage` / `onmessage` harness. Verify start/pause/resume/command/raceEnd message flow. (Deferred until worker is production-ready.)
+Implemented in `tests/engine/race/race-sim-worker.test.ts` (IP-03). Drives `__handleMessage` directly with a stubbed `self.postMessage`. Covers: type-guard schema validation, start-without-placeholders, pause/resume cadence, `simSpeed` applied from the start payload, `command` envelope application for all three discriminants (setCommand / pit / strategyChange), typed `error` events (unknown driver, command-before-start, malformed payloads), `raceEnd` shape, and JSON round-trip worker-safety for every inbound and outbound message type. 18 tests, all green.
 
 ---
 

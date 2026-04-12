@@ -62,7 +62,8 @@
       "Bash(node -e \"require\\('zustand/react/shallow'\\)\")",
       "Bash(New-Item -ItemType Directory -Force -Path graphify-out)",
       "Bash(Out-Null)",
-      "Bash(rm -f .graphify_detect.json .graphify_extract.json .graphify_ast.json .graphify_semantic.json .graphify_analysis.json .graphify_labels.json .graphify_cached.json .graphify_uncached.txt .graphify_semantic_new.json .graphify_python)"
+      "Bash(rm -f .graphify_detect.json .graphify_extract.json .graphify_ast.json .graphify_semantic.json .graphify_analysis.json .graphify_labels.json .graphify_cached.json .graphify_uncached.txt .graphify_semantic_new.json .graphify_python)",
+      "Bash(echo \"---TSC EXIT $?---\")"
     ]
   }
 }

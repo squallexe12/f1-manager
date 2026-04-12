@@ -274,27 +274,33 @@ Reject with error on failure. No partial recovery.
 
 ## 4. Web Worker Protocol
 
+> **Canonical source of truth:** `src/types/race.ts` (`WorkerInMessage`, `WorkerOutMessage`, `WorkerOutEvent`, `RaceWorkerStartPayload`). Protocol adapters live in `src/workers/race-worker-protocol.ts`.
+
 ### 4.1 Main Thread → Worker
 
 | Type | Payload | When |
 |------|---------|------|
-| `start` | `raceState, strategies, drivers, circuit, seed` | Enter race phase |
-| `setSpeed` | `speed: 1\|2\|5\|"max"` | Speed change |
-| `pause` | `{}` | Pause |
-| `resume` | `{}` | Resume |
-| `command` | `driverId, command` | Driver command |
-| `strategyChange` | `driverId, strategy` | Strategy change |
+| `start` | `payload: RaceWorkerStartPayload` — strict superset of `RaceBootstrapInput` (seed, round, circuit, isSprint, drivers, strategies?) plus optional `simSpeed` | Enter race phase |
+| `setSpeed` | `speed: 1 \| 2 \| 5 \| 'max'` | Speed change |
+| `pause` | _(none)_ | Pause |
+| `resume` | _(none)_ | Resume |
+| `command` | `envelope: RaceCommandEnvelope` — embeds an IP-02 envelope unchanged (setCommand / pit / strategyChange) | Driver command, pit, or strategy swap |
+
+The legacy top-level `strategyChange` message has been removed; strategy swaps now travel inside a command envelope. The worker bootstraps race state internally from the `start` payload (no placeholder initialization on the worker side).
 
 ### 4.2 Worker → Main Thread
 
 | Type | Payload | Frequency |
 |------|---------|-----------|
-| `ready` | `{}` | Once, after init |
-| `lapUpdate` | `lap, results[], tireStates, weather, safetyCar, gaps` | Per lap |
-| `commentary` | `entries[]` | With each lapUpdate |
+| `ready` | `lap, totalLaps` | Once, after init |
+| `lapUpdate` | `lap, results[], tireStates, weather, safetyCar` | Per lap |
+| `commentary` | `entries[]` | With each lapUpdate when non-empty |
 | `incident` | `incident` | On incident |
-| `raceEnd` | `finalResults, finalStandings, fastestLap` | Once |
-| `error` | `message, fatal` | On error |
+| `raceEnd` | `finalResults, fastestLap` | Once |
+| `error` | `code, message, fatal, recovery?` | On recoverable or fatal error |
+| `batch` | `messages: WorkerOutEvent[]` | Reserved for MAX-speed batching (flat; never nested) |
+
+`error.code` is typed (`start/invalid-payload`, `start/missing-drivers`, `command/unknown-driver`, `command/invalid-envelope`, `runtime/simulation-failure`). `recovery.lastValidLap` lets the main thread respawn the worker from a known-good lap.
 
 ### 4.3 Timing Model
 

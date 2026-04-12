@@ -111,9 +111,9 @@ All under `src/engine/`, all pure functions with seeded PRNG:
 
 ### 2.3 Worker Protocol
 
-**Current:** `race-sim-worker.ts` exists with basic message types but is not connected to production flow.
+**Current (post IP-03):** `WorkerInMessage` / `WorkerOutMessage` are canonical in `src/types/race.ts`. The `start` payload is a strict superset of `RaceBootstrapInput` and the worker runs `bootstrapRace()` internally — no placeholder state. The `command` message embeds `RaceCommandEnvelope` verbatim. Outbound events include `ready`, `lapUpdate`, `commentary`, `incident`, `raceEnd`, typed `error` (with optional `recovery` metadata), and a reserved `batch` container for MAX-speed batching. Message builders and runtime type guards live in `src/workers/race-worker-protocol.ts`. Not yet wired into production execution flow.
 
-**Target:** Full `WorkerInMessage` / `WorkerOutMessage` protocol with start, pause, resume, command, lapUpdate, raceEnd message types. Backpressure via ack mechanism at MAX speed.
+**Target (IP-04):** Main thread mediates worker via store slice, lapUpdate → store → UI. Backpressure via ack at MAX speed using the reserved `batch` container.
 
 ### 2.4 Bootstrap Determinism
 
@@ -131,7 +131,7 @@ These gaps are frozen as follow-up items for later implementation phases:
 |-----|--------------|-------------|
 | `setDriverCommand` is a placeholder | No-op in store; commands managed by hook | IP-02 (Command Authority) |
 | Race execution is hook-owned | `useRaceSimulation` runs on main thread | IP-04 (Worker Rollout) |
-| Worker contract is not production-ready | `race-sim-worker.ts` exists but unused | IP-03 (Worker Protocol) |
+| Worker execution is not production-wired | Contract hardened in IP-03; runtime switch deferred | IP-04 (Worker Rollout) |
 | Race bootstrap has non-deterministic pieces | Some init paths may vary | IP-01 (Determinism) |
 | No OpenF1 real-data integration | All data is static in `src/data/` | IP-06, IP-07 (OpenF1) |
 | No engineer recommendation system | Not yet implemented | IP-08 (Gameplay Expansion) |

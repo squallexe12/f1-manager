@@ -1,10 +1,13 @@
 import type {
-  WorkerInMessage, WorkerOutMessage, SimSpeed,
-  RaceStrategy, DriverCommand, LapResult, TireState,
+  WorkerInMessage, WorkerOutMessage, WorkerOutEvent, SimSpeed,
+  TireState, TireCompound, RaceStrategy,
 } from '@/types/race'
-import { simulateLap, type SimRaceState, type RaceDriver } from '@/engine/race/race-simulator'
+import { simulateLap, type SimRaceState } from '@/engine/race/race-simulator'
+import { bootstrapRace } from '@/engine/race/race-bootstrap'
+import { applyCommandEnvelopeToSim } from '@/engine/race/race-command-apply'
 import { WeatherEngine } from '@/engine/race/weather'
 import { createPRNG, type PRNG } from '@/engine/core/prng'
+import { buildErrorEvent, isWorkerInMessage } from './race-worker-protocol'
 
 let raceState: SimRaceState | null = null
 let rng: PRNG | null = null
@@ -20,21 +23,31 @@ const TICK_INTERVALS: Record<SimSpeed | string, number> = {
   max: 50,
 }
 
-function postMessage(msg: WorkerOutMessage) {
+function postEvent(msg: WorkerOutMessage): void {
   (self as unknown as Worker).postMessage(msg)
 }
 
-function simulateNextLap() {
+function emitError(event: WorkerOutEvent): void {
+  postEvent(event)
+}
+
+function lastValidLap(): number {
+  return raceState?.currentLap ?? 0
+}
+
+function resolveLabel(compound: TireCompound, compounds?: readonly TireCompound[]): TireState['label'] {
+  if (!compounds) return 'medium'
+  const idx = compounds.indexOf(compound)
+  if (idx === 0) return 'hard'
+  if (idx === 2) return 'soft'
+  return 'medium'
+}
+
+function simulateNextLap(): void {
   if (!raceState || !rng || !weatherEngine || isPaused) return
 
   if (raceState.currentLap >= raceState.totalLaps) {
-    // Race finished
-    const finalResults = raceState.positions.map((driverId, idx) => ({
-      driverId,
-      position: idx + 1,
-    }))
-
-    // Find fastest lap
+    const lastResults = raceState.results[raceState.results.length - 1] ?? []
     let fastestLap = { driverId: '', time: Infinity }
     for (const lapResults of raceState.results) {
       for (const result of lapResults) {
@@ -43,106 +56,197 @@ function simulateNextLap() {
         }
       }
     }
-
-    postMessage({
+    postEvent({
       type: 'raceEnd',
-      finalResults: raceState.results[raceState.results.length - 1] ?? [],
+      finalResults: lastResults,
       fastestLap,
     })
     return
   }
 
-  raceState.currentLap++
-  weatherEngine.tick()
-  raceState.weather = weatherEngine.getForecast(raceState.totalLaps - raceState.currentLap)
+  try {
+    raceState.currentLap++
+    weatherEngine.tick()
+    raceState.weather = weatherEngine.getForecast(raceState.totalLaps - raceState.currentLap)
 
-  const { lapResults, commentary, incidents } = simulateLap(raceState, rng)
+    const { lapResults, commentary, incidents } = simulateLap(raceState, rng)
 
-  raceState.results.push(lapResults)
-  raceState.incidents.push(...incidents)
-  raceState.commentary.push(...commentary)
+    raceState.results.push(lapResults)
+    raceState.incidents.push(...incidents)
+    raceState.commentary.push(...commentary)
 
-  // Gather tire states
-  const tireStates: Record<string, TireState> = { ...raceState.tireStates }
+    postEvent({
+      type: 'lapUpdate',
+      lap: raceState.currentLap,
+      results: lapResults,
+      tireStates: { ...raceState.tireStates },
+      weather: raceState.weather,
+      safetyCar: raceState.safetyCar,
+    })
 
-  postMessage({
-    type: 'lapUpdate',
-    lap: raceState.currentLap,
-    results: lapResults,
-    tireStates,
-    weather: raceState.weather,
-    safetyCar: raceState.safetyCar,
-  })
-
-  if (commentary.length > 0) {
-    postMessage({ type: 'commentary', entries: commentary })
+    if (commentary.length > 0) {
+      postEvent({ type: 'commentary', entries: commentary })
+    }
+    for (const incident of incidents) {
+      postEvent({ type: 'incident', incident })
+    }
+  } catch (err) {
+    emitError(buildErrorEvent(
+      'runtime/simulation-failure',
+      err instanceof Error ? err.message : String(err),
+      true,
+      { canRetry: false, lastValidLap: lastValidLap() },
+    ))
+    return
   }
 
-  for (const incident of incidents) {
-    postMessage({ type: 'incident', incident })
-  }
-
-  // Schedule next lap
   const interval = TICK_INTERVALS[String(simSpeed)] ?? 2000
   tickTimer = setTimeout(simulateNextLap, interval)
 }
 
-self.onmessage = (event: MessageEvent<WorkerInMessage>) => {
-  const msg = event.data
+export function __handleMessage(msg: unknown): void {
+  if (!isWorkerInMessage(msg)) {
+    emitError(buildErrorEvent(
+      'start/invalid-payload',
+      'Inbound worker message failed schema validation',
+      false,
+    ))
+    return
+  }
 
   switch (msg.type) {
     case 'start': {
-      rng = createPRNG(msg.seed)
+      const payload = msg.payload
+      if (!payload.drivers || payload.drivers.length === 0) {
+        emitError(buildErrorEvent(
+          'start/missing-drivers',
+          'start payload must include at least one driver',
+          true,
+        ))
+        return
+      }
+
+      const boot = bootstrapRace({
+        seed: payload.seed,
+        round: payload.round,
+        circuit: payload.circuit,
+        isSprint: payload.isSprint,
+        drivers: payload.drivers,
+        strategies: payload.strategies,
+      })
+
+      rng = createPRNG(boot.raceSeed)
       weatherEngine = new WeatherEngine(
-        msg.raceState.weather.current,
-        'medium', // default variability
-        createPRNG(msg.seed + 1),
+        boot.raceState.weather.current,
+        boot.circuitInfo.weatherVariability,
+        createPRNG(boot.raceSeed + 1),
       )
 
+      const tireStates: Record<string, TireState> = {}
+      for (const s of boot.strategies) {
+        const compound = boot.startCompounds[s.driverId] ?? boot.circuitInfo.compounds[1]
+        tireStates[s.driverId] = {
+          compound,
+          label: resolveLabel(compound, boot.circuitInfo.compounds),
+          wear: 100,
+          lapsFitted: 0,
+        }
+      }
+
+      const strategies: RaceStrategy[] = boot.strategies.map((s) => ({
+        driverId: s.driverId,
+        plannedStops: s.plannedStops.map((stop) => ({ ...stop })),
+        currentCommand: s.currentCommand,
+      }))
+
       raceState = {
-        ...msg.raceState,
-        strategies: msg.strategies,
-        drivers: [] as RaceDriver[], // will be populated by main thread
-        circuit: { tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'medium' },
-        tireStates: {},
-        positions: msg.strategies.map(s => s.driverId),
-      } as unknown as SimRaceState
+        currentLap: boot.raceState.currentLap,
+        totalLaps: boot.raceState.totalLaps,
+        weather: boot.raceState.weather,
+        safetyCar: boot.raceState.safetyCar,
+        trackTemp: boot.raceState.trackTemp,
+        results: [],
+        incidents: [],
+        commentary: [],
+        drivers: boot.raceDrivers,
+        circuit: {
+          tireWear: boot.circuitInfo.tireWear,
+          overtakingDifficulty: boot.circuitInfo.overtakingDifficulty,
+          weatherVariability: boot.circuitInfo.weatherVariability,
+          compounds: boot.circuitInfo.compounds,
+        },
+        strategies,
+        tireStates,
+        positions: strategies.map((s) => s.driverId),
+      }
 
       isPaused = false
+      if (payload.simSpeed !== undefined) simSpeed = payload.simSpeed
+
+      postEvent({
+        type: 'ready',
+        lap: raceState.currentLap,
+        totalLaps: raceState.totalLaps,
+      })
+
       simulateNextLap()
-      break
+      return
     }
 
     case 'setSpeed':
       simSpeed = msg.speed
-      break
+      return
 
     case 'pause':
       isPaused = true
-      if (tickTimer) clearTimeout(tickTimer)
-      break
+      if (tickTimer) {
+        clearTimeout(tickTimer)
+        tickTimer = null
+      }
+      return
 
     case 'resume':
+      if (!raceState) return
       isPaused = false
       simulateNextLap()
-      break
+      return
 
-    case 'command':
-      if (raceState) {
-        const strategy = raceState.strategies.find(s => s.driverId === msg.driverId)
-        if (strategy) {
-          strategy.currentCommand = msg.command
-        }
+    case 'command': {
+      if (!raceState) {
+        emitError(buildErrorEvent(
+          'command/invalid-envelope',
+          'command received before start',
+          false,
+        ))
+        return
       }
-      break
+      const result = applyCommandEnvelopeToSim(raceState, msg.envelope)
+      if (!result.applied) {
+        emitError(buildErrorEvent(
+          'command/unknown-driver',
+          `command for unknown driver ${msg.envelope.driverId}`,
+          false,
+        ))
+      }
+      return
+    }
+  }
+}
 
-    case 'strategyChange':
-      if (raceState) {
-        const idx = raceState.strategies.findIndex(s => s.driverId === msg.driverId)
-        if (idx >= 0) {
-          raceState.strategies[idx] = msg.strategy
-        }
-      }
-      break
+export function __resetForTest(): void {
+  if (tickTimer) clearTimeout(tickTimer)
+  raceState = null
+  rng = null
+  weatherEngine = null
+  simSpeed = 1
+  isPaused = false
+  tickTimer = null
+}
+
+// Wire to Web Worker global scope only when running inside a worker context.
+// Unit tests import this module directly and drive __handleMessage instead.
+if (typeof self !== 'undefined' && typeof (self as { onmessage?: unknown }).onmessage !== 'undefined') {
+  ;(self as unknown as Worker).onmessage = (event: MessageEvent<WorkerInMessage>) => {
+    __handleMessage(event.data)
   }
 }

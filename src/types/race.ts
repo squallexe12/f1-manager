@@ -1,3 +1,6 @@
+import type { CarPerformance } from '@/types/team'
+import type { DriverAttributes } from '@/types/driver'
+
 export type TireCompound = 'C1' | 'C2' | 'C3' | 'C4' | 'C5'
 export type TireLabel = 'hard' | 'medium' | 'soft'
 export type WeatherState = 'dry' | 'damp' | 'wet'
@@ -126,16 +129,93 @@ export type RaceCommandEnvelope =
 
 export type RaceCommandPayload = SetCommandPayload | PitCommandPayload | StrategyChangePayload
 
+// -----------------------------------------------------------------------------
+// Race bootstrap inputs (canonical, JSON-serializable)
+// Shared with the worker `start` payload via strict superset extension.
+// -----------------------------------------------------------------------------
+
+export interface BootstrapDriverInput {
+  id: string
+  teamId: string
+  attributes: DriverAttributes
+  car: CarPerformance
+  teamColor?: string
+}
+
+export interface BootstrapStrategyInput {
+  driverId: string
+  stops: { lap: number; compound: TireCompound }[]
+  startCompound?: TireCompound
+}
+
+export interface RaceBootstrapInput {
+  seed: number
+  round: number
+  circuit: Circuit
+  isSprint: boolean
+  drivers: BootstrapDriverInput[]
+  strategies?: BootstrapStrategyInput[]
+}
+
+// -----------------------------------------------------------------------------
+// Worker protocol (IP-03)
+// -----------------------------------------------------------------------------
+
+export type WorkerErrorCode =
+  | 'start/invalid-payload'
+  | 'start/missing-drivers'
+  | 'command/unknown-driver'
+  | 'command/invalid-envelope'
+  | 'runtime/simulation-failure'
+
+export interface WorkerErrorRecovery {
+  canRetry: boolean
+  lastValidLap: number
+}
+
+/**
+ * Worker `start` payload.
+ * Strict superset of {@link RaceBootstrapInput}: every field of the bootstrap
+ * input is present verbatim, plus worker-only fields that do not belong in the
+ * pure bootstrap shape.
+ */
+export type RaceWorkerStartPayload = RaceBootstrapInput & {
+  /** Optional initial simulation speed (defaults to 1× on the worker). */
+  simSpeed?: SimSpeed
+}
+
 export type WorkerInMessage =
-  | { type: 'start'; raceState: RaceState; strategies: RaceStrategy[]; seed: number }
+  | { type: 'start'; payload: RaceWorkerStartPayload }
   | { type: 'setSpeed'; speed: SimSpeed }
   | { type: 'pause' }
   | { type: 'resume' }
-  | { type: 'command'; driverId: string; command: DriverCommand }
-  | { type: 'strategyChange'; driverId: string; strategy: RaceStrategy }
+  | { type: 'command'; envelope: RaceCommandEnvelope }
 
-export type WorkerOutMessage =
-  | { type: 'lapUpdate'; lap: number; results: LapResult[]; tireStates: Record<string, TireState>; weather: WeatherForecast; safetyCar: string }
+/**
+ * Atomic (non-container) worker output messages.
+ * A `batch` message carries an array of these; batch itself is never nested.
+ */
+export type WorkerOutEvent =
+  | { type: 'ready'; lap: number; totalLaps: number }
+  | {
+      type: 'lapUpdate'
+      lap: number
+      results: LapResult[]
+      tireStates: Record<string, TireState>
+      weather: WeatherForecast
+      safetyCar: RaceState['safetyCar']
+    }
   | { type: 'commentary'; entries: CommentaryEntry[] }
   | { type: 'incident'; incident: RaceIncident }
   | { type: 'raceEnd'; finalResults: LapResult[]; fastestLap: { driverId: string; time: number } }
+  | {
+      type: 'error'
+      code: WorkerErrorCode
+      message: string
+      fatal: boolean
+      recovery?: WorkerErrorRecovery
+    }
+
+export type WorkerOutMessage =
+  | WorkerOutEvent
+  | { type: 'batch'; messages: WorkerOutEvent[] }

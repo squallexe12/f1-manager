@@ -1,33 +1,11 @@
-import type { CarPerformance } from '@/types/team'
-import type { DriverAttributes } from '@/types/driver'
 import type {
   Circuit, RaceState, RaceStrategy, TireCompound, DriverCommand,
+  BootstrapDriverInput, BootstrapStrategyInput, RaceBootstrapInput,
 } from '@/types/race'
 import type { RaceDriver } from './race-simulator'
 import { createPRNG } from '@/engine/core/prng'
 
-export interface BootstrapDriverInput {
-  id: string
-  teamId: string
-  attributes: DriverAttributes
-  car: CarPerformance
-  teamColor?: string
-}
-
-export interface BootstrapStrategyInput {
-  driverId: string
-  stops: { lap: number; compound: TireCompound }[]
-  startCompound?: TireCompound
-}
-
-export interface RaceBootstrapInput {
-  seed: number
-  round: number
-  circuit: Circuit
-  isSprint: boolean
-  drivers: BootstrapDriverInput[]
-  strategies?: BootstrapStrategyInput[]
-}
+export type { BootstrapDriverInput, BootstrapStrategyInput, RaceBootstrapInput }
 
 export interface RaceBootstrapOutput {
   raceState: RaceState
