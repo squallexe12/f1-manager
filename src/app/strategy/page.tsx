@@ -19,8 +19,7 @@ import { CircuitMap } from '@/components/strategy/circuit-map'
 import { RaceTicker } from '@/components/strategy/race-ticker'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { Button } from '@/components/ui/button'
-import type { RaceState, RaceStrategy, DriverCommand, TireCompound } from '@/types/race'
-import type { RaceDriver } from '@/engine/race/race-simulator'
+import { bootstrapRace } from '@/engine/race/race-bootstrap'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 
 export default function StrategyPage() {
@@ -99,60 +98,42 @@ export default function StrategyPage() {
   function handleStartRace() {
     if (!currentRace) return
 
-    // Build initial race state
-    const raceState: RaceState = {
-      currentLap: 0,
-      totalLaps: currentRace.circuit.laps,
-      weather: { current: 'dry', rainProbability: 0.15, changeInLaps: null },
-      safetyCar: 'green',
-      trackTemp: 35 + Math.random() * 15,
-      results: [],
-      incidents: [],
-      commentary: [],
-    }
-
-    // Build strategies and driver data for all drivers
     const allDrivers = drivers.filter((d) => d.teamId && !d.isReserve && !d.isF2)
-    const defaultStops = [{ lap: Math.floor(currentRace.circuit.laps * 0.45), compound: currentRace.circuit.compounds[0] }]
-    const strategies: RaceStrategy[] = allDrivers.map((d) => {
-      const driverPlan = driverStrategies[d.id]
-      const stops = driverPlan ? driverPlan.stops : defaultStops
-      return {
-        driverId: d.id,
-        plannedStops: stops,
-        currentCommand: 'standard' as DriverCommand,
-      }
+
+    const bootstrap = bootstrapRace({
+      seed: state.seed,
+      round: state.currentRound,
+      circuit: currentRace.circuit,
+      isSprint: currentRace.isSprint,
+      drivers: allDrivers.map((d) => {
+        const dTeam = teams.find((t) => t.id === d.teamId)!
+        return {
+          id: d.id,
+          teamId: d.teamId ?? '',
+          attributes: d.attributes,
+          car: dTeam.car,
+        }
+      }),
+      strategies: allDrivers
+        .filter((d) => driverStrategies[d.id] !== undefined)
+        .map((d) => {
+          const plan = driverStrategies[d.id]
+          return {
+            driverId: d.id,
+            stops: plan.stops,
+            startCompound: plan.startCompound,
+          }
+        }),
     })
 
-    // Build RaceDriver array with real car/driver data
-    const raceDrivers: RaceDriver[] = allDrivers.map((d) => {
-      const dTeam = teams.find((t) => t.id === d.teamId)!
-      return {
-        id: d.id,
-        car: { ...dTeam.car },
-        attributes: { ...d.attributes },
-      }
-    })
-
-    const circuitInfo = {
-      tireWear: currentRace.circuit.tireWear,
-      overtakingDifficulty: currentRace.circuit.overtakingDifficulty,
-      weatherVariability: currentRace.circuit.weatherVariability,
-      compounds: currentRace.circuit.compounds,
-    }
-
-    // Build start compound map — use each driver's selected strategy start compound
-    const startCompounds: Record<string, import('@/types/race').TireCompound> = {}
-    for (const d of allDrivers) {
-      const driverPlan = driverStrategies[d.id]
-      if (driverPlan?.startCompound) {
-        startCompounds[d.id] = driverPlan.startCompound
-      } else {
-        startCompounds[d.id] = currentRace.circuit.compounds[1] // default to medium
-      }
-    }
-
-    startRace(raceState, strategies, state.seed + state.currentRound, raceDrivers, circuitInfo, startCompounds)
+    startRace(
+      bootstrap.raceState,
+      bootstrap.strategies,
+      bootstrap.raceSeed,
+      bootstrap.raceDrivers,
+      bootstrap.circuitInfo,
+      bootstrap.startCompounds,
+    )
   }
 
   // Handle practice session start

@@ -1,12 +1,13 @@
 import { create } from 'zustand'
 import type { ScenarioType } from '@/types/game'
-import type { DriverCommand } from '@/types/race'
+import type { DriverCommand, RaceStrategy, TireCompound, RaceCommandEnvelope } from '@/types/race'
 import type { EventConsequence } from '@/types/narrative'
 import { initializeGame, type FullGameState } from '@/engine/core/state-manager'
 import { startUpgrade, pauseUpgrade } from '@/engine/engineering/rnd-engine'
 import { type RaceResult } from '@/engine/core/post-race-processor'
 import { type SeasonEndResult } from '@/engine/core/season-end-processor'
 import { advanceGamePhase, processPostRacePhase, processSeasonEndPhase } from '@/engine/core/orchestrator'
+import { createRaceCommandBus, type RaceCommandBus } from '@/engine/race/race-command-bus'
 
 interface GameStore {
   // State
@@ -14,6 +15,7 @@ interface GameStore {
   eventCooldowns: Record<string, number>
   lastRaceResults: RaceResult[] | null
   lastSeasonEnd: SeasonEndResult | null
+  raceCommandBus: RaceCommandBus
 
   // Actions
   initGame: (teamId: string, scenario: ScenarioType, seed?: number) => void
@@ -22,7 +24,9 @@ interface GameStore {
   processSeasonEnd: () => void
   allocateRnD: (upgradeId: string) => void
   pauseRnD: (upgradeId: string) => void
-  setDriverCommand: (driverId: string, command: DriverCommand) => void
+  setDriverCommand: (driverId: string, command: DriverCommand) => RaceCommandEnvelope
+  requestPit: (driverId: string, compound: TireCompound) => RaceCommandEnvelope
+  changeDriverStrategy: (driverId: string, strategy: RaceStrategy) => RaceCommandEnvelope
   resolveEvent: (eventId: string, optionId: string, consequences: EventConsequence[]) => void
 }
 
@@ -31,6 +35,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   eventCooldowns: {},
   lastRaceResults: null,
   lastSeasonEnd: null,
+  raceCommandBus: createRaceCommandBus(),
 
   initGame: (teamId, scenario, seed) => {
     const gameSeed = seed ?? Math.floor(Math.random() * 1_000_000)
@@ -78,8 +83,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({ world: { ...world, teams } })
   },
 
-  setDriverCommand: (_driverId, _command) => {
-    // Used during race simulation via useRaceSimulation hook
+  setDriverCommand: (driverId, command) => {
+    return get().raceCommandBus.dispatch({
+      type: 'setCommand',
+      driverId,
+      payload: { command },
+    })
+  },
+
+  requestPit: (driverId, compound) => {
+    return get().raceCommandBus.dispatch({
+      type: 'pit',
+      driverId,
+      payload: { compound },
+    })
+  },
+
+  changeDriverStrategy: (driverId, strategy) => {
+    return get().raceCommandBus.dispatch({
+      type: 'strategyChange',
+      driverId,
+      payload: { strategy },
+    })
   },
 
   resolveEvent: (eventId, _optionId, _consequences) => {

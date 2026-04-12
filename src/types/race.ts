@@ -100,6 +100,32 @@ export interface CommentaryEntry {
 
 export type SimSpeed = 1 | 2 | 5 | 'max'
 
+export type RaceCommandType = 'setCommand' | 'pit' | 'strategyChange'
+
+export interface SetCommandPayload {
+  command: DriverCommand
+}
+
+export interface PitCommandPayload {
+  compound: TireCompound
+}
+
+export interface StrategyChangePayload {
+  strategy: RaceStrategy
+}
+
+export type RaceCommand =
+  | { type: 'setCommand'; driverId: string; payload: SetCommandPayload }
+  | { type: 'pit'; driverId: string; payload: PitCommandPayload }
+  | { type: 'strategyChange'; driverId: string; payload: StrategyChangePayload }
+
+export type RaceCommandEnvelope =
+  | { type: 'setCommand'; driverId: string; payload: SetCommandPayload; timestamp: number; sequence: number }
+  | { type: 'pit'; driverId: string; payload: PitCommandPayload; timestamp: number; sequence: number }
+  | { type: 'strategyChange'; driverId: string; payload: StrategyChangePayload; timestamp: number; sequence: number }
+
+export type RaceCommandPayload = SetCommandPayload | PitCommandPayload | StrategyChangePayload
+
 export type WorkerInMessage =
   | { type: 'start'; raceState: RaceState; strategies: RaceStrategy[]; seed: number }
   | { type: 'setSpeed'; speed: SimSpeed }

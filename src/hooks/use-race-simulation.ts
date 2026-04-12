@@ -5,11 +5,14 @@ import type {
   RaceState, RaceStrategy, SimSpeed, DriverCommand,
   LapResult, TireState, WeatherForecast, CommentaryEntry,
   RaceIncident, StrategyOption, BattleForecast, TireCompound,
+  RaceCommandEnvelope,
 } from '@/types/race'
 import { simulateLap, type SimRaceState, type RaceDriver } from '@/engine/race/race-simulator'
 import { WeatherEngine } from '@/engine/race/weather'
 import { createPRNG } from '@/engine/core/prng'
 import { calculateStrategyOptions } from '@/engine/race/pit-strategy'
+import { useGameStore } from '@/stores/game-store'
+import { applyCommandEnvelopeToSim } from '@/engine/race/race-command-apply'
 
 export type RaceSimPhase = 'idle' | 'running' | 'paused' | 'finished'
 
@@ -479,34 +482,38 @@ export function useRaceSimulation({ driverMeta, playerTeamId, onRaceEnd }: UseRa
     simulateNextLap()
   }, [simulateNextLap, runInterpolation])
 
-  const sendCommand = useCallback((driverId: string, command: DriverCommand) => {
-    setState(prev => ({
-      ...prev,
-      driverCommands: { ...prev.driverCommands, [driverId]: command },
-    }))
-    // Update the live sim state
-    if (simStateRef.current) {
-      const strategy = simStateRef.current.strategies.find(s => s.driverId === driverId)
-      if (strategy) {
-        strategy.currentCommand = command
+  // Subscribe to the canonical race command bus and apply envelopes to sim state.
+  // The bus is the single authoritative dispatch path; UI callbacks below route
+  // through store actions, which dispatch here.
+  useEffect(() => {
+    const bus = useGameStore.getState().raceCommandBus
+    return bus.subscribe((envelope: RaceCommandEnvelope) => {
+      const sim = simStateRef.current
+      if (!sim) return
+      const result = applyCommandEnvelopeToSim(sim, envelope)
+      if (!result.applied) return
+      if (envelope.type === 'setCommand') {
+        const next = envelope.payload.command
+        setState(prev => ({
+          ...prev,
+          driverCommands: { ...prev.driverCommands, [envelope.driverId]: next },
+        }))
+      } else if (envelope.type === 'pit') {
+        setState(prev => ({
+          ...prev,
+          driverCommands: { ...prev.driverCommands, [envelope.driverId]: 'pit' },
+        }))
       }
-    }
+    })
+  }, [])
+
+  const sendCommand = useCallback((driverId: string, command: DriverCommand) => {
+    useGameStore.getState().setDriverCommand(driverId, command)
   }, [])
 
   /** Pit a driver with a specific compound */
   const pitWithCompound = useCallback((driverId: string, compound: TireCompound) => {
-    if (simStateRef.current) {
-      const strategy = simStateRef.current.strategies.find(s => s.driverId === driverId)
-      if (strategy) {
-        // Set the compound for the pit stop
-        strategy.plannedStops = [{ lap: simStateRef.current.currentLap, compound }, ...strategy.plannedStops]
-        strategy.currentCommand = 'pit'
-        setState(prev => ({
-          ...prev,
-          driverCommands: { ...prev.driverCommands, [driverId]: 'pit' },
-        }))
-      }
-    }
+    useGameStore.getState().requestPit(driverId, compound)
   }, [])
 
   return {
