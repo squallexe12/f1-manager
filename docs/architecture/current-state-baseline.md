@@ -46,17 +46,17 @@ All orchestrator functions:
 - Have zero side effects
 - Do not access stores, DOM, or browser APIs
 
-### 1.3 Race Runtime
+### 1.3 Race Runtime (post IP-04)
 
-**`src/hooks/use-race-simulation.ts`** currently owns in-race authority:
+Race execution is now **worker-authoritative and store-mediated**:
 
-- Initializes `SimRaceState` from store data when `startRace()` is called
-- Runs lap-by-lap simulation via `simulateLap()` on a `setTimeout` tick loop
-- Manages weather engine, AI strategy decisions, pit stops
-- Handles sub-tick car position interpolation at 60fps via `requestAnimationFrame`
-- Calls `onRaceEnd` callback when race finishes, which triggers `submitRaceResults()` on the store
+- `src/workers/race-sim-worker.ts` owns the lap-by-lap simulation loop, weather engine, and AI strategy decisions. It runs off the main thread.
+- `src/engine/race/race-worker-adapter.ts` wires a `RaceWorkerHandle` to the game store. It translates worker output messages into store mutations and forwards command envelopes from the `raceCommandBus` to the worker.
+- `src/stores/game-store.ts` carries a `raceRuntime` slice (see §3.1 — **OUTSIDE** `world`) that holds all in-race state: phase, lap counters, tire states, commentary, incidents, worker status, last error, final results.
+- `src/hooks/use-race-simulation.ts` is now a thin UI adapter. It reads the runtime slice via Zustand selectors, owns sub-tick interpolation at 60fps (a presentation-only concern), and delegates lifecycle control (`start`, `pause`, `resume`, `setSpeed`) to the adapter.
+- `onRaceEnd` fires from a `useEffect` that watches `phase === 'finished'` — exactly once per race.
 
-The Web Worker at `src/workers/race-sim-worker.ts` exists but is **not wired into production flow**.
+Tier 1 recovery is in place: on a fatal worker error the `raceRuntime.workerStatus` becomes `'error'`, `raceRuntime.lastError` holds the code/message/lastValidLap, and the Strategy page renders a "Restart Race From Lap 1" recovery surface. Tier 2 (mid-race resume from checkpoint) is explicitly out of scope.
 
 ### 1.4 Persistence Layer
 
@@ -99,9 +99,7 @@ All under `src/engine/`, all pure functions with seeded PRNG:
 
 ### 2.1 Race Authority Migration
 
-**Current:** `useRaceSimulation` hook on main thread owns lap simulation, weather, strategy AI, and car position interpolation.
-
-**Target:** Web Worker owns the simulation loop. Main thread receives `lapUpdate` messages via `postMessage`. Store applies updates. Components read via narrow Zustand selectors.
+**Status (post IP-04):** Complete. Web Worker owns the simulation loop. The store applies worker updates to `raceRuntime`. Components read via narrow Zustand selectors. `useRaceSimulation` is a UI adapter around the store; it no longer owns race authority.
 
 ### 2.2 Command Envelope
 
@@ -111,9 +109,9 @@ All under `src/engine/`, all pure functions with seeded PRNG:
 
 ### 2.3 Worker Protocol
 
-**Current (post IP-03):** `WorkerInMessage` / `WorkerOutMessage` are canonical in `src/types/race.ts`. The `start` payload is a strict superset of `RaceBootstrapInput` and the worker runs `bootstrapRace()` internally — no placeholder state. The `command` message embeds `RaceCommandEnvelope` verbatim. Outbound events include `ready`, `lapUpdate`, `commentary`, `incident`, `raceEnd`, typed `error` (with optional `recovery` metadata), and a reserved `batch` container for MAX-speed batching. Message builders and runtime type guards live in `src/workers/race-worker-protocol.ts`. Not yet wired into production execution flow.
+**Status (post IP-04):** Protocol wired into production. The adapter in `src/engine/race/race-worker-adapter.ts` translates worker output events into store slice mutations, forwards command envelopes, and owns worker termination. `batch` messages are flattened and their inner events applied in order. `useRaceSimulation` consumes the store slice and manages adapter lifecycle.
 
-**Target (IP-04):** Main thread mediates worker via store slice, lapUpdate → store → UI. Backpressure via ack at MAX speed using the reserved `batch` container.
+**Deferred:** MAX-speed backpressure via batch-then-ack remains available in the protocol but is not exercised by the current adapter. Revisit if MAX-speed playback reveals dropped frames or queued input lag.
 
 ### 2.4 Bootstrap Determinism
 
@@ -130,12 +128,26 @@ These gaps are frozen as follow-up items for later implementation phases:
 | Gap | Current State | Target Phase |
 |-----|--------------|-------------|
 | `setDriverCommand` is a placeholder | No-op in store; commands managed by hook | IP-02 (Command Authority) |
-| Race execution is hook-owned | `useRaceSimulation` runs on main thread | IP-04 (Worker Rollout) |
-| Worker execution is not production-wired | Contract hardened in IP-03; runtime switch deferred | IP-04 (Worker Rollout) |
+| Race execution is hook-owned | _Resolved IP-04._ Worker owns race authority; hook is a UI adapter | — |
+| Worker execution is not production-wired | _Resolved IP-04._ Adapter wires worker to store | — |
 | Race bootstrap has non-deterministic pieces | Some init paths may vary | IP-01 (Determinism) |
 | No OpenF1 real-data integration | All data is static in `src/data/` | IP-06, IP-07 (OpenF1) |
 | No engineer recommendation system | Not yet implemented | IP-08 (Gameplay Expansion) |
-| Race state not in Zustand store | Lives in hook local state | IP-04 decision: inside or outside world state |
+| Race state not in Zustand store | _Resolved IP-04._ `raceRuntime` slice lives outside `world` (see §3.1) | — |
+
+---
+
+## 3.1 Race Slice Ownership Decision (IP-04)
+
+**Decision:** Option A — the race runtime slice lives **OUTSIDE** `world`.
+
+**Implications:**
+- `setupPersistence()` fires only on `world` reference change. The race runtime slice is a sibling top-level field on the game store, so autosave never captures mid-race state.
+- Mid-race page reloads return the player to the pre-race strategy screen. Resuming a race in-flight is not supported.
+- IP-05 persistence hardening needs **no schema migration** for the race slice: only `world` is serialized.
+- Tier 2 mid-race checkpoint resume is explicitly out of scope. If it is ever adopted, it requires its own snapshot schema and a dedicated migration — it does not retrofit into IP-05.
+
+**Rationale:** Race simulation is a session-scoped activity. Persisting mid-race state would force high-frequency IndexedDB writes during active races (every lap update) without a matching product requirement. The overwhelming majority of player value is captured by post-race results, which flow into `world` via `submitRaceResults()` and therefore are persisted.
 
 ---
 

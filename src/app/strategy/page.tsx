@@ -19,8 +19,8 @@ import { CircuitMap } from '@/components/strategy/circuit-map'
 import { RaceTicker } from '@/components/strategy/race-ticker'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { Button } from '@/components/ui/button'
-import { bootstrapRace } from '@/engine/race/race-bootstrap'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
+import type { RaceWorkerStartPayload } from '@/types/race'
 
 export default function StrategyPage() {
   const router = useRouter()
@@ -100,7 +100,7 @@ export default function StrategyPage() {
 
     const allDrivers = drivers.filter((d) => d.teamId && !d.isReserve && !d.isF2)
 
-    const bootstrap = bootstrapRace({
+    const payload: RaceWorkerStartPayload = {
       seed: state.seed,
       round: state.currentRound,
       circuit: currentRace.circuit,
@@ -124,16 +124,9 @@ export default function StrategyPage() {
             startCompound: plan.startCompound,
           }
         }),
-    })
+    }
 
-    startRace(
-      bootstrap.raceState,
-      bootstrap.strategies,
-      bootstrap.raceSeed,
-      bootstrap.raceDrivers,
-      bootstrap.circuitInfo,
-      bootstrap.startCompounds,
-    )
+    startRace(payload)
   }
 
   // Handle practice session start
@@ -146,6 +139,7 @@ export default function StrategyPage() {
   const phase = state.phase
   const isRaceActive = raceSim.phase === 'running' || raceSim.phase === 'paused'
   const isRaceFinished = raceSim.phase === 'finished'
+  const isRaceErrored = raceSim.workerStatus === 'error' && raceSim.workerError?.fatal === true
 
   // Pre-race phases
   if (phase === 'practice' || phase === 'qualifying' || phase === 'sprint-qualifying') {
@@ -197,6 +191,28 @@ export default function StrategyPage() {
 
   // Race phase — show either the "Start Race" button or the live simulation
   if (phase === 'race' || phase === 'sprint') {
+    if (isRaceErrored) {
+      return (
+        <PageShell>
+          <div className="flex flex-col items-center justify-center gap-4 py-20">
+            <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-[var(--accent-danger,#ff5252)]">
+              Race Simulation Failed
+            </h2>
+            <p className="text-xs text-[var(--text-muted)] max-w-md text-center">
+              The race worker reported a fatal error at lap {raceSim.workerError?.lastValidLap ?? 0}.
+              Restart from lap 1 to continue — mid-race resume is not supported.
+            </p>
+            <p className="text-[10px] text-[var(--text-dim)] font-mono">
+              {raceSim.workerError?.code}: {raceSim.workerError?.message}
+            </p>
+            <Button size="lg" onClick={handleStartRace}>
+              Restart Race From Lap 1
+            </Button>
+          </div>
+        </PageShell>
+      )
+    }
+
     if (!isRaceActive && !isRaceFinished) {
       // Race not started yet — show start button
       return (
