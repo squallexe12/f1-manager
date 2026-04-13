@@ -6,9 +6,10 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 1
+export const AUTO_SAVE_SLOT = 'auto-save'
 
-interface SaveRecord {
+export interface SaveRecord {
   slotId: string
   name: string
   timestamp: number
@@ -16,10 +17,48 @@ interface SaveRecord {
   data: FullGameState
 }
 
-interface SlotInfo {
+export interface SlotInfo {
   slotId: string
   name: string
   timestamp: number
+  schemaVersion: number
+}
+
+/**
+ * Migration map. Each entry upgrades a save written at version `from` to
+ * version `from + 1`. The map is empty for v1 because IP-04 chose Option A
+ * (race runtime slice lives outside `world`), so no schema change was needed.
+ *
+ * Future shape bumps append an entry here. Migrations must be pure and idempotent.
+ */
+export type Migration = (data: FullGameState) => FullGameState
+export const MIGRATIONS: Record<number, Migration> = {}
+
+/**
+ * Applies every registered migration from `fromVersion` up to `SCHEMA_VERSION`
+ * in order. Throws if a save declares a version newer than the runtime knows
+ * about — callers can surface this to the UI as an unsupported save.
+ */
+export function migrateToCurrent(
+  data: FullGameState,
+  fromVersion: number,
+): { data: FullGameState; migrated: boolean } {
+  if (fromVersion > SCHEMA_VERSION) {
+    throw new Error(
+      `Save schema version ${fromVersion} is newer than runtime version ${SCHEMA_VERSION}`,
+    )
+  }
+  let migrated = false
+  let current = data
+  for (let v = fromVersion; v < SCHEMA_VERSION; v++) {
+    const step = MIGRATIONS[v]
+    if (!step) {
+      throw new Error(`No migration registered from schema version ${v} to ${v + 1}`)
+    }
+    current = step(current)
+    migrated = true
+  }
+  return { data: current, migrated }
 }
 
 export class SaveSystem {
@@ -56,7 +95,12 @@ export class SaveSystem {
     if (!record) {
       throw new Error(`No save found in slot: ${slotId}`)
     }
-    return record.data
+    const version = record.schemaVersion ?? 1
+    const { data, migrated } = migrateToCurrent(record.data, version)
+    if (migrated) {
+      await this.saveToSlot(slotId, record.name, data)
+    }
+    return data
   }
 
   async listSlots(): Promise<SlotInfo[]> {
@@ -66,6 +110,7 @@ export class SaveSystem {
       slotId: r.slotId,
       name: r.name,
       timestamp: r.timestamp,
+      schemaVersion: r.schemaVersion ?? 1,
     }))
   }
 
@@ -89,6 +134,6 @@ export class SaveSystem {
   }
 
   async autoSave(state: FullGameState): Promise<void> {
-    await this.saveToSlot('auto-save', 'Auto Save', state)
+    await this.saveToSlot(AUTO_SAVE_SLOT, 'Auto Save', state)
   }
 }

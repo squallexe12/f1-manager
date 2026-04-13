@@ -60,15 +60,17 @@ Tier 1 recovery is in place: on a fatal worker error the `raceRuntime.workerStat
 
 ### 1.4 Persistence Layer
 
-Fully decoupled from store actions after v1.0.1 refactor:
+Fully decoupled from store actions after v1.0.1 refactor and hardened in IP-05:
 
 | Component | File | Responsibility |
 |-----------|------|---------------|
-| `SaveSystem` (class) | `src/engine/core/save-system.ts` | IndexedDB operations: save, load, list, delete slots |
+| `SaveSystem` (class) | `src/engine/core/save-system.ts` | IndexedDB operations + `migrateToCurrent()` entry point for schema evolution |
 | `saveSystem` (singleton) | `src/stores/persistence-setup.ts` | Browser-only `SaveSystem` instance |
-| `setupPersistence()` | `src/stores/persistence-setup.ts` | Zustand subscriber that auto-saves on `world` reference change |
+| `setupPersistence()` | `src/stores/persistence-setup.ts` | Zustand subscriber that auto-saves on `world` reference change; tracks `AutosaveStatus` (save count, error count, last error) observable via `subscribeAutosaveStatus()` |
 | `PersistenceProvider` | React component | Calls `setupPersistence()` once at app boot |
-| `useSaveGame()` | `src/hooks/use-save-game.ts` | Hook for manual save/load UI — reads store imperatively via `getState()` |
+| `useSaveGame()` | `src/hooks/use-save-game.ts` | Hook for manual save/load/delete/import/export — imperative `getState()` reads, exposes `status: { isSaving, isLoading, lastAction, lastError }` |
+
+**Contract reference:** `docs/architecture/persistence-contract.md` documents persisted vs transient fields, autosave trigger rules, schema migration policy, and the IP-04 Option A race-slice interaction.
 
 ### 1.5 UI Layer
 
@@ -176,9 +178,10 @@ These boundaries must be respected by all subsequent implementation phases:
 ### 4.4 Persistence Boundary
 
 - Persistence remains decoupled from store actions.
-- `setupPersistence()` subscriber pattern is the canonical auto-save mechanism.
+- `setupPersistence()` subscriber pattern is the canonical auto-save mechanism; autosave fires on `world` reference change only.
 - `useSaveGame()` hook is the canonical manual save/load mechanism.
-- Schema versioning in `SaveSystem` must be maintained for forward compatibility.
+- Schema versioning in `SaveSystem` must be maintained for forward compatibility via the `MIGRATIONS` map and `migrateToCurrent()` applied on load.
+- All contract details live in `docs/architecture/persistence-contract.md`; any new persisted field must be reflected there.
 
 ### 4.5 Data Layer Contract
 
