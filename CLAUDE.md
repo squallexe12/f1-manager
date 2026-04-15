@@ -1,5 +1,8 @@
 # CLAUDE.md - MISSION CONTROL: F1 Kinetic Command
 
+# Project Constitution
+Read the @AGENTS.md file and execute all my commands in accordance with the architectural rules and pipeline workflows outlined there.
+
 ## Context Navigation
 When you need to understand the codebase, docs, or any files in this project:
 1. ALWAYS query the knowledge graph first: `/graphify query "your question"`
