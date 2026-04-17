@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sync:openf1": "npx --yes tsx scripts/openf1/sync.ts"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",
