@@ -1,6 +1,6 @@
 'use client'
 
-import type { StrategyOption, TireState } from '@/types/race'
+import type { StrategyOption, TireCompound, TireState } from '@/types/race'
 import { DegradationCurve } from '@/components/charts/degradation-curve'
 import { Badge } from '@/components/ui/badge'
 
@@ -9,6 +9,7 @@ interface DriverTireInfo {
   driverName: string
   tireState: TireState | null
   wearHistory: number[]
+  compoundHistory: TireCompound[]
 }
 
 interface TireStrategyProps {
@@ -87,6 +88,7 @@ export function TireStrategy({ drivers, currentLap, options, onSelectStrategy, c
               {d.wearHistory.length > 1 && (
                 <DegradationCurve
                   wearData={d.wearHistory}
+                  compoundData={d.compoundHistory}
                   currentLap={currentLap}
                   pitWindow={pitWindow}
                   compoundLabel={ts.label}

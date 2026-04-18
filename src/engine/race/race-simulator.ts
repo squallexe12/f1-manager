@@ -100,6 +100,17 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     const tire = state.tireStates[driverId]
     const tirePerf = getTirePerformance(tire, tireCal)
 
+    // Auto-trigger planned pit stop when the current lap reaches the next scheduled stop.
+    // Deterministic — driven purely by state, no PRNG involved.
+    const nextPlannedStop = strategy.plannedStops[0]
+    if (
+      nextPlannedStop !== undefined &&
+      state.currentLap >= nextPlannedStop.lap &&
+      strategy.currentCommand !== 'pit'
+    ) {
+      strategy.currentCommand = 'pit'
+    }
+
     const [paceMod, tireMod] = COMMAND_MODIFIERS[strategy.currentCommand]
 
     // Base lap time

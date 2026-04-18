@@ -65,6 +65,7 @@ export interface RaceSimState {
   fastestLap: { driverId: string; time: number } | null
   driverCommands: Record<string, DriverCommand>
   wearHistory: Record<string, number[]>
+  compoundHistory: Record<string, TireCompound[]>
   carPositions: DriverLapProgress[]
   workerStatus: import('@/stores/race-runtime-slice').WorkerStatus
   workerError: import('@/stores/race-runtime-slice').RaceRuntimeError | null
@@ -355,6 +356,7 @@ export function useRaceSimulation({
       fastestLap: runtime.fastestLap,
       driverCommands: runtime.driverCommands,
       wearHistory: runtime.wearHistory,
+      compoundHistory: runtime.compoundHistory,
       carPositions,
       workerStatus: runtime.workerStatus,
       workerError: runtime.lastError,

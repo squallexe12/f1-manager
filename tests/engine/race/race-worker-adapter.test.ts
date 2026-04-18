@@ -252,4 +252,25 @@ describe('IP-04 store-mediated race runtime', () => {
     expect(runtime.wearHistory['drv-a']?.length).toBeGreaterThanOrEqual(1)
     adapter.dispose()
   })
+
+  it('reduceWorkerEvent accumulates compound history parallel to wear history', () => {
+    const handle = createInThreadHandle()
+    const adapter = buildAdapter(handle)
+
+    adapter.start(makeStartPayload())
+    vi.advanceTimersByTime(2001)
+    handle.flush()
+    vi.advanceTimersByTime(2001)
+    handle.flush()
+
+    const runtime = useGameStore.getState().raceRuntime
+    const wearLen = runtime.wearHistory['drv-a']?.length ?? 0
+    expect(runtime.compoundHistory['drv-a']?.length).toBe(wearLen)
+    expect(wearLen).toBeGreaterThanOrEqual(1)
+    // Every entry must be a valid Pirelli compound label
+    for (const c of runtime.compoundHistory['drv-a'] ?? []) {
+      expect(['C1', 'C2', 'C3', 'C4', 'C5']).toContain(c)
+    }
+    adapter.dispose()
+  })
 })

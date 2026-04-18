@@ -83,4 +83,38 @@ describe('race simulator', () => {
 
     expect(pushResult.lapResults[0].lapTime).toBeLessThan(conserveResult.lapResults[0].lapTime)
   })
+
+  it('auto-triggers planned pit stop when currentLap reaches plannedStops[0].lap', () => {
+    const rng = createPRNG(42)
+    const state = mockRaceState()
+    // circuit.compounds needed so the pit branch can resolve the tire label
+    state.circuit.compounds = ['C2', 'C3', 'C4']
+    // Driver d1 has a planned stop on lap 25 for C3; currentLap is 10. Advance to 25.
+    state.currentLap = 25
+    state.strategies[0].plannedStops = [{ lap: 25, compound: 'C3' }]
+    state.strategies[0].currentCommand = 'standard'
+
+    const result = simulateLap(state, rng)
+    const d1Result = result.lapResults.find(r => r.driverId === 'd1')!
+
+    expect(d1Result.pitted).toBe(true)
+    expect(state.tireStates['d1'].compound).toBe('C3')
+    expect(state.tireStates['d1'].wear).toBe(100)
+    expect(state.strategies[0].plannedStops).toHaveLength(0)
+  })
+
+  it('does not auto-pit on laps before the planned stop', () => {
+    const rng = createPRNG(42)
+    const state = mockRaceState()
+    state.circuit.compounds = ['C2', 'C3', 'C4']
+    state.currentLap = 20 // before planned lap 25
+    state.strategies[0].plannedStops = [{ lap: 25, compound: 'C3' }]
+    state.strategies[0].currentCommand = 'standard'
+
+    const result = simulateLap(state, rng)
+    const d1Result = result.lapResults.find(r => r.driverId === 'd1')!
+
+    expect(d1Result.pitted).toBe(false)
+    expect(state.strategies[0].plannedStops).toHaveLength(1)
+  })
 })

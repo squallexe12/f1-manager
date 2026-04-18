@@ -4,6 +4,7 @@ import type {
   LapResult,
   RaceIncident,
   SimSpeed,
+  TireCompound,
   TireState,
   WeatherForecast,
   WorkerErrorCode,
@@ -46,6 +47,7 @@ export interface RaceRuntimeSlice {
   incidents: RaceIncident[]
   driverCommands: Record<string, DriverCommand>
   wearHistory: Record<string, number[]>
+  compoundHistory: Record<string, TireCompound[]>
   simSpeed: SimSpeed
   finalResults: LapResult[] | null
   fastestLap: { driverId: string; time: number } | null
@@ -73,6 +75,7 @@ export function createInitialRaceRuntime(): RaceRuntimeSlice {
     incidents: [],
     driverCommands: {},
     wearHistory: {},
+    compoundHistory: {},
     simSpeed: 1,
     finalResults: null,
     fastestLap: null,
@@ -100,9 +103,12 @@ export function reduceWorkerEvent(
       }
     case 'lapUpdate': {
       const wearHistory = { ...state.wearHistory }
+      const compoundHistory = { ...state.compoundHistory }
       for (const [driverId, tire] of Object.entries(event.tireStates)) {
-        const prior = wearHistory[driverId] ?? []
-        wearHistory[driverId] = [...prior, tire.wear]
+        const priorWear = wearHistory[driverId] ?? []
+        wearHistory[driverId] = [...priorWear, tire.wear]
+        const priorCompound = compoundHistory[driverId] ?? []
+        compoundHistory[driverId] = [...priorCompound, tire.compound]
       }
       return {
         ...state,
@@ -112,6 +118,7 @@ export function reduceWorkerEvent(
         weather: event.weather,
         safetyCar: event.safetyCar,
         wearHistory,
+        compoundHistory,
       }
     }
     case 'commentary':

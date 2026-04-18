@@ -238,6 +238,7 @@ export default function StrategyPage() {
       driverName: d.shortName,
       tireState: raceSim.tireStates[d.id] ?? null,
       wearHistory: raceSim.wearHistory[d.id] ?? [],
+      compoundHistory: raceSim.compoundHistory[d.id] ?? [],
     }))
 
     return (
