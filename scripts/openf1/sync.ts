@@ -12,7 +12,7 @@ import { normalizeCalibrationProfile } from './normalize'
 import type { OpenF1SessionBundle } from './types'
 
 // ---------------------------------------------------------------------------
-// Build-time sync — fetches race sessions from api.openf1.net, normalizes them
+// Build-time sync — fetches race sessions from api.openf1.org, normalizes them
 // into CalibrationProfile JSON files under src/data/calibration/.
 //
 // Runtime engines never call this script; it exists only at build time.
@@ -23,6 +23,7 @@ import type { OpenF1SessionBundle } from './types'
 interface CliArgs {
   year: number
   circuit?: string
+  throttleMs: number
 }
 
 function parseArgs(argv: string[]): CliArgs {
@@ -35,12 +36,18 @@ function parseArgs(argv: string[]): CliArgs {
   if (!Number.isFinite(year)) {
     throw new Error('Invalid --year argument')
   }
-  return { year, circuit: args.circuit }
+  const throttleMs = Number(args.throttleMs ?? 1500)
+  return { year, circuit: args.circuit, throttleMs }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv)
-  const client = createOpenF1Client({})
+  // Higher retry tolerance helps absorb transient 429s from the public API.
+  const client = createOpenF1Client({ retries: 4, retryDelayMs: 1500 })
 
   const __filename = fileURLToPath(import.meta.url)
   const outDir = resolve(dirname(__filename), '../../src/data/calibration')
@@ -51,7 +58,10 @@ async function main(): Promise<void> {
   console.log(`[openf1-sync] Found ${sessions.length} sessions`)
 
   const written: string[] = []
+  const failed: string[] = []
+  let index = 0
   for (const session of sessions) {
+    index++
     const circuitId = mapOpenF1CircuitName(session.circuit_short_name)
     if (!circuitId) {
       console.warn(`[openf1-sync] Skipping unknown circuit: "${session.circuit_short_name}"`)
@@ -66,12 +76,14 @@ async function main(): Promise<void> {
       continue
     }
 
+    // Serialize per-endpoint calls so we don't burst three parallel requests
+    // per session and trip the public API's rate limiter.
     try {
-      const [laps, stints, weather] = await Promise.all([
-        client.getLaps(session.session_key),
-        client.getStints(session.session_key),
-        client.getWeather(session.session_key),
-      ])
+      const laps = await client.getLaps(session.session_key)
+      await sleep(args.throttleMs)
+      const stints = await client.getStints(session.session_key)
+      await sleep(args.throttleMs)
+      const weather = await client.getWeather(session.session_key)
 
       const bundle: OpenF1SessionBundle = {
         circuitId,
@@ -86,13 +98,22 @@ async function main(): Promise<void> {
       const outPath = join(outDir, `${circuitId}.json`)
       await writeFile(outPath, JSON.stringify(profile, null, 2), 'utf-8')
       written.push(circuitId)
-      console.log(`[openf1-sync] Wrote ${outPath}`)
+      console.log(`[openf1-sync] Wrote ${outPath} (${index}/${sessions.length})`)
     } catch (err) {
+      failed.push(circuitId)
       console.error(`[openf1-sync] Failed for circuit=${circuitId}:`, err)
+    }
+
+    if (index < sessions.length) {
+      await sleep(args.throttleMs)
     }
   }
 
   console.log(`[openf1-sync] Done. ${written.length} profile(s) written: ${written.join(', ') || '(none)'}`)
+  if (failed.length > 0) {
+    console.warn(`[openf1-sync] ${failed.length} profile(s) failed: ${failed.join(', ')}`)
+    process.exitCode = 1
+  }
 }
 
 main().catch((err) => {

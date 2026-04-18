@@ -13,8 +13,10 @@ export const OPENF1_CIRCUIT_MAP: Record<string, string> = {
   miami: 'miami',
   imola: 'imola',
   monaco: 'monaco',
+  'monte carlo': 'monaco',
   montreal: 'montreal',
   barcelona: 'barcelona',
+  catalunya: 'barcelona',
   spielberg: 'spielberg',
   'red bull ring': 'spielberg',
   silverstone: 'silverstone',
@@ -30,10 +32,10 @@ export const OPENF1_CIRCUIT_MAP: Record<string, string> = {
   interlagos: 'interlagos',
   'sao paulo': 'interlagos',
   'las vegas': 'las-vegas',
-  lusail: 'losail',
-  losail: 'losail',
-  'yas marina': 'yas-marina',
-  abu_dhabi: 'yas-marina',
+  'yas marina': 'abu-dhabi',
+  'yas marina circuit': 'abu-dhabi',
+  abu_dhabi: 'abu-dhabi',
+  'abu dhabi': 'abu-dhabi',
 }
 
 export function mapOpenF1CircuitName(name: string): string | null {

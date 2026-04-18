@@ -1,6 +1,7 @@
 import type { Circuit } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
 import { createFallbackProfile, deriveCalibrationFromCircuit } from '@/types/calibration'
+import { BUILT_IN_CALIBRATION_PROFILES } from './built-in-profiles'
 
 // ---------------------------------------------------------------------------
 // Runtime calibration registry
@@ -40,6 +41,20 @@ export function listRegisteredCircuits(): string[] {
 export function clearCalibrationRegistry(): void {
   registry.clear()
 }
+
+/**
+ * Re-hydrate the registry from the static built-in profile list. Tests that
+ * need a clean slate can call `clearCalibrationRegistry()`; production code
+ * rarely calls this directly — the hydration runs once at module init below.
+ */
+export function hydrateBuiltInProfiles(): void {
+  for (const profile of BUILT_IN_CALIBRATION_PROFILES) {
+    registerCalibrationProfile(profile)
+  }
+}
+
+// Hydrate once at module init so any importer sees a fully-loaded registry.
+hydrateBuiltInProfiles()
 
 // ---------------------------------------------------------------------------
 // Deep clone — ensures caller mutations don't leak into the registry or vice

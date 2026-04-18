@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { bootstrapRace, deriveRaceSeed, type RaceBootstrapInput } from '@/engine/race/race-bootstrap'
 import type { Circuit } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
+import { clearCalibrationRegistry, hydrateBuiltInProfiles } from '@/data/calibration'
 
 const baseCircuit: Circuit = {
   id: 'bahrain',
@@ -191,11 +192,23 @@ describe('race bootstrap', () => {
   })
 
   it('derives calibration from circuit enums when no override is given', () => {
-    // baseCircuit has tireWear: 'high' and overtakingDifficulty: 'low'
+    // Exercise the fallback path by clearing the built-in registry first;
+    // baseCircuit has tireWear: 'high' and overtakingDifficulty: 'low'.
+    clearCalibrationRegistry()
+    try {
+      const { calibration } = bootstrapRace(makeInput())
+      expect(calibration.source).toBe('fallback')
+      expect(calibration.tires.wearMultiplier).toBeGreaterThan(1.0) // high wear
+      expect(calibration.overtake.overtakeModifier).toBeGreaterThan(1.0) // easy to pass
+    } finally {
+      hydrateBuiltInProfiles()
+    }
+  })
+
+  it('uses a registered OpenF1 profile when the circuit has one loaded', () => {
     const { calibration } = bootstrapRace(makeInput())
-    expect(calibration.source).toBe('fallback')
-    expect(calibration.tires.wearMultiplier).toBeGreaterThan(1.0) // high wear
-    expect(calibration.overtake.overtakeModifier).toBeGreaterThan(1.0) // easy to pass
+    expect(calibration.source).toBe('openf1')
+    expect(calibration.circuitId).toBe('bahrain')
   })
 
   it('respects an explicit calibration override on the input', () => {

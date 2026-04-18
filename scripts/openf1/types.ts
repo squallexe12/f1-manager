@@ -1,7 +1,7 @@
 import type { TireCompound } from '../../src/types/race'
 
 // ---------------------------------------------------------------------------
-// OpenF1 raw API shapes — mirrors api.openf1.net response fields we consume.
+// OpenF1 raw API shapes — mirrors api.openf1.org response fields we consume.
 // Only fields we actually use are declared; unknown fields are ignored.
 // ---------------------------------------------------------------------------
 

@@ -8,12 +8,12 @@ import type {
 // ---------------------------------------------------------------------------
 // OpenF1 HTTP client
 //
-// Thin typed wrapper over api.openf1.net. Dependency-injected fetch keeps the
+// Thin typed wrapper over api.openf1.org. Dependency-injected fetch keeps the
 // client unit-testable without network I/O. Retries use linear backoff to
 // stay gentle with a free public API.
 // ---------------------------------------------------------------------------
 
-const OPENF1_BASE_URL = 'https://api.openf1.net/v1'
+const OPENF1_BASE_URL = 'https://api.openf1.org/v1'
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
 

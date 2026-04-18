@@ -1,0 +1,38 @@
+{
+  "circuitId": "baku",
+  "source": "openf1",
+  "tires": {
+    "degradationRates": {
+      "C1": 0.8,
+      "C2": 0.88,
+      "C3": 4.62,
+      "C4": 0.1,
+      "C5": 2.8
+    },
+    "gripLevels": {
+      "C1": 0.88,
+      "C2": 0.92,
+      "C3": 0.95,
+      "C4": 0.98,
+      "C5": 1
+    },
+    "baseTrackTemp": 35,
+    "wearMultiplier": 1
+  },
+  "weather": {
+    "transitionProbabilities": {
+      "dry": 0.015,
+      "damp": 0.015,
+      "wet": 0.015
+    },
+    "baseRainProbability": 0,
+    "temperatureRange": {
+      "min": 25.7,
+      "max": 28.2
+    }
+  },
+  "overtake": {
+    "overtakeModifier": 1,
+    "drsEffectiveness": 0.5
+  }
+}
