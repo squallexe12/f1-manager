@@ -1,11 +1,6 @@
 import type { WeatherState } from '@/types/race'
+import type { WeatherCalibration } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
-
-const VARIABILITY_CHANCE: Record<string, number> = {
-  low: 0.002,    // ~0.2% per lap
-  medium: 0.015, // ~1.5% per lap
-  high: 0.035,   // ~3.5% per lap
-}
 
 const TRANSITIONS: Record<WeatherState, WeatherState[]> = {
   dry: ['damp'],
@@ -16,21 +11,23 @@ const TRANSITIONS: Record<WeatherState, WeatherState[]> = {
 export class WeatherEngine {
   current: WeatherState
   rainProbability: number
-  private variability: string
+  private calibration: WeatherCalibration
   private rng: PRNG
   private lapsSinceChange: number
 
-  constructor(initial: WeatherState, variability: string, rng: PRNG) {
+  constructor(initial: WeatherState, calibration: WeatherCalibration, rng: PRNG) {
     this.current = initial
-    this.variability = variability
+    this.calibration = calibration
     this.rng = rng
-    this.rainProbability = initial === 'dry' ? 0.1 : initial === 'damp' ? 0.5 : 0.8
+    this.rainProbability = initial === 'dry'
+      ? calibration.baseRainProbability
+      : initial === 'damp' ? 0.5 : 0.8
     this.lapsSinceChange = 0
   }
 
   tick(): void {
     this.lapsSinceChange++
-    const baseChance = VARIABILITY_CHANCE[this.variability] ?? 0.015
+    const baseChance = this.calibration.transitionProbabilities[this.current] ?? 0.015
 
     // Transition probability increases the longer we've been in one state
     const timeFactor = Math.min(2, 1 + this.lapsSinceChange * 0.01)
@@ -43,7 +40,9 @@ export class WeatherEngine {
     }
 
     // Update rain probability based on current state
-    const targetProb = this.current === 'dry' ? 0.1 : this.current === 'damp' ? 0.5 : 0.85
+    const targetProb = this.current === 'dry'
+      ? this.calibration.baseRainProbability
+      : this.current === 'damp' ? 0.5 : 0.85
     this.rainProbability += (targetProb - this.rainProbability) * 0.2
 
     // Add some noise

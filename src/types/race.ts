@@ -1,5 +1,6 @@
 import type { CarPerformance } from '@/types/team'
 import type { DriverAttributes } from '@/types/driver'
+import type { CalibrationProfile } from '@/types/calibration'
 
 export type TireCompound = 'C1' | 'C2' | 'C3' | 'C4' | 'C5'
 export type TireLabel = 'hard' | 'medium' | 'soft'
@@ -155,6 +156,13 @@ export interface RaceBootstrapInput {
   isSprint: boolean
   drivers: BootstrapDriverInput[]
   strategies?: BootstrapStrategyInput[]
+  /**
+   * Optional per-circuit calibration profile. When omitted, the bootstrap
+   * resolves a profile from the OpenF1 registry or derives a fallback from
+   * the circuit's legacy string enums. Exposed on the input so callers
+   * (tests, deterministic replays) can inject a known profile.
+   */
+  calibration?: CalibrationProfile
 }
 
 // -----------------------------------------------------------------------------

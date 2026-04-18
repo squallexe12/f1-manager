@@ -1,5 +1,6 @@
+import type { Circuit } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
-import { createFallbackProfile } from '@/types/calibration'
+import { createFallbackProfile, deriveCalibrationFromCircuit } from '@/types/calibration'
 
 // ---------------------------------------------------------------------------
 // Runtime calibration registry
@@ -20,6 +21,16 @@ export function loadCalibrationProfile(circuitId: string): CalibrationProfile {
   const entry = registry.get(circuitId)
   if (!entry) return createFallbackProfile(circuitId)
   return deepCloneProfile(entry)
+}
+
+/**
+ * Prefer a registered OpenF1 profile. If none exists, derive calibration from
+ * the circuit's legacy string enums so race engines keep pre-IP-06 behavior.
+ */
+export function resolveCalibrationForCircuit(circuit: Circuit): CalibrationProfile {
+  const entry = registry.get(circuit.id)
+  if (entry) return deepCloneProfile(entry)
+  return deriveCalibrationFromCircuit(circuit)
 }
 
 export function listRegisteredCircuits(): string[] {

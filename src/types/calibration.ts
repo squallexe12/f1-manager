@@ -1,4 +1,4 @@
-import type { TireCompound, WeatherState } from './race'
+import type { Circuit, TireCompound, WeatherState } from './race'
 
 // ---------------------------------------------------------------------------
 // Source discriminator — tracks data provenance for IP-07 calibration pipeline
@@ -115,5 +115,55 @@ export function createFallbackProfile(circuitId: string): CalibrationProfile {
       temperatureRange: { ...DEFAULT_WEATHER_CALIBRATION.temperatureRange },
     },
     overtake: { ...DEFAULT_OVERTAKE_CALIBRATION },
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Circuit-derived fallback — maps the legacy string enums
+// (tireWear / overtakingDifficulty / weatherVariability) to calibration
+// values that preserve pre-IP-06 behavior when no OpenF1 profile is loaded.
+// ---------------------------------------------------------------------------
+
+const TIRE_WEAR_MULTIPLIER_BY_LEVEL: Record<'low' | 'medium' | 'high', number> = {
+  low: 0.7,
+  medium: 1.0,
+  high: 1.4,
+}
+
+const WEATHER_VARIABILITY_BY_LEVEL: Record<'low' | 'medium' | 'high', number> = {
+  low: 0.002,
+  medium: 0.015,
+  high: 0.035,
+}
+
+const OVERTAKE_MODIFIER_BY_LEVEL: Record<'low' | 'medium' | 'high', number> = {
+  low: 1.3,
+  medium: 1.0,
+  high: 0.5,
+}
+
+export function deriveCalibrationFromCircuit(circuit: Circuit): CalibrationProfile {
+  const wearMul = TIRE_WEAR_MULTIPLIER_BY_LEVEL[circuit.tireWear]
+  const variability = WEATHER_VARIABILITY_BY_LEVEL[circuit.weatherVariability]
+  const overtakeMod = OVERTAKE_MODIFIER_BY_LEVEL[circuit.overtakingDifficulty]
+
+  return {
+    circuitId: circuit.id,
+    source: 'fallback',
+    tires: {
+      degradationRates: { ...DEFAULT_TIRE_CALIBRATION.degradationRates },
+      gripLevels: { ...DEFAULT_TIRE_CALIBRATION.gripLevels },
+      baseTrackTemp: DEFAULT_TIRE_CALIBRATION.baseTrackTemp,
+      wearMultiplier: wearMul,
+    },
+    weather: {
+      transitionProbabilities: { dry: variability, damp: variability, wet: variability },
+      baseRainProbability: DEFAULT_WEATHER_CALIBRATION.baseRainProbability,
+      temperatureRange: { ...DEFAULT_WEATHER_CALIBRATION.temperatureRange },
+    },
+    overtake: {
+      overtakeModifier: overtakeMod,
+      drsEffectiveness: DEFAULT_OVERTAKE_CALIBRATION.drsEffectiveness,
+    },
   }
 }

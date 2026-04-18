@@ -138,7 +138,7 @@ export function __handleMessage(msg: unknown): void {
       rng = createPRNG(boot.raceSeed)
       weatherEngine = new WeatherEngine(
         boot.raceState.weather.current,
-        boot.circuitInfo.weatherVariability,
+        boot.calibration.weather,
         createPRNG(boot.raceSeed + 1),
       )
 
@@ -175,6 +175,7 @@ export function __handleMessage(msg: unknown): void {
           weatherVariability: boot.circuitInfo.weatherVariability,
           compounds: boot.circuitInfo.compounds,
         },
+        calibration: boot.calibration,
         strategies,
         tireStates,
         positions: strategies.map((s) => s.driverId),

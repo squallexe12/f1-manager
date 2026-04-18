@@ -4,11 +4,13 @@ import type {
   TireCompound, TireState, LapResult, RaceStrategy,
   DriverCommand, CommentaryEntry, RaceIncident, WeatherState,
 } from '@/types/race'
+import type { CalibrationProfile } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
 import { createPRNG } from '@/engine/core/prng'
 import { getTirePerformance, degradeTire } from './tire-model'
 import { calculateOvertakeProbability } from './overtake'
 import { WeatherEngine } from './weather'
+import { resolveCalibrationForCircuit } from '@/data/calibration'
 
 export interface RaceDriver {
   id: string
@@ -27,6 +29,7 @@ export interface SimRaceState {
   commentary: CommentaryEntry[]
   drivers: RaceDriver[]
   circuit: { tireWear: string; overtakingDifficulty: 'low' | 'medium' | 'high'; weatherVariability: string; compounds?: [TireCompound, TireCompound, TireCompound] }
+  calibration: CalibrationProfile
   strategies: RaceStrategy[]
   tireStates: Record<string, TireState>
   positions: string[] // driver IDs in position order
@@ -43,6 +46,7 @@ export interface RaceSetup {
   strategies: RaceStrategy[]
   weather: WeatherState
   gridOrder: string[] // driver IDs in grid position order
+  calibration?: CalibrationProfile
 }
 
 export interface LapSimResult {
@@ -86,13 +90,15 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const incidents: RaceIncident[] = []
 
   const positions = [...state.positions]
+  const tireCal = state.calibration.tires
+  const overtakeCal = state.calibration.overtake
 
   for (let posIdx = 0; posIdx < positions.length; posIdx++) {
     const driverId = positions[posIdx]
     const driver = state.drivers.find(d => d.id === driverId)!
     const strategy = state.strategies.find(s => s.driverId === driverId)!
     const tire = state.tireStates[driverId]
-    const tirePerf = getTirePerformance(tire)
+    const tirePerf = getTirePerformance(tire, tireCal)
 
     const [paceMod, tireMod] = COMMAND_MODIFIERS[strategy.currentCommand]
 
@@ -148,7 +154,7 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       })
     } else {
       // Degrade tires for this lap
-      const newTire = degradeTire(tire, state.circuit, state.trackTemp)
+      const newTire = degradeTire(tire, tireCal, state.trackTemp)
       // Apply extra tire wear from command
       newTire.wear = Math.max(0, newTire.wear - (tireMod - 1) * 1.5)
       state.tireStates[driverId] = newTire
@@ -186,7 +192,7 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       const overtakeResult = calculateOvertakeProbability({
         performanceDelta: timeDelta,
         racecraft: behindDriver.attributes.racecraft,
-        circuitDifficulty: state.circuit.overtakingDifficulty,
+        calibration: overtakeCal,
         tireDelta: (state.tireStates[behindId].wear - state.tireStates[aheadId].wear),
       })
 
@@ -227,7 +233,19 @@ export interface RaceResult {
 
 export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
   const rng = createPRNG(seed)
-  const weatherEngine = new WeatherEngine(setup.weather, setup.circuit.weatherVariability, createPRNG(seed + 1))
+  const calibration = setup.calibration ?? resolveCalibrationForCircuit({
+    id: setup.circuit.id,
+    name: setup.circuit.name,
+    country: '',
+    laps: setup.circuit.laps,
+    downforceLevel: 'medium',
+    tireWear: setup.circuit.tireWear as 'low' | 'medium' | 'high',
+    overtakingDifficulty: setup.circuit.overtakingDifficulty,
+    weatherVariability: setup.circuit.weatherVariability as 'low' | 'medium' | 'high',
+    sectorCount: 3,
+    compounds: setup.circuit.compounds,
+  })
+  const weatherEngine = new WeatherEngine(setup.weather, calibration.weather, createPRNG(seed + 1))
 
   // Initialize tire states (start on first compound in strategy)
   const tireStates: Record<string, TireState> = {}
@@ -254,6 +272,7 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     commentary: [],
     drivers: setup.drivers,
     circuit: setup.circuit,
+    calibration,
     strategies: setup.strategies.map(s => ({ ...s })),
     tireStates,
     positions: setup.gridOrder || setup.drivers.map(d => d.id),

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { bootstrapRace, deriveRaceSeed, type RaceBootstrapInput } from '@/engine/race/race-bootstrap'
 import type { Circuit } from '@/types/race'
+import type { CalibrationProfile } from '@/types/calibration'
 
 const baseCircuit: Circuit = {
   id: 'bahrain',
@@ -178,5 +179,45 @@ describe('race bootstrap', () => {
     const snapshot = JSON.stringify(input)
     bootstrapRace(input)
     expect(JSON.stringify(input)).toBe(snapshot)
+  })
+
+  it('exposes a calibration profile on the output', () => {
+    const { calibration } = bootstrapRace(makeInput())
+    expect(calibration).toBeDefined()
+    expect(calibration.circuitId).toBe(baseCircuit.id)
+    expect(calibration.tires).toBeDefined()
+    expect(calibration.weather).toBeDefined()
+    expect(calibration.overtake).toBeDefined()
+  })
+
+  it('derives calibration from circuit enums when no override is given', () => {
+    // baseCircuit has tireWear: 'high' and overtakingDifficulty: 'low'
+    const { calibration } = bootstrapRace(makeInput())
+    expect(calibration.source).toBe('fallback')
+    expect(calibration.tires.wearMultiplier).toBeGreaterThan(1.0) // high wear
+    expect(calibration.overtake.overtakeModifier).toBeGreaterThan(1.0) // easy to pass
+  })
+
+  it('respects an explicit calibration override on the input', () => {
+    const override: CalibrationProfile = {
+      circuitId: baseCircuit.id,
+      source: 'openf1',
+      tires: {
+        degradationRates: { C1: 0.5, C2: 0.8, C3: 1.2, C4: 1.7, C5: 2.5 },
+        gripLevels: { C1: 0.9, C2: 0.93, C3: 0.96, C4: 0.99, C5: 1.0 },
+        baseTrackTemp: 40,
+        wearMultiplier: 1.2,
+      },
+      weather: {
+        transitionProbabilities: { dry: 0.01, damp: 0.02, wet: 0.03 },
+        baseRainProbability: 0.05,
+        temperatureRange: { min: 25, max: 45 },
+      },
+      overtake: { overtakeModifier: 0.9, drsEffectiveness: 0.6 },
+    }
+    const { calibration } = bootstrapRace(makeInput({ calibration: override }))
+    expect(calibration.source).toBe('openf1')
+    expect(calibration.tires.baseTrackTemp).toBe(40)
+    expect(calibration.overtake.drsEffectiveness).toBe(0.6)
   })
 })

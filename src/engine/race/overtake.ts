@@ -1,8 +1,10 @@
+import type { OvertakeCalibration } from '@/types/calibration'
+
 export interface OvertakeInput {
-  performanceDelta: number // positive = attacker is faster (seconds per lap)
-  racecraft: number        // attacker's racecraft attribute (0-100)
-  circuitDifficulty: 'low' | 'medium' | 'high'
-  tireDelta: number        // positive = attacker has fresher tires (wear difference)
+  performanceDelta: number          // positive = attacker is faster (seconds per lap)
+  racecraft: number                 // attacker's racecraft attribute (0-100)
+  calibration: OvertakeCalibration  // per-circuit overtake modifiers
+  tireDelta: number                 // positive = attacker has fresher tires (wear difference)
 }
 
 export interface OvertakeResult {
@@ -10,16 +12,8 @@ export interface OvertakeResult {
   estimatedLaps: number   // laps until overtake likely
 }
 
-const CIRCUIT_MODIFIER: Record<string, number> = {
-  low: 1.3,    // Easy to overtake (long straights, DRS zones)
-  medium: 1.0,
-  high: 0.5,   // Hard to overtake (narrow, few opportunities)
-}
-
 export function calculateOvertakeProbability(input: OvertakeInput): OvertakeResult {
-  const { performanceDelta, racecraft, circuitDifficulty, tireDelta } = input
-
-  const circuitMod = CIRCUIT_MODIFIER[circuitDifficulty] ?? 1.0
+  const { performanceDelta, racecraft, calibration, tireDelta } = input
 
   // Base probability from performance delta (0.5s delta → ~30% per lap)
   const perfComponent = Math.max(0, performanceDelta) * 0.6
@@ -30,7 +24,7 @@ export function calculateOvertakeProbability(input: OvertakeInput): OvertakeResu
   // Tire advantage (10% wear delta → 0.05 bonus)
   const tireComponent = Math.max(0, tireDelta) * 0.005
 
-  const rawProbability = (perfComponent + racecraftComponent + tireComponent) * circuitMod
+  const rawProbability = (perfComponent + racecraftComponent + tireComponent) * calibration.overtakeModifier
 
   const probability = Math.max(0, Math.min(1, rawProbability))
 

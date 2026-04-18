@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { simulateLap, simulateRace, type SimRaceState, type RaceSetup } from '@/engine/race/race-simulator'
 import { createPRNG } from '@/engine/core/prng'
 import type { TireCompound, RaceStrategy } from '@/types/race'
+import { createFallbackProfile } from '@/types/calibration'
 
 function mockDrivers() {
   return [
@@ -33,6 +34,7 @@ function mockRaceState(): SimRaceState {
     commentary: [],
     drivers,
     circuit: { tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low' },
+    calibration: createFallbackProfile('test-circuit'),
     strategies: mockStrategies(drivers),
     tireStates: Object.fromEntries(drivers.map(d => [d.id, { compound: 'C3' as TireCompound, label: 'medium' as const, wear: 72, lapsFitted: 10 }])),
     positions: drivers.map(d => d.id),

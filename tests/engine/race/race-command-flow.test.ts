@@ -3,6 +3,7 @@ import { createRaceCommandBus } from '@/engine/race/race-command-bus'
 import { applyCommandEnvelopeToSim } from '@/engine/race/race-command-apply'
 import type { RaceCommandEnvelope, RaceStrategy } from '@/types/race'
 import type { SimRaceState } from '@/engine/race/race-simulator'
+import { createFallbackProfile } from '@/types/calibration'
 
 function makeSim(): SimRaceState {
   const strategies: RaceStrategy[] = [
@@ -20,6 +21,7 @@ function makeSim(): SimRaceState {
     commentary: [],
     drivers: [],
     circuit: { tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'medium' },
+    calibration: createFallbackProfile('test-circuit'),
     strategies,
     tireStates: {},
     positions: ['d1', 'd2'],

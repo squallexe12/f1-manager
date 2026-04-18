@@ -2,8 +2,10 @@ import type {
   Circuit, RaceState, RaceStrategy, TireCompound, DriverCommand,
   BootstrapDriverInput, BootstrapStrategyInput, RaceBootstrapInput,
 } from '@/types/race'
+import type { CalibrationProfile } from '@/types/calibration'
 import type { RaceDriver } from './race-simulator'
 import { createPRNG } from '@/engine/core/prng'
+import { resolveCalibrationForCircuit } from '@/data/calibration'
 
 export type { BootstrapDriverInput, BootstrapStrategyInput, RaceBootstrapInput }
 
@@ -18,6 +20,7 @@ export interface RaceBootstrapOutput {
     weatherVariability: Circuit['weatherVariability']
     compounds: Circuit['compounds']
   }
+  calibration: CalibrationProfile
   raceSeed: number
 }
 
@@ -29,16 +32,20 @@ export function deriveRaceSeed(seed: number, round: number): number {
 }
 
 export function bootstrapRace(input: RaceBootstrapInput): RaceBootstrapOutput {
-  const { seed, round, circuit, drivers, strategies } = input
+  const { seed, round, circuit, drivers, strategies, calibration: calibrationOverride } = input
 
   const raceSeed = deriveRaceSeed(seed, round)
   const prng = createPRNG(raceSeed ^ 0x9e3779b9)
   const trackTemp = MIN_TRACK_TEMP + prng.next() * (MAX_TRACK_TEMP - MIN_TRACK_TEMP)
 
+  const calibration: CalibrationProfile = calibrationOverride
+    ? JSON.parse(JSON.stringify(calibrationOverride)) as CalibrationProfile
+    : resolveCalibrationForCircuit(circuit)
+
   const raceState: RaceState = {
     currentLap: 0,
     totalLaps: circuit.laps,
-    weather: { current: 'dry', rainProbability: 0.15, changeInLaps: null },
+    weather: { current: 'dry', rainProbability: calibration.weather.baseRainProbability, changeInLaps: null },
     safetyCar: 'green',
     trackTemp,
     results: [],
@@ -81,6 +88,7 @@ export function bootstrapRace(input: RaceBootstrapInput): RaceBootstrapOutput {
       weatherVariability: circuit.weatherVariability,
       compounds: circuit.compounds,
     },
+    calibration,
     raceSeed,
   }
 }
