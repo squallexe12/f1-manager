@@ -333,6 +333,7 @@ export default function StrategyPage() {
                 drivers={playerTireDrivers}
                 currentLap={raceSim.currentLap}
                 options={raceSim.strategies}
+                circuitCompounds={currentRace?.circuit.compounds ?? ['C1', 'C2', 'C3']}
                 onSelectStrategy={(opt) => {
                   if (playerDrivers[0]) pitWithCompound(playerDrivers[0].id, opt.newCompound)
                 }}

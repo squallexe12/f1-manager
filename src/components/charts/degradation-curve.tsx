@@ -1,10 +1,13 @@
 import type { TireCompound } from '@/types/race'
+import { ROLE_COLORS, colorForCompound } from '@/components/tire-roles'
 
 interface DegradationCurveProps {
   /** Array of wear values (0-100) per lap */
   wearData: number[]
   /** Compound fitted at each lap (parallel to wearData). Drives per-stint coloring. */
   compoundData?: TireCompound[]
+  /** The 3 compounds Pirelli picked for this race, hardest→softest. Drives role-based coloring. */
+  circuitCompounds?: readonly TireCompound[]
   /** Current lap index (0-based) */
   currentLap: number
   /** Lap range for pit window [start, end] */
@@ -16,19 +19,10 @@ interface DegradationCurveProps {
   className?: string
 }
 
-// Pirelli compound colors — hard=white, medium=yellow, soft=red
-const COMPOUND_HEX: Record<TireCompound, string> = {
-  C1: '#FFFFFF',
-  C2: '#FFFFFF',
-  C3: '#FFC800',
-  C4: '#FF3B30',
-  C5: '#FF3B30',
-}
-
 const LEGACY_LABEL_HEX: Record<string, string> = {
-  hard: '#FFFFFF',
-  medium: '#FFC800',
-  soft: '#FF3B30',
+  hard: ROLE_COLORS.hard,
+  medium: ROLE_COLORS.medium,
+  soft: ROLE_COLORS.soft,
 }
 
 interface Stint {
@@ -54,6 +48,7 @@ function buildStints(compounds: TireCompound[]): Stint[] {
 export function DegradationCurve({
   wearData,
   compoundData,
+  circuitCompounds,
   currentLap,
   pitWindow,
   compoundColor,
@@ -77,14 +72,16 @@ export function DegradationCurve({
   const stints: Stint[] = compoundData && compoundData.length === totalLaps
     ? buildStints(compoundData)
     : [{ startIdx: 0, endIdx: totalLaps - 1, compound: 'C3' }]
-  const useCompoundColors = Boolean(compoundData && compoundData.length === totalLaps)
+  const useCompoundColors = Boolean(
+    compoundData && compoundData.length === totalLaps && circuitCompounds && circuitCompounds.length === 3
+  )
 
   const currentWear = currentLap < totalLaps ? wearData[currentLap] : wearData[totalLaps - 1]
   const currentCompound = compoundData && currentLap < compoundData.length
     ? compoundData[currentLap]
     : compoundData?.[compoundData.length - 1]
-  const currentDotColor = useCompoundColors && currentCompound
-    ? COMPOUND_HEX[currentCompound]
+  const currentDotColor = useCompoundColors && currentCompound && circuitCompounds
+    ? colorForCompound(currentCompound, circuitCompounds)
     : fallbackColor
 
   return (
@@ -124,7 +121,9 @@ export function DegradationCurve({
 
         {/* Per-stint segments — each stint gets its compound color */}
         {stints.map((stint, idx) => {
-          const color = useCompoundColors ? COMPOUND_HEX[stint.compound] : fallbackColor
+          const color = useCompoundColors && circuitCompounds
+            ? colorForCompound(stint.compound, circuitCompounds)
+            : fallbackColor
           const pts: string[] = []
           for (let i = stint.startIdx; i <= stint.endIdx; i++) {
             pts.push(`${xScale(i)},${yScale(wearData[i])}`)

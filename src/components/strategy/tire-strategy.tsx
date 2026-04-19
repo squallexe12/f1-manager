@@ -3,6 +3,7 @@
 import type { StrategyOption, TireCompound, TireState } from '@/types/race'
 import { DegradationCurve } from '@/components/charts/degradation-curve'
 import { Badge } from '@/components/ui/badge'
+import { colorForCompound } from '@/components/tire-roles'
 
 interface DriverTireInfo {
   driverId: string
@@ -16,6 +17,7 @@ interface TireStrategyProps {
   drivers: DriverTireInfo[]
   currentLap: number
   options: StrategyOption[]
+  circuitCompounds: readonly TireCompound[]
   onSelectStrategy?: (option: StrategyOption) => void
   className?: string
 }
@@ -26,11 +28,7 @@ const STRATEGY_BADGES: Record<string, 'lime' | 'cyan' | 'amber'> = {
   overcut: 'amber',
 }
 
-const COMPOUND_COLORS: Record<string, string> = {
-  C1: '#FFFFFF', C2: '#FFC800', C3: '#FF3B30', C4: '#FF3B30', C5: '#FF3B30',
-}
-
-export function TireStrategy({ drivers, currentLap, options, onSelectStrategy, className = '' }: TireStrategyProps) {
+export function TireStrategy({ drivers, currentLap, options, circuitCompounds, onSelectStrategy, className = '' }: TireStrategyProps) {
   const pitWindow = options.length >= 3
     ? [options[0].pitLap, options[2].pitLap] as [number, number]
     : undefined
@@ -58,7 +56,7 @@ export function TireStrategy({ drivers, currentLap, options, onSelectStrategy, c
                 <div className="flex items-center gap-1.5">
                   <div
                     className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: COMPOUND_COLORS[ts.compound] ?? '#888' }}
+                    style={{ backgroundColor: colorForCompound(ts.compound, circuitCompounds) }}
                   />
                   <span className="text-[10px] font-mono text-[var(--text-muted)]">{ts.compound}</span>
                 </div>
@@ -89,6 +87,7 @@ export function TireStrategy({ drivers, currentLap, options, onSelectStrategy, c
                 <DegradationCurve
                   wearData={d.wearHistory}
                   compoundData={d.compoundHistory}
+                  circuitCompounds={circuitCompounds}
                   currentLap={currentLap}
                   pitWindow={pitWindow}
                   compoundLabel={ts.label}

@@ -1,6 +1,7 @@
 'use client'
 
 import type { Race, TireCompound } from '@/types/race'
+import { colorForCompound } from '@/components/tire-roles'
 import type { Driver } from '@/types/driver'
 import type { Team } from '@/types/team'
 import type { CalibrationProfile } from '@/types/calibration'
@@ -80,7 +81,12 @@ export function PreRaceSetup({ race, playerTeam, playerDrivers, phase, onStartSe
         </h3>
         <div className="flex gap-3">
           {race.circuit.compounds.map((compound, i) => (
-            <CompoundChip key={compound} compound={compound} label={compoundLabels[i] ?? ''} />
+            <CompoundChip
+              key={compound}
+              compound={compound}
+              label={compoundLabels[i] ?? ''}
+              circuitCompounds={race.circuit.compounds}
+            />
           ))}
         </div>
       </div>
@@ -180,12 +186,16 @@ export function PreRaceSetup({ race, playerTeam, playerDrivers, phase, onStartSe
   )
 }
 
-function CompoundChip({ compound, label }: { compound: TireCompound; label: string }) {
-  const COMPOUND_COLORS: Record<string, string> = {
-    C1: '#FFFFFF', C2: '#FFC800', C3: '#FF3B30',
-    C4: '#FF3B30', C5: '#FF3B30',
-  }
-  const color = COMPOUND_COLORS[compound] ?? '#888'
+function CompoundChip({
+  compound,
+  label,
+  circuitCompounds,
+}: {
+  compound: TireCompound
+  label: string
+  circuitCompounds: readonly TireCompound[]
+}) {
+  const color = colorForCompound(compound, circuitCompounds)
 
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-white/[0.03] rounded-md border border-white/[0.06]">

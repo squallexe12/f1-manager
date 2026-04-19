@@ -5,6 +5,7 @@ import type { Race, TireCompound } from '@/types/race'
 import type { Driver } from '@/types/driver'
 import type { Team } from '@/types/team'
 import { Badge } from '@/components/ui/badge'
+import { colorForCompound, labelForCompound } from '@/components/tire-roles'
 
 export interface StrategyPlan {
   id: string
@@ -28,18 +29,11 @@ interface StrategyPlannerProps {
   className?: string
 }
 
-const COMPOUND_COLORS: Record<string, string> = {
-  C1: '#FFFFFF', C2: '#FFC800', C3: '#FF3B30', C4: '#FF3B30', C5: '#FF3B30',
-}
-
-const COMPOUND_LABELS: Record<string, string> = {
-  C1: 'Hard', C2: 'Medium', C3: 'Soft', C4: 'Soft', C5: 'Ultra',
-}
-
 function generateStrategies(race: Race): StrategyPlan[] {
   const { circuit } = race
   const laps = circuit.laps
   const compounds = circuit.compounds
+  const lbl = (c: TireCompound) => labelForCompound(c, compounds)
 
   const tireWearFactor = circuit.tireWear === 'high' ? 1.4 : circuit.tireWear === 'medium' ? 1.0 : 0.7
 
@@ -47,7 +41,7 @@ function generateStrategies(race: Race): StrategyPlan[] {
   const oneStop: StrategyPlan = {
     id: 'one-stop-optimal',
     name: 'Optimal 1-Stop',
-    description: `Start ${COMPOUND_LABELS[compounds[1]]}s, pit lap ${oneStopLap} → ${COMPOUND_LABELS[compounds[0]]}s`,
+    description: `Start ${lbl(compounds[1])}s, pit lap ${oneStopLap} → ${lbl(compounds[0])}s`,
     stops: [{ lap: oneStopLap, compound: compounds[0] }],
     startCompound: compounds[1],
     confidence: tireWearFactor <= 1.0 ? 85 : 70,
@@ -59,7 +53,7 @@ function generateStrategies(race: Race): StrategyPlan[] {
   const aggressive: StrategyPlan = {
     id: 'aggressive-1stop',
     name: 'Aggressive 1-Stop',
-    description: `Start ${COMPOUND_LABELS[compounds[2]]}s, pit lap ${aggressiveStopLap} → ${COMPOUND_LABELS[compounds[0]]}s`,
+    description: `Start ${lbl(compounds[2])}s, pit lap ${aggressiveStopLap} → ${lbl(compounds[0])}s`,
     stops: [{ lap: aggressiveStopLap, compound: compounds[0] }],
     startCompound: compounds[2],
     confidence: 65,
@@ -72,7 +66,7 @@ function generateStrategies(race: Race): StrategyPlan[] {
   const twoStop: StrategyPlan = {
     id: 'two-stop',
     name: '2-Stop Strategy',
-    description: `Start ${COMPOUND_LABELS[compounds[2]]}s → L${twoStop1} ${COMPOUND_LABELS[compounds[1]]}s → L${twoStop2} ${COMPOUND_LABELS[compounds[0]]}s`,
+    description: `Start ${lbl(compounds[2])}s → L${twoStop1} ${lbl(compounds[1])}s → L${twoStop2} ${lbl(compounds[0])}s`,
     stops: [
       { lap: twoStop1, compound: compounds[1] },
       { lap: twoStop2, compound: compounds[0] },
@@ -87,7 +81,7 @@ function generateStrategies(race: Race): StrategyPlan[] {
   const undercut: StrategyPlan = {
     id: 'undercut',
     name: 'Undercut',
-    description: `Start ${COMPOUND_LABELS[compounds[1]]}s, early pit L${undercutLap} → ${COMPOUND_LABELS[compounds[2]]}s`,
+    description: `Start ${lbl(compounds[1])}s, early pit L${undercutLap} → ${lbl(compounds[2])}s`,
     stops: [{ lap: undercutLap, compound: compounds[2] }],
     startCompound: compounds[1],
     confidence: 55,
@@ -203,10 +197,10 @@ export function StrategyPlanner({ race, team, playerDrivers, onSelectStrategies,
 
             {/* Stint bar */}
             <div className="flex h-2.5 rounded-full overflow-hidden bg-white/[0.04]">
-              <StintBar compound={plan.startCompound} startLap={0} endLap={plan.stops[0]?.lap ?? race.circuit.laps} totalLaps={race.circuit.laps} />
+              <StintBar compound={plan.startCompound} startLap={0} endLap={plan.stops[0]?.lap ?? race.circuit.laps} totalLaps={race.circuit.laps} circuitCompounds={race.circuit.compounds} />
               {plan.stops.map((stop, i) => {
                 const nextEnd = plan.stops[i + 1]?.lap ?? race.circuit.laps
-                return <StintBar key={i} compound={stop.compound} startLap={stop.lap} endLap={nextEnd} totalLaps={race.circuit.laps} />
+                return <StintBar key={i} compound={stop.compound} startLap={stop.lap} endLap={nextEnd} totalLaps={race.circuit.laps} circuitCompounds={race.circuit.compounds} />
               })}
             </div>
           </button>
@@ -216,13 +210,13 @@ export function StrategyPlanner({ race, team, playerDrivers, onSelectStrategies,
   )
 }
 
-function StintBar({ compound, startLap, endLap, totalLaps }: { compound: TireCompound; startLap: number; endLap: number; totalLaps: number }) {
+function StintBar({ compound, startLap, endLap, totalLaps, circuitCompounds }: { compound: TireCompound; startLap: number; endLap: number; totalLaps: number; circuitCompounds: readonly TireCompound[] }) {
   const width = ((endLap - startLap) / totalLaps) * 100
   return (
     <div
       className="h-full"
-      style={{ width: `${width}%`, backgroundColor: COMPOUND_COLORS[compound] ?? '#888', opacity: 0.7 }}
-      title={`${COMPOUND_LABELS[compound] ?? compound}: Lap ${startLap}-${endLap}`}
+      style={{ width: `${width}%`, backgroundColor: colorForCompound(compound, circuitCompounds), opacity: 0.7 }}
+      title={`${labelForCompound(compound, circuitCompounds)}: Lap ${startLap}-${endLap}`}
     />
   )
 }
