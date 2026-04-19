@@ -211,29 +211,28 @@ export function CircuitMap({ circuitId, circuitName, currentLap, totalLaps, driv
   const lapProgress = totalLaps > 0 ? (currentLap / totalLaps) * 100 : 0
 
   return (
-    <div className={`flex flex-col gap-3 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-heading font-bold uppercase tracking-wider text-[var(--text-primary)]">
+    <div className={`flex flex-col gap-3 bg-surface-paper border border-line-sub rounded-rad overflow-hidden ${className}`}>
+      {/* Track header */}
+      <div className="flex items-center justify-between px-3 pt-3">
+        <h3 className="font-display font-bold text-[13px] uppercase tracking-[0.06em] text-ink-hi">
           {circuitName}
         </h3>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-mono font-bold text-[var(--accent-lime)]">
+        <div className="flex items-center gap-2">
+          <span className="font-mono font-bold text-[11px] text-sig-red">
             LAP {currentLap}
           </span>
-          <span className="text-xs font-mono text-[var(--text-dim)]">
+          <span className="font-mono text-[11px] text-ink-dim">
             / {totalLaps}
           </span>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+      {/* Lap progress bar */}
+      <div className="mx-3 h-[3px] bg-surface-hi rounded-[1px] overflow-hidden">
         <div
-          className="h-full rounded-full"
+          className="h-full bg-sig-red rounded-[1px]"
           style={{
             width: `${lapProgress}%`,
-            background: 'linear-gradient(90deg, var(--accent-lime), var(--accent-cyan))',
             transition: 'width 0.8s ease-out',
           }}
         />
@@ -242,7 +241,7 @@ export function CircuitMap({ circuitId, circuitName, currentLap, totalLaps, driv
       {/* Track map with image + canvas overlay */}
       <div
         ref={containerRef}
-        className="relative w-full rounded-xl overflow-hidden border border-[var(--border-default)]"
+        className="relative w-full overflow-hidden border-t border-line-hair"
         style={{ aspectRatio: '1252 / 704' }}
       >
         {/* Track image background */}
@@ -254,7 +253,7 @@ export function CircuitMap({ circuitId, circuitName, currentLap, totalLaps, driv
         />
 
         {/* Subtle dark overlay for contrast with car dots */}
-        <div className="absolute inset-0 bg-black/20" />
+        <div className="absolute inset-0 bg-black/25" />
 
         {/* Canvas for animated car dots */}
         <canvas
@@ -264,38 +263,41 @@ export function CircuitMap({ circuitId, circuitName, currentLap, totalLaps, driv
         />
 
         {/* Lap counter overlay */}
-        <div className="absolute top-3 left-3 bg-black/60 backdrop-blur-sm rounded-md px-3 py-1.5">
-          <span className="text-xs font-mono font-bold text-[var(--accent-lime)]">
+        <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm rounded-rad px-2.5 py-1">
+          <span className="font-mono font-bold text-[10px] text-sig-red">
             LAP {currentLap}/{totalLaps}
           </span>
         </div>
 
-        {/* Speed indicator */}
-        <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm rounded-md px-3 py-1.5">
-          <span className="text-[10px] font-mono text-[var(--text-secondary)]">
+        {/* Car count indicator */}
+        <div className="absolute top-2 right-2 bg-black/70 backdrop-blur-sm rounded-rad px-2.5 py-1">
+          <span className="font-mono text-[10px] text-ink-mute">
             {drivers.length} CARS
           </span>
         </div>
       </div>
 
       {/* Player positions legend */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between px-3 pb-3 border-t border-line-hair pt-2">
         <div className="flex items-center gap-4">
           {carPositions.filter(c => c.isPlayer).map(c => (
             <div key={c.driverId} className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: c.teamColor, boxShadow: `0 0 6px ${c.teamColor}40` }} />
-              <span className="text-xs font-mono font-semibold text-[var(--accent-lime)]">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: c.teamColor, boxShadow: `0 0 6px ${c.teamColor}60` }}
+              />
+              <span className="font-mono font-semibold text-[10px] text-sig-red">
                 P{c.position}
               </span>
-              <span className="text-xs font-heading text-[var(--text-secondary)]">
+              <span className="font-mono text-[10px] text-ink-body">
                 {c.driverName}
               </span>
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-2 text-[9px] font-mono text-[var(--text-dim)]">
-          <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent-lime)]" />
-          <span>Your team</span>
+        <div className="flex items-center gap-1.5 font-mono text-[9px] text-ink-dim">
+          <div className="w-1.5 h-1.5 rounded-full bg-sig-red" />
+          <span>YOUR TEAM</span>
         </div>
       </div>
     </div>

@@ -4,15 +4,21 @@ import { NavBar } from './nav-bar'
 
 interface PageShellProps {
   children: ReactNode
+  theme?: 'kinetic' | 'broadcast'
 }
 
-export function PageShell({ children }: PageShellProps) {
+export function PageShell({ children, theme = 'kinetic' }: PageShellProps) {
+  const isBroadcast = theme === 'broadcast'
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
+    <div data-theme={theme} className="min-h-screen bg-[var(--surface-void)]">
       {/* Skip to content link for keyboard users */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:bg-[var(--accent-lime)] focus:text-[#0A0A0A] focus:rounded focus:text-sm focus:font-heading focus:font-bold"
+        className={`sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:px-4 focus:py-2 focus:rounded focus:text-sm focus:font-heading focus:font-bold ${
+          isBroadcast
+            ? 'focus:bg-[var(--sig-amber)] focus:text-[var(--bg-void)]'
+            : 'focus:bg-[var(--accent-lime)] focus:text-[#0A0A0A]'
+        }`}
       >
         Skip to content
       </a>

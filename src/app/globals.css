@@ -18,6 +18,46 @@
   --font-heading: var(--font-heading);
   --font-body: var(--font-body);
   --font-mono: var(--font-mono);
+
+  /* --- Broadcast theme tokens --- */
+
+  /* Broadcast surface scale */
+  --color-surface-void:   var(--surface-void);
+  --color-surface-base:   var(--surface-base);
+  --color-surface-paper:  var(--surface-paper);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hi:     var(--surface-hi);
+
+  /* Broadcast lines */
+  --color-line-hair:   var(--line-hair);
+  --color-line-sub:    var(--line-sub);
+  --color-line-strong: var(--line-strong);
+
+  /* Broadcast ink */
+  --color-ink-dim:  var(--ink-dim);
+  --color-ink-mute: var(--ink-mute);
+  --color-ink-body: var(--ink-body);
+  --color-ink-hi:   var(--ink-hi);
+
+  /* Broadcast signal */
+  --color-sig-red:     var(--sig-red);
+  --color-sig-red-dk:  var(--sig-red-dk);
+  --color-sig-amber:   var(--sig-amber);
+  --color-sig-green:   var(--sig-green);
+  --color-sig-cyan:    var(--sig-cyan);
+  --color-sig-purple:  var(--sig-purple);
+  --color-sig-pink:    var(--sig-pink);
+
+  /* Tire compounds */
+  --color-c-soft:  var(--c-soft);
+  --color-c-med:   var(--c-med);
+  --color-c-hard:  var(--c-hard);
+  --color-c-inter: var(--c-inter);
+  --color-c-wet:   var(--c-wet);
+
+  /* Broadcast typography + radius */
+  --font-display: var(--font-display);
+  --radius-rad: var(--rad);
 }
 
 * {

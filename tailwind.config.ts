@@ -5,6 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // ─── Existing Kinetic bindings — PRESERVED, consumed by non-Strategy pages ───
         bg: {
           primary: 'var(--bg-primary)',
           secondary: 'var(--bg-secondary)',
@@ -27,11 +28,50 @@ const config: Config = {
           muted: 'var(--text-muted)',
           dim: 'var(--text-dim)',
         },
+        // ─── New Broadcast bindings — ADDED, consumed only by Strategy components ───
+        surface: {
+          void:   'var(--surface-void)',
+          base:   'var(--surface-base)',
+          paper:  'var(--surface-paper)',
+          raised: 'var(--surface-raised)',
+          hi:     'var(--surface-hi)',
+        },
+        line: {
+          hair:   'var(--line-hair)',
+          sub:    'var(--line-sub)',
+          strong: 'var(--line-strong)',
+        },
+        ink: {
+          dim:  'var(--ink-dim)',
+          mute: 'var(--ink-mute)',
+          body: 'var(--ink-body)',
+          hi:   'var(--ink-hi)',
+        },
+        sig: {
+          red:      'var(--sig-red)',
+          'red-dk': 'var(--sig-red-dk)',
+          amber:    'var(--sig-amber)',
+          green:    'var(--sig-green)',
+          cyan:     'var(--sig-cyan)',
+          purple:   'var(--sig-purple)',
+          pink:     'var(--sig-pink)',
+        },
+        c: {
+          soft:  'var(--c-soft)',
+          med:   'var(--c-med)',
+          hard:  'var(--c-hard)',
+          inter: 'var(--c-inter)',
+          wet:   'var(--c-wet)',
+        },
       },
       fontFamily: {
-        heading: ['var(--font-heading)'],
-        body: ['var(--font-body)'],
-        mono: ['var(--font-mono)'],
+        heading:  ['var(--font-heading)'],
+        body:     ['var(--font-body)'],
+        mono:     ['var(--font-mono)'],
+        display:  ['var(--font-display)'],
+      },
+      borderRadius: {
+        rad: 'var(--rad)',
       },
     },
   },

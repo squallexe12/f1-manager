@@ -2,7 +2,6 @@
 
 import type { StrategyOption, TireCompound, TireState } from '@/types/race'
 import { DegradationCurve } from '@/components/charts/degradation-curve'
-import { Badge } from '@/components/ui/badge'
 import { colorForCompound } from '@/components/tire-roles'
 
 interface DriverTireInfo {
@@ -22,10 +21,35 @@ interface TireStrategyProps {
   className?: string
 }
 
-const STRATEGY_BADGES: Record<string, 'lime' | 'cyan' | 'amber'> = {
-  undercut: 'lime',
-  optimum: 'cyan',
-  overcut: 'amber',
+/** Map a tire compound to a Broadcast compound letter. */
+function compoundLetter(compound: string): string {
+  const c = compound.trim().toUpperCase()
+  if (c === 'S' || c.startsWith('SOFT')) return 'S'
+  if (c === 'M' || c.startsWith('MED')) return 'M'
+  if (c === 'H' || c.startsWith('HARD')) return 'H'
+  if (c === 'I' || c.startsWith('INT')) return 'I'
+  if (c === 'W' || c.startsWith('WET')) return 'W'
+  return c.charAt(0)
+}
+
+/** CSS color-class for a compound letter (Broadcast tokens). */
+function compoundColorClass(letter: string): string {
+  if (letter === 'S') return 'text-c-soft'
+  if (letter === 'M') return 'text-c-med'
+  if (letter === 'H') return 'text-c-hard'
+  if (letter === 'I') return 'text-c-inter'
+  if (letter === 'W') return 'text-c-wet'
+  return 'text-ink-mute'
+}
+
+/** Border color class for the 56-px tire ring. */
+function compoundBorderClass(letter: string): string {
+  if (letter === 'S') return 'border-c-soft'
+  if (letter === 'M') return 'border-c-med'
+  if (letter === 'H') return 'border-c-hard'
+  if (letter === 'I') return 'border-c-inter'
+  if (letter === 'W') return 'border-c-wet'
+  return 'border-line-sub'
 }
 
 export function TireStrategy({ drivers, currentLap, options, circuitCompounds, onSelectStrategy, className = '' }: TireStrategyProps) {
@@ -34,53 +58,97 @@ export function TireStrategy({ drivers, currentLap, options, circuitCompounds, o
     : undefined
 
   return (
-    <div className={`flex flex-col gap-3 ${className}`}>
-      <h3 className="text-xs font-heading uppercase tracking-wider text-[var(--text-muted)]">
-        Tire Strategy
-      </h3>
+    <div className={`flex flex-col bg-surface-paper border border-line-sub rounded-rad overflow-hidden ${className}`}>
+      {/* Panel header */}
+      <div className="px-3 py-2 border-b border-line-sub">
+        <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-dim">
+          Tire Strategy
+        </span>
+      </div>
 
-      {/* Both drivers tire status */}
-      <div className="flex flex-col gap-3">
+      {/* Two-column driver grid separated by a 1-px line-hair line */}
+      <div
+        className="grid bg-line-hair"
+        style={{ gridTemplateColumns: '1fr 1fr', gap: '1px' }}
+      >
         {drivers.map((d) => {
           const ts = d.tireState
-          if (!ts) return null
-          const wearColor = ts.wear > 50 ? 'var(--accent-lime)' : ts.wear > 25 ? 'var(--accent-amber)' : 'var(--accent-red)'
+          if (!ts) {
+            return (
+              <div key={d.driverId} className="bg-surface-paper p-3.5 flex items-center justify-center">
+                <span className="font-mono text-[10px] text-ink-dim">No data</span>
+              </div>
+            )
+          }
 
+          const letter = compoundLetter(ts.compound)
+          const colorCls = compoundColorClass(letter)
+          const borderCls = compoundBorderClass(letter)
+
+          // Find the driver's position in the timing if available (not in props — show lap count instead)
           return (
-            <div key={d.driverId} className="bg-white/[0.02] rounded-md p-2">
-              {/* Driver name + compound */}
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-heading font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+            <div
+              key={d.driverId}
+              className="relative bg-surface-paper pl-4 pr-3.5 py-3.5 flex flex-col gap-2.5 overflow-hidden"
+            >
+              {/* Team-color left bar — use compound color as fallback since team isn't passed here */}
+              <span
+                className="absolute left-0 top-0 bottom-0 w-[3px]"
+                style={{ backgroundColor: colorForCompound(ts.compound, circuitCompounds) }}
+              />
+
+              {/* Driver name + position */}
+              <div className="flex items-center justify-between">
+                <span className="font-display font-bold text-[15px] text-ink-hi uppercase tracking-[0.01em] truncate">
                   {d.driverName}
                 </span>
-                <div className="flex items-center gap-1.5">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: colorForCompound(ts.compound, circuitCompounds) }}
-                  />
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">{ts.compound}</span>
+              </div>
+
+              {/* Tire ring + stats */}
+              <div className="flex gap-3 items-center">
+                {/* 56-px compound ring */}
+                <div
+                  className={`shrink-0 w-14 h-14 rounded-full border-[6px] ${borderCls} ${colorCls} grid place-items-center font-display font-extrabold text-[18px]`}
+                  style={{ background: 'radial-gradient(circle, oklch(0.08 0 0) 30%, transparent 70%)' }}
+                >
+                  {letter}
+                </div>
+
+                {/* Stat rows */}
+                <div className="flex flex-col gap-1 flex-1 min-w-0">
+                  <div className="flex justify-between font-mono text-[10px]">
+                    <span className="text-ink-dim uppercase tracking-[0.1em]">AGE</span>
+                    <span className="text-ink-hi font-semibold tabular-nums">{ts.lapsFitted} laps</span>
+                  </div>
+                  <div className="flex justify-between font-mono text-[10px]">
+                    <span className="text-ink-dim uppercase tracking-[0.1em]">WEAR</span>
+                    <span className="text-ink-hi font-semibold tabular-nums">{Math.round(ts.wear)}%</span>
+                  </div>
+                  <div className="flex justify-between font-mono text-[10px]">
+                    <span className="text-ink-dim uppercase tracking-[0.1em]">COMPOUND</span>
+                    <span className={`font-semibold tabular-nums ${colorCls}`}>{ts.label}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Wear bar */}
-              <div className="flex items-center gap-2 mb-1">
-                <div className="flex-1 h-2 bg-white/[0.04] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-[width] duration-500"
-                    style={{ width: `${ts.wear}%`, backgroundColor: wearColor }}
-                  />
-                </div>
-                <span className="text-[10px] font-mono w-8 text-right" style={{ color: wearColor }}>
-                  {Math.round(ts.wear)}%
+              {/* Wear bar — gradient green → amber → red */}
+              <div className="h-[5px] bg-surface-void rounded-[1px] overflow-hidden">
+                <div
+                  className="h-full"
+                  style={{
+                    width: `${ts.wear}%`,
+                    background: 'linear-gradient(90deg, var(--sig-green) 0%, var(--sig-amber) 60%, var(--sig-red) 90%)',
+                    transition: 'width 0.6s ease',
+                  }}
+                />
+              </div>
+
+              {/* Cliff zone warning */}
+              {ts.wear < 20 && (
+                <span className="font-mono text-[9px] text-sig-red uppercase tracking-[0.1em]">
+                  CLIFF ZONE
                 </span>
-              </div>
-
-              {/* Stats row */}
-              <div className="flex gap-3 text-[9px] font-mono text-[var(--text-dim)]">
-                <span>Lap {ts.lapsFitted}</span>
-                <span>{ts.label}</span>
-                {ts.wear < 20 && <span className="text-[var(--accent-red)]">CLIFF ZONE</span>}
-              </div>
+              )}
 
               {/* Degradation curve */}
               {d.wearHistory.length > 1 && (
@@ -98,37 +166,43 @@ export function TireStrategy({ drivers, currentLap, options, circuitCompounds, o
         })}
       </div>
 
-      {/* Strategy Options */}
+      {/* Strategy / pit options */}
       {options.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-heading uppercase tracking-wider text-[var(--text-dim)]">
-            Pit Options
-          </span>
-          {options.map((opt) => (
-            <button
-              key={opt.type}
-              onClick={() => onSelectStrategy?.(opt)}
-              className="
-                bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-2.5
-                text-left hover:border-[var(--border-hover)] transition-colors duration-150
-                focus-visible:ring-2 focus-visible:ring-[var(--accent-lime)]/50 outline-none
-              "
-            >
-              <div className="flex items-center justify-between mb-0.5">
-                <Badge variant={STRATEGY_BADGES[opt.type] ?? 'neutral'}>
-                  {opt.type}
-                </Badge>
-                <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                  Lap {opt.pitLap} → {opt.newCompound}
-                </span>
-              </div>
-              <p className="text-[10px] text-[var(--text-secondary)] mb-0.5">{opt.projectedOutcome}</p>
-              <div className="flex justify-between text-[9px]">
-                <span className="text-[var(--accent-lime)] font-mono">{Math.round(opt.probability * 100)}%</span>
-                <span className="text-[var(--text-dim)]">{opt.risk}</span>
-              </div>
-            </button>
-          ))}
+        <div className="flex flex-col border-t border-line-sub">
+          <div className="px-3 py-2 border-b border-line-hair">
+            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-ink-dim">
+              Pit Options
+            </span>
+          </div>
+          <div className="flex flex-col gap-px bg-line-hair">
+            {options.map((opt) => (
+              <button
+                key={opt.type}
+                type="button"
+                onClick={() => onSelectStrategy?.(opt)}
+                className="
+                  bg-surface-paper px-3 py-2.5 text-left
+                  hover:bg-surface-raised
+                  transition-[background] duration-[120ms]
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50
+                "
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-mono text-[9px] uppercase tracking-[0.14em] font-bold text-ink-hi">
+                    {opt.type}
+                  </span>
+                  <span className="font-mono text-[10px] text-ink-mute">
+                    Lap {opt.pitLap} → {opt.newCompound}
+                  </span>
+                </div>
+                <p className="font-body text-[11px] text-ink-body mb-1">{opt.projectedOutcome}</p>
+                <div className="flex justify-between font-mono text-[9px]">
+                  <span className="text-sig-green font-bold">{Math.round(opt.probability * 100)}%</span>
+                  <span className="text-ink-dim uppercase tracking-[0.1em]">{opt.risk}</span>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
