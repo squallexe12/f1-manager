@@ -1,0 +1,85 @@
+@layer base {
+  [data-theme="broadcast"] {
+    /* Surface */
+    --bg-void: oklch(0.11 0.008 260);
+    --bg-base: oklch(0.14 0.01 260);
+    --bg-paper: oklch(0.17 0.012 260);
+    --bg-raised: oklch(0.21 0.014 260);
+    --bg-hi: oklch(0.26 0.016 260);
+    /* Lines */
+    --line-hair: oklch(0.28 0.012 260);
+    --line-sub: oklch(0.34 0.014 260);
+    --line-strong: oklch(0.48 0.018 260);
+    /* Ink */
+    --ink-dim: oklch(0.54 0.012 260);
+    --ink-mute: oklch(0.68 0.012 260);
+    --ink-body: oklch(0.86 0.008 260);
+    --ink-hi: oklch(0.98 0.003 260);
+    /* Signal */
+    --sig-red:    oklch(0.68 0.22 25);
+    --sig-red-dk: oklch(0.42 0.16 25);
+    --sig-amber:  oklch(0.82 0.17 80);
+    --sig-green:  oklch(0.78 0.18 148);
+    --sig-cyan:   oklch(0.82 0.13 210);
+    --sig-purple: oklch(0.68 0.22 300);
+    --sig-pink:   oklch(0.72 0.22 355);
+    /* Tire compounds */
+    --c-soft:  oklch(0.72 0.22 25);
+    --c-med:   oklch(0.88 0.18 95);
+    --c-hard:  oklch(0.98 0 0);
+    --c-inter: oklch(0.72 0.18 148);
+    --c-wet:   oklch(0.65 0.18 245);
+    /* Rebinding the new Tailwind `surface.*` bucket */
+    --surface-void: var(--bg-void);
+    --surface-base: var(--bg-base);
+    --surface-paper: var(--bg-paper);
+    --surface-raised: var(--bg-raised);
+    --surface-hi: var(--bg-hi);
+    /* Fonts */
+    --font-display: 'Space Grotesk', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    /* Radius */
+    --rad: 2px;
+  }
+
+  /* Dead themes — preserved for future phases, not exposed anywhere in UI */
+
+  /* Theme: Pit Wall Terminal (ported verbatim from new-designs/app.css lines 47–65) */
+  [data-theme="terminal"] {
+    --bg-void: oklch(0.09 0.005 140);
+    --bg-base: oklch(0.11 0.008 140);
+    --bg-paper: oklch(0.13 0.008 140);
+    --bg-raised: oklch(0.16 0.008 140);
+    --bg-hi: oklch(0.21 0.01 140);
+    --line-hair: oklch(0.32 0.04 140);
+    --line-sub: oklch(0.40 0.06 140);
+    --line-strong: oklch(0.55 0.1 140);
+    --ink-dim: oklch(0.48 0.08 140);
+    --ink-mute: oklch(0.66 0.10 140);
+    --ink-body: oklch(0.82 0.10 140);
+    --ink-hi: oklch(0.95 0.12 140);
+    --sig-red: oklch(0.72 0.22 25);
+    --sig-amber: oklch(0.88 0.2 90);
+    --font-display: 'JetBrains Mono', ui-monospace, monospace;
+    --font-body: 'JetBrains Mono', ui-monospace, monospace;
+    --rad: 0;
+  }
+
+  /* Theme: Editorial Quiet (ported verbatim from new-designs/app.css lines 68–82) */
+  [data-theme="editorial"] {
+    --bg-void: oklch(0.12 0.008 40);
+    --bg-base: oklch(0.15 0.01 40);
+    --bg-paper: oklch(0.18 0.012 40);
+    --bg-raised: oklch(0.22 0.014 40);
+    --bg-hi: oklch(0.28 0.016 40);
+    --line-hair: oklch(0.30 0.016 40);
+    --line-sub: oklch(0.38 0.02 40);
+    --line-strong: oklch(0.52 0.03 40);
+    --ink-dim: oklch(0.55 0.02 40);
+    --ink-mute: oklch(0.72 0.02 40);
+    --ink-body: oklch(0.90 0.015 40);
+    --ink-hi: oklch(0.98 0.008 40);
+    --rad: 4px;
+  }
+}
