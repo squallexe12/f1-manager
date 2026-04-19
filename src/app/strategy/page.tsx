@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
 import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
 import { useRaceSimulation } from '@/hooks/use-race-simulation'
+import type { TimingEntry } from '@/hooks/use-race-simulation'
 import { PageShell } from '@/components/layout/page-shell'
 import { TimingTower } from '@/components/strategy/timing-tower'
 import { TireStrategy } from '@/components/strategy/tire-strategy'
@@ -22,6 +23,42 @@ import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
 
+// ─── GapChartRow ─────────────────────────────────────────────────────────────
+// Inline helper component — collapsible secondary row below the live race grid.
+// Local UI state only; no Zustand involvement.
+
+function GapChartRow({ timing, isOpen, onToggle }: {
+  timing: TimingEntry[]
+  isOpen: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="mt-4 bg-surface-paper border border-line-sub rounded-rad overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-mute hover:text-ink-hi transition-colors"
+      >
+        <span>Gap Chart · Top 10</span>
+        <span>{isOpen ? '▼' : '▶'}</span>
+      </button>
+      {isOpen && (
+        <div className="px-4 pb-4 border-t border-line-hair">
+          <GapChart
+            entries={timing.slice(0, 10).map(t => ({
+              driverId: t.driverId,
+              driverName: t.driverName,
+              teamColor: t.teamColor,
+              gap: t.gapToLeader,
+              isPlayer: t.isPlayer,
+            }))}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function StrategyPage() {
   const router = useRouter()
   useRequireGame() // guard only
@@ -29,6 +66,7 @@ export default function StrategyPage() {
   const submitRaceResults = useGameStore((s) => s.submitRaceResults)
   const applyRecommendation = useGameStore((s) => s.applyRecommendation)
   const [driverStrategies, setDriverStrategies] = useState<DriverStrategies>({})
+  const [showGapChart, setShowGapChart] = useState(false)
 
   const slice = useGameSlice((w) => ({
     gameState: w.gameState,
@@ -313,90 +351,73 @@ export default function StrategyPage() {
           )
         })()}
 
-        {/* ═══ Hero: Track Map (center, large) ═══ */}
-        <div className="mt-3 mb-4">
-          <CircuitMap
-            circuitId={currentRace?.circuit.id ?? ''}
-            circuitName={currentRace?.circuit.name ?? ''}
-            currentLap={raceSim.currentLap}
-            totalLaps={raceSim.totalLaps}
-            drivers={raceSim.timing.map(t => ({
-              driverId: t.driverId,
-              driverName: t.driverName,
-              teamColor: t.teamColor,
-              isPlayer: t.isPlayer,
-              position: t.position,
-            }))}
-            liveCarPositions={raceSim.carPositions}
-          />
-        </div>
-
-        {/* ═══ Data Panels: 3-column below the map ═══ */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-          {/* Column 1 — Timing + Gap */}
-          <div className="flex flex-col gap-4">
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3 max-h-[360px] overflow-y-auto">
-              <h3 className="text-xs font-heading uppercase tracking-wider text-[var(--text-muted)] mb-2 sticky top-0 bg-[var(--bg-surface)] py-1 z-10">
-                Live Timing
-              </h3>
-              <TimingTower entries={raceSim.timing} />
-            </div>
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3">
-              <h3 className="text-xs font-heading uppercase tracking-wider text-[var(--text-muted)] mb-2">Gap Chart</h3>
-              <GapChart
-                entries={raceSim.timing.slice(0, 10).map(t => ({
-                  driverId: t.driverId, driverName: t.driverName,
-                  teamColor: t.teamColor, gap: t.gapToLeader, isPlayer: t.isPlayer,
-                }))}
-              />
-            </div>
+        {/* ═══ Data Panels: 3-column grid (460px | flex | 380px) ═══ */}
+        <div
+          className="
+            grid gap-4 mt-3
+            grid-cols-1
+            min-[1200px]:grid-cols-[420px_1fr_360px]
+            min-[1400px]:grid-cols-[460px_1fr_380px]
+          "
+        >
+          {/* Left — Timing Tower */}
+          <div className="flex flex-col gap-3">
+            <TimingTower entries={raceSim.timing} />
           </div>
 
-          {/* Column 2 — Strategy + Commands */}
-          <div className="flex flex-col gap-4">
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3">
-              <TireStrategy
-                drivers={playerTireDrivers}
-                currentLap={raceSim.currentLap}
-                options={raceSim.strategies}
-                circuitCompounds={currentRace?.circuit.compounds ?? ['C1', 'C2', 'C3']}
-                onSelectStrategy={(opt) => {
-                  if (playerDrivers[0]) pitWithCompound(playerDrivers[0].id, opt.newCompound)
-                }}
-              />
-            </div>
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3">
-              <h3 className="text-xs font-heading uppercase tracking-wider text-[var(--text-muted)] mb-3">Driver Commands</h3>
-              <div className="flex flex-col gap-4">
-                {playerDrivers.map(driver => (
-                  <DriverCommands
-                    key={driver.id}
-                    driverId={driver.id}
-                    driverName={`${driver.firstName} ${driver.lastName}`}
-                    currentCommand={raceSim.driverCommands[driver.id] ?? 'standard'}
-                    availableCompounds={currentRace?.circuit.compounds}
-                    onCommand={sendCommand}
-                    onPitWithCompound={pitWithCompound}
-                  />
-                ))}
-              </div>
-            </div>
+          {/* Center — Circuit Map (top) + Tire Strategy (bottom) */}
+          <div className="flex flex-col gap-3">
+            <CircuitMap
+              circuitId={currentRace?.circuit.id ?? ''}
+              circuitName={currentRace?.circuit.name ?? ''}
+              currentLap={raceSim.currentLap}
+              totalLaps={raceSim.totalLaps}
+              drivers={raceSim.timing.map(t => ({
+                driverId: t.driverId,
+                driverName: t.driverName,
+                teamColor: t.teamColor,
+                isPlayer: t.isPlayer,
+                position: t.position,
+              }))}
+              liveCarPositions={raceSim.carPositions}
+            />
+            <TireStrategy
+              drivers={playerTireDrivers}
+              currentLap={raceSim.currentLap}
+              options={raceSim.strategies}
+              circuitCompounds={currentRace?.circuit.compounds ?? ['C1', 'C2', 'C3']}
+              onSelectStrategy={(opt) => {
+                if (playerDrivers[0]) pitWithCompound(playerDrivers[0].id, opt.newCompound)
+              }}
+            />
           </div>
 
-          {/* Column 3 — Battles + Commentary */}
-          <div className="flex flex-col gap-4">
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3">
+          {/* Right — Driver Commands + Battle Forecast + Commentary Feed */}
+          <div className="flex flex-col gap-3">
+            {playerDrivers.map(driver => (
+              <DriverCommands
+                key={driver.id}
+                driverId={driver.id}
+                driverName={`${driver.firstName} ${driver.lastName}`}
+                currentCommand={raceSim.driverCommands[driver.id] ?? 'standard'}
+                availableCompounds={currentRace?.circuit.compounds}
+                onCommand={sendCommand}
+                onPitWithCompound={pitWithCompound}
+              />
+            ))}
+            {raceSim.battles.length > 0 && (
               <BattleForecast battles={raceSim.battles} />
-              {raceSim.battles.length === 0 && (
-                <p className="text-[10px] text-[var(--text-dim)] italic">No active battles</p>
-              )}
-            </div>
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3 flex-1 min-h-[300px]">
-              <CommentaryFeed entries={raceSim.commentary} className="!max-h-[500px]" />
-            </div>
+            )}
+            <CommentaryFeed entries={raceSim.commentary} />
           </div>
         </div>
+
+        {/* ═══ Secondary row — collapsible Gap Chart ═══ */}
+        <GapChartRow
+          timing={raceSim.timing}
+          isOpen={showGapChart}
+          onToggle={() => setShowGapChart(v => !v)}
+        />
       </PageShell>
     )
   }

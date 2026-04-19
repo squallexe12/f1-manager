@@ -22,24 +22,31 @@ export function GapChart({ entries, maxGap, className = '' }: GapChartProps) {
 
         return (
           <div key={entry.driverId} className="flex items-center gap-2">
-            <span className="w-5 text-right text-[10px] font-mono text-[var(--text-dim)]">
+            {/* Position label — axis label */}
+            <span className="w-5 text-right font-mono text-[10px] text-ink-dim">
               P{idx + 1}
             </span>
-            <span className="w-10 text-xs font-heading text-[var(--text-secondary)] truncate">
+
+            {/* Driver name — axis label */}
+            <span className="w-10 font-mono text-[10px] text-ink-mute truncate">
               {entry.driverName}
             </span>
-            <div className="flex-1 h-3 bg-white/[0.03] rounded-sm overflow-hidden">
+
+            {/* Bar track — grid line color */}
+            <div className="flex-1 h-[3px] bg-line-hair rounded-[1px] overflow-hidden">
               <div
-                className="h-full rounded-sm transition-[width] duration-300"
+                className="h-full rounded-[1px] transition-[width] duration-300"
                 style={{
                   width: `${barWidth}%`,
-                  backgroundColor: entry.isPlayer ? 'var(--accent-lime)' : entry.teamColor,
-                  opacity: entry.isPlayer ? 1 : 0.6,
+                  backgroundColor: entry.isPlayer ? 'var(--sig-red)' : entry.teamColor,
+                  opacity: entry.isPlayer ? 1 : 0.65,
                 }}
               />
             </div>
-            <span className="w-14 text-right text-[10px] font-mono text-[var(--text-muted)]">
-              {entry.gap === 0 ? 'LEADER' : `+${entry.gap.toFixed(1)}s`}
+
+            {/* Gap value — axis label */}
+            <span className="w-14 text-right font-mono text-[10px] text-ink-dim tabular-nums">
+              {entry.gap === 0 ? 'LEAD' : `+${entry.gap.toFixed(1)}s`}
             </span>
           </div>
         )
