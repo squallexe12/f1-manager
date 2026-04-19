@@ -2,7 +2,7 @@ import type { Circuit } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
 import { createFallbackProfile, deriveCalibrationFromCircuit } from '@/types/calibration'
 import { BUILT_IN_CALIBRATION_PROFILES } from './built-in-profiles'
-import { sanitizeTireCalibration } from './sanitize'
+import { sanitizeCalibrationProfile } from './sanitize'
 
 // ---------------------------------------------------------------------------
 // Runtime calibration registry
@@ -16,10 +16,7 @@ import { sanitizeTireCalibration } from './sanitize'
 const registry = new Map<string, CalibrationProfile>()
 
 export function registerCalibrationProfile(profile: CalibrationProfile): void {
-  const sanitized: CalibrationProfile = {
-    ...profile,
-    tires: sanitizeTireCalibration(profile.tires),
-  }
+  const sanitized = sanitizeCalibrationProfile(profile)
   registry.set(profile.circuitId, deepCloneProfile(sanitized))
 }
 

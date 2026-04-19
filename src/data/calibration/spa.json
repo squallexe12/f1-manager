@@ -3,10 +3,10 @@
   "source": "openf1",
   "tires": {
     "degradationRates": {
-      "C1": 0.1,
+      "C1": 0.8,
       "C2": 0.1,
       "C3": 0.1,
-      "C4": 2,
+      "C4": 0.1,
       "C5": 2.8
     },
     "gripLevels": {
@@ -34,5 +34,20 @@
   "overtake": {
     "overtakeModifier": 1,
     "drsEffectiveness": 0.5
+  },
+  "pitLoss": {
+    "meanLossSeconds": 23.03,
+    "stddevSeconds": 0.39,
+    "sampleCount": 34
+  },
+  "stint": {
+    "expectedLaps": {
+      "C1": 32,
+      "C2": 20,
+      "C3": 12,
+      "C4": 5,
+      "C5": 11
+    },
+    "sampleCount": 54
   }
 }

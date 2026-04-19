@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useCallback, useState } from 'react'
+import { useMemo, useCallback, useState, useEffect } from 'react'
+import { resolveCalibrationForCircuit } from '@/data/calibration'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
 import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
@@ -72,10 +73,30 @@ export default function StrategyPage() {
     submitRaceResults(raceResults, isSprint ?? false)
   }, [gameState?.phase, submitRaceResults])
 
+  // IP-07: Resolve the circuit's calibration profile once per race context so
+  // strategy copy reflects real per-circuit pit loss + stint lengths. The
+  // fallback log below warns when a circuit lacks OpenF1 data so devs can
+  // notice the silent heuristic path during playtest.
+  const calibration = useMemo(
+    () => (currentRace ? resolveCalibrationForCircuit(currentRace.circuit) : undefined),
+    [currentRace],
+  )
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'production' && calibration && calibration.source !== 'openf1') {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[calibration] Circuit "${calibration.circuitId}" is using a "${calibration.source}" profile. ` +
+          'Strategy suggestions fall back to internal heuristics instead of OpenF1-derived data.',
+      )
+    }
+  }, [calibration])
+
   const { state: raceSim, startRace, setSpeed, pause, resume, sendCommand, pitWithCompound } = useRaceSimulation({
     driverMeta,
     playerTeamId,
     onRaceEnd,
+    calibration,
   })
 
   if (!slice || !playerTeam || !gameState) return null
@@ -153,6 +174,7 @@ export default function StrategyPage() {
           onStartSession={handleStartSession}
           onAdvance={handleAdvance}
           onSelectStrategies={setDriverStrategies}
+          calibration={calibration}
         />
       </PageShell>
     )

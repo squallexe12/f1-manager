@@ -3,15 +3,20 @@ import {
   DEFAULT_TIRE_CALIBRATION,
   DEFAULT_WEATHER_CALIBRATION,
   DEFAULT_OVERTAKE_CALIBRATION,
+  DEFAULT_PITLOSS_CALIBRATION,
+  DEFAULT_STINT_CALIBRATION,
   type TireCalibration,
   type WeatherCalibration,
   type OvertakeCalibration,
+  type PitLossCalibration,
+  type StintCalibration,
   type CalibrationProfile,
 } from '../../src/types/calibration'
 import type {
   OpenF1Lap,
   OpenF1Stint,
   OpenF1Weather,
+  OpenF1PitStop,
   OpenF1CompoundLabel,
   OpenF1SessionBundle,
 } from './types'
@@ -166,6 +171,92 @@ export function normalizeOvertakeCalibration(laps: OpenF1Lap[]): OvertakeCalibra
 }
 
 // ---------------------------------------------------------------------------
+// Pit-loss normalizer — derives circuit pit-lane time loss from observed
+// /v1/pit samples. Outlier clipping keeps red-flag pits and drive-throughs
+// from polluting the mean.
+// ---------------------------------------------------------------------------
+
+const PITLOSS_MIN_SECONDS = 15
+const PITLOSS_MAX_SECONDS = 60
+
+export function normalizePitLossCalibration(stops: OpenF1PitStop[]): PitLossCalibration {
+  const durations: number[] = []
+  for (const stop of stops) {
+    const d = stop.pit_duration
+    if (d == null) continue
+    if (!isFinite(d)) continue
+    if (d < PITLOSS_MIN_SECONDS || d > PITLOSS_MAX_SECONDS) continue
+    durations.push(d)
+  }
+
+  if (durations.length === 0) {
+    return { ...DEFAULT_PITLOSS_CALIBRATION }
+  }
+
+  const mean = durations.reduce((acc, v) => acc + v, 0) / durations.length
+  let variance = 0
+  for (const d of durations) {
+    variance += (d - mean) * (d - mean)
+  }
+  variance /= durations.length
+  const stddev = Math.sqrt(variance)
+
+  return {
+    meanLossSeconds: round2(mean),
+    stddevSeconds: round2(stddev),
+    sampleCount: durations.length,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stint normalizer — derives expected stint length (laps) per compound from
+// observed /v1/stints data. Dry-tire only; INTERMEDIATE/WET stints do not
+// inform dry-race strategy and are skipped.
+// ---------------------------------------------------------------------------
+
+export function normalizeStintCalibration(
+  stints: OpenF1Stint[],
+  circuitCompounds: TireCompound[],
+): StintCalibration {
+  const base: StintCalibration = {
+    expectedLaps: { ...DEFAULT_STINT_CALIBRATION.expectedLaps },
+    sampleCount: 0,
+  }
+
+  if (stints.length === 0) return base
+
+  const lengthsByCompound = new Map<TireCompound, number[]>()
+  let validStints = 0
+
+  for (const stint of stints) {
+    if (stint.compound === 'INTERMEDIATE' || stint.compound === 'WET') continue
+    const pirelli = mapOpenF1CompoundToPirelli(stint.compound, circuitCompounds)
+    if (!pirelli) continue
+    const length = stint.lap_end - stint.lap_start + 1
+    // Single-lap stints are almost always timing anomalies (formation lap,
+    // drive-through penalty, red-flag reset) and don't reflect strategic
+    // stint length. Require at least 2 laps to count as a valid sample.
+    if (!Number.isFinite(length) || length < 2) continue
+    let bucket = lengthsByCompound.get(pirelli)
+    if (!bucket) {
+      bucket = []
+      lengthsByCompound.set(pirelli, bucket)
+    }
+    bucket.push(length)
+    validStints++
+  }
+
+  for (const [compound, lengths] of lengthsByCompound) {
+    if (lengths.length === 0) continue
+    const mean = lengths.reduce((acc, v) => acc + v, 0) / lengths.length
+    base.expectedLaps[compound] = Math.max(1, Math.round(mean))
+  }
+
+  base.sampleCount = validStints
+  return base
+}
+
+// ---------------------------------------------------------------------------
 // End-to-end profile normalizer
 // ---------------------------------------------------------------------------
 
@@ -176,6 +267,8 @@ export function normalizeCalibrationProfile(bundle: OpenF1SessionBundle): Calibr
     tires: normalizeTireCalibration(bundle.laps, bundle.stints, bundle.circuitCompounds),
     weather: normalizeWeatherCalibration(bundle.weather),
     overtake: normalizeOvertakeCalibration(bundle.laps),
+    pitLoss: normalizePitLossCalibration(bundle.pitStops),
+    stint: normalizeStintCalibration(bundle.stints, bundle.circuitCompounds),
   }
 }
 

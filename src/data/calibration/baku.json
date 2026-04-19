@@ -4,10 +4,10 @@
   "tires": {
     "degradationRates": {
       "C1": 0.8,
-      "C2": 0.88,
-      "C3": 4.62,
-      "C4": 0.1,
-      "C5": 2.8
+      "C2": 1.1,
+      "C3": 0.88,
+      "C4": 4.62,
+      "C5": 0.1
     },
     "gripLevels": {
       "C1": 0.88,
@@ -34,5 +34,20 @@
   "overtake": {
     "overtakeModifier": 1,
     "drsEffectiveness": 0.5
+  },
+  "pitLoss": {
+    "meanLossSeconds": 20.65,
+    "stddevSeconds": 0.58,
+    "sampleCount": 22
+  },
+  "stint": {
+    "expectedLaps": {
+      "C1": 32,
+      "C2": 26,
+      "C3": 35,
+      "C4": 14,
+      "C5": 2
+    },
+    "sampleCount": 39
   }
 }

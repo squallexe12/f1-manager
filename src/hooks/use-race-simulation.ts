@@ -15,6 +15,7 @@ import type {
   RaceWorkerStartPayload,
 } from '@/types/race'
 import { calculateStrategyOptions } from '@/engine/race/pit-strategy'
+import type { CalibrationProfile } from '@/types/calibration'
 import { useGameStore } from '@/stores/game-store'
 import {
   attachRaceWorker,
@@ -83,6 +84,13 @@ interface UseRaceSimulationOptions {
   playerTeamId: string
   onRaceEnd?: (finalResults: LapResult[], fastestLap: { driverId: string; time: number }) => void
   workerHandleFactory?: () => RaceWorkerHandle
+  /**
+   * Optional circuit calibration. When provided, the hook feeds the
+   * PitLossCalibration and StintCalibration into `calculateStrategyOptions`
+   * so the pre-race strategy copy reflects the real circuit pit loss and
+   * expected stint length.
+   */
+  calibration?: CalibrationProfile
 }
 
 const TICK_INTERVALS: Record<string, number> = {
@@ -97,6 +105,7 @@ export function useRaceSimulation({
   playerTeamId: _playerTeamId,
   onRaceEnd,
   workerHandleFactory,
+  calibration,
 }: UseRaceSimulationOptions) {
   const runtime = useGameStore((s) => s.raceRuntime)
   const resetRaceRuntime = useGameStore((s) => s.resetRaceRuntime)
@@ -177,8 +186,10 @@ export function useRaceSimulation({
       tireWear: ts.wear,
       compound: ts.compound,
       circuitTireWear: 'medium',
+      pitLossProfile: calibration?.pitLoss,
+      stintProfile: calibration?.stint,
     })
-  }, [runtime.currentLap, runtime.totalLaps, runtime.tireStates, driverMeta])
+  }, [runtime.currentLap, runtime.totalLaps, runtime.tireStates, driverMeta, calibration])
 
   // Update interpolation anchors whenever a new lap arrives.
   useEffect(() => {

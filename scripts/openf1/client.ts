@@ -1,5 +1,6 @@
 import type {
   OpenF1Lap,
+  OpenF1PitStop,
   OpenF1Session,
   OpenF1Stint,
   OpenF1Weather,
@@ -29,6 +30,7 @@ export interface OpenF1Client {
   getLaps(sessionKey: number): Promise<OpenF1Lap[]>
   getStints(sessionKey: number): Promise<OpenF1Stint[]>
   getWeather(sessionKey: number): Promise<OpenF1Weather[]>
+  getPitStops(sessionKey: number): Promise<OpenF1PitStop[]>
 }
 
 export function createOpenF1Client(options: OpenF1ClientOptions = {}): OpenF1Client {
@@ -75,6 +77,9 @@ export function createOpenF1Client(options: OpenF1ClientOptions = {}): OpenF1Cli
     },
     getWeather(sessionKey) {
       return request<OpenF1Weather[]>('/weather', { session_key: sessionKey })
+    },
+    getPitStops(sessionKey) {
+      return request<OpenF1PitStop[]>('/pit', { session_key: sessionKey })
     },
   }
 }

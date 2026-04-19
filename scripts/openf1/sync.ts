@@ -84,6 +84,8 @@ async function main(): Promise<void> {
       const stints = await client.getStints(session.session_key)
       await sleep(args.throttleMs)
       const weather = await client.getWeather(session.session_key)
+      await sleep(args.throttleMs)
+      const pitStops = await client.getPitStops(session.session_key)
 
       const bundle: OpenF1SessionBundle = {
         circuitId,
@@ -92,6 +94,7 @@ async function main(): Promise<void> {
         laps,
         stints,
         weather,
+        pitStops,
       }
 
       const profile = normalizeCalibrationProfile(bundle)

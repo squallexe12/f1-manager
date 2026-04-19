@@ -3,9 +3,11 @@
 import type { Race, TireCompound } from '@/types/race'
 import type { Driver } from '@/types/driver'
 import type { Team } from '@/types/team'
+import type { CalibrationProfile } from '@/types/calibration'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { StrategyPlanner, type DriverStrategies } from './strategy-planner'
+import { RaceIntelPanel } from './race-intel-panel'
 
 interface PracticeProgram {
   id: string
@@ -28,10 +30,12 @@ interface PreRaceSetupProps {
   onStartSession: (programId: string) => void
   onAdvance: () => void
   onSelectStrategies?: (strategies: DriverStrategies) => void
+  /** IP-07: circuit calibration profile — drives the race-intelligence panel */
+  calibration?: CalibrationProfile
   className?: string
 }
 
-export function PreRaceSetup({ race, playerTeam, playerDrivers, phase, onStartSession, onAdvance, onSelectStrategies, className = '' }: PreRaceSetupProps) {
+export function PreRaceSetup({ race, playerTeam, playerDrivers, phase, onStartSession, onAdvance, onSelectStrategies, calibration, className = '' }: PreRaceSetupProps) {
   const compoundLabels: Record<number, string> = { 0: 'HARD', 1: 'MEDIUM', 2: 'SOFT' }
 
   return (
@@ -65,6 +69,9 @@ export function PreRaceSetup({ race, playerTeam, playerDrivers, phase, onStartSe
           </div>
         </div>
       </div>
+
+      {/* IP-07: Race Intelligence (OpenF1-derived pre-race hints) */}
+      {calibration && <RaceIntelPanel circuit={race.circuit} calibration={calibration} />}
 
       {/* Tire Compounds */}
       <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-4">

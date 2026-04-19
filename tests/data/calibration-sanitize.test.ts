@@ -5,8 +5,17 @@ import {
   loadCalibrationProfile,
   registerCalibrationProfile,
 } from '@/data/calibration'
-import { sanitizeTireCalibration } from '@/data/calibration/sanitize'
-import { DEFAULT_TIRE_CALIBRATION, type CalibrationProfile } from '@/types/calibration'
+import {
+  sanitizeTireCalibration,
+  sanitizePitLossCalibration,
+  sanitizeStintCalibration,
+} from '@/data/calibration/sanitize'
+import {
+  DEFAULT_TIRE_CALIBRATION,
+  DEFAULT_PITLOSS_CALIBRATION,
+  DEFAULT_STINT_CALIBRATION,
+  type CalibrationProfile,
+} from '@/types/calibration'
 
 describe('sanitizeTireCalibration', () => {
   it('floors every compound at the default degradation rate', () => {
@@ -110,10 +119,78 @@ describe('calibration registry applies sanitization on register', () => {
         temperatureRange: { min: 20, max: 45 },
       },
       overtake: { overtakeModifier: 1.0, drsEffectiveness: 0.5 },
+      pitLoss: { meanLossSeconds: 21, stddevSeconds: 1.5, sampleCount: 0 },
+      stint: {
+        expectedLaps: { C1: 32, C2: 26, C3: 20, C4: 15, C5: 11 },
+        sampleCount: 0,
+      },
     }
     registerCalibrationProfile(input)
     const loaded = loadCalibrationProfile('test-track')
     expect(loaded.source).toBe('openf1')
     hydrateBuiltInProfiles()
+  })
+})
+
+describe('sanitizePitLossCalibration', () => {
+  it('returns defaults when input is undefined', () => {
+    const out = sanitizePitLossCalibration(undefined)
+    expect(out).toEqual(DEFAULT_PITLOSS_CALIBRATION)
+  })
+
+  it('accepts valid inputs verbatim', () => {
+    const out = sanitizePitLossCalibration({
+      meanLossSeconds: 22.5,
+      stddevSeconds: 1.2,
+      sampleCount: 18,
+    })
+    expect(out.meanLossSeconds).toBe(22.5)
+    expect(out.stddevSeconds).toBe(1.2)
+    expect(out.sampleCount).toBe(18)
+  })
+
+  it('replaces non-positive mean with the default', () => {
+    const out = sanitizePitLossCalibration({ meanLossSeconds: 0, stddevSeconds: 1, sampleCount: 5 })
+    expect(out.meanLossSeconds).toBe(DEFAULT_PITLOSS_CALIBRATION.meanLossSeconds)
+  })
+
+  it('replaces negative stddev with the default', () => {
+    const out = sanitizePitLossCalibration({ meanLossSeconds: 22, stddevSeconds: -5, sampleCount: 3 })
+    expect(out.stddevSeconds).toBe(DEFAULT_PITLOSS_CALIBRATION.stddevSeconds)
+  })
+})
+
+describe('sanitizeStintCalibration', () => {
+  it('returns defaults when input is undefined', () => {
+    const out = sanitizeStintCalibration(undefined)
+    expect(out).toEqual(DEFAULT_STINT_CALIBRATION)
+  })
+
+  it('floors absurdly short per-compound stint lengths to the default', () => {
+    // Monza C5=2 style anomaly — a 2-lap stint is a timing glitch
+    const out = sanitizeStintCalibration({
+      expectedLaps: { C1: 30, C2: 25, C3: 20, C4: 15, C5: 2 },
+      sampleCount: 50,
+    })
+    expect(out.expectedLaps.C5).toBeGreaterThanOrEqual(DEFAULT_STINT_CALIBRATION.expectedLaps.C5 - 2)
+  })
+
+  it('caps absurdly long per-compound stint lengths to a realistic maximum', () => {
+    // Monaco C3=61 style anomaly — a 61-lap C3 is unlikely to be realistic
+    const out = sanitizeStintCalibration({
+      expectedLaps: { C1: 80, C2: 70, C3: 61, C4: 51, C5: 11 },
+      sampleCount: 23,
+    })
+    expect(out.expectedLaps.C3).toBeLessThanOrEqual(60)
+    expect(out.expectedLaps.C1).toBeLessThanOrEqual(60)
+  })
+
+  it('preserves well-ordered realistic values', () => {
+    const out = sanitizeStintCalibration({
+      expectedLaps: { C1: 34, C2: 28, C3: 22, C4: 16, C5: 12 },
+      sampleCount: 75,
+    })
+    expect(out.expectedLaps.C1).toBe(34)
+    expect(out.expectedLaps.C5).toBe(12)
   })
 })

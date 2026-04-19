@@ -4,6 +4,8 @@ import type {
   TireCalibration,
   WeatherCalibration,
   OvertakeCalibration,
+  PitLossCalibration,
+  StintCalibration,
   CalibrationProfile,
   CalibrationSource,
 } from '@/types/calibration'
@@ -11,8 +13,12 @@ import {
   DEFAULT_TIRE_CALIBRATION,
   DEFAULT_WEATHER_CALIBRATION,
   DEFAULT_OVERTAKE_CALIBRATION,
+  DEFAULT_PITLOSS_CALIBRATION,
+  DEFAULT_STINT_CALIBRATION,
   createFallbackProfile,
 } from '@/types/calibration'
+import type { Circuit } from '@/types/race'
+import { deriveCalibrationFromCircuit } from '@/types/calibration'
 
 // ---------------------------------------------------------------------------
 // Contract: CalibrationSource must be a discriminator for data provenance
@@ -154,5 +160,94 @@ describe('CalibrationProfile', () => {
         expect(profile.tires.gripLevels[c]).toBeGreaterThan(0)
       }
     }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contract: PitLossCalibration describes circuit-specific pit stop time loss
+// ---------------------------------------------------------------------------
+describe('PitLossCalibration', () => {
+  it('has a mean pit loss in seconds greater than 0', () => {
+    const cal: PitLossCalibration = DEFAULT_PITLOSS_CALIBRATION
+    expect(cal.meanLossSeconds).toBeTypeOf('number')
+    expect(cal.meanLossSeconds).toBeGreaterThan(0)
+  })
+
+  it('has a stddev greater than or equal to 0', () => {
+    const cal: PitLossCalibration = DEFAULT_PITLOSS_CALIBRATION
+    expect(cal.stddevSeconds).toBeTypeOf('number')
+    expect(cal.stddevSeconds).toBeGreaterThanOrEqual(0)
+  })
+
+  it('has a positive sample count for observed profiles (0 allowed for defaults)', () => {
+    const cal: PitLossCalibration = DEFAULT_PITLOSS_CALIBRATION
+    expect(cal.sampleCount).toBeTypeOf('number')
+    expect(cal.sampleCount).toBeGreaterThanOrEqual(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contract: StintCalibration describes per-compound stint length statistics
+// ---------------------------------------------------------------------------
+describe('StintCalibration', () => {
+  it('has per-compound expected stint lengths', () => {
+    const cal: StintCalibration = DEFAULT_STINT_CALIBRATION
+    const compounds: TireCompound[] = ['C1', 'C2', 'C3', 'C4', 'C5']
+    for (const c of compounds) {
+      expect(cal.expectedLaps[c]).toBeTypeOf('number')
+      expect(cal.expectedLaps[c]).toBeGreaterThan(0)
+    }
+  })
+
+  it('softer compounds have shorter expected stints in defaults', () => {
+    const cal: StintCalibration = DEFAULT_STINT_CALIBRATION
+    expect(cal.expectedLaps['C1']).toBeGreaterThan(cal.expectedLaps['C5'])
+    expect(cal.expectedLaps['C2']).toBeGreaterThan(cal.expectedLaps['C4'])
+  })
+
+  it('has a sample count greater than or equal to 0', () => {
+    const cal: StintCalibration = DEFAULT_STINT_CALIBRATION
+    expect(cal.sampleCount).toBeTypeOf('number')
+    expect(cal.sampleCount).toBeGreaterThanOrEqual(0)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Contract: extended CalibrationProfile carries pit-loss and stint sections
+// ---------------------------------------------------------------------------
+describe('CalibrationProfile with pitLoss + stint', () => {
+  it('createFallbackProfile includes pitLoss and stint sections', () => {
+    const profile = createFallbackProfile('monza')
+    expect(profile.pitLoss).toBeDefined()
+    expect(profile.pitLoss.meanLossSeconds).toBeGreaterThan(0)
+    expect(profile.stint).toBeDefined()
+    expect(profile.stint.expectedLaps['C3']).toBeGreaterThan(0)
+  })
+
+  it('deriveCalibrationFromCircuit includes pitLoss and stint sections', () => {
+    const circuit: Circuit = {
+      id: 'test-track',
+      name: 'Test',
+      country: 'Testland',
+      laps: 60,
+      downforceLevel: 'medium',
+      tireWear: 'high',
+      overtakingDifficulty: 'medium',
+      weatherVariability: 'low',
+      sectorCount: 3,
+      compounds: ['C2', 'C3', 'C4'],
+    }
+    const profile = deriveCalibrationFromCircuit(circuit)
+    expect(profile.pitLoss).toBeDefined()
+    expect(profile.stint).toBeDefined()
+    // High-wear circuit should have shorter expected stints than defaults
+    expect(profile.stint.expectedLaps['C3']).toBeLessThanOrEqual(DEFAULT_STINT_CALIBRATION.expectedLaps['C3'])
+  })
+
+  it('extended profile remains JSON-serializable', () => {
+    const profile = createFallbackProfile('spa')
+    const round = JSON.parse(JSON.stringify(profile)) as CalibrationProfile
+    expect(round.pitLoss.meanLossSeconds).toBe(profile.pitLoss.meanLossSeconds)
+    expect(round.stint.expectedLaps['C3']).toBe(profile.stint.expectedLaps['C3'])
   })
 })

@@ -1,6 +1,10 @@
 import type { TireCompound } from '@/types/race'
-import type { TireCalibration } from '@/types/calibration'
-import { DEFAULT_TIRE_CALIBRATION } from '@/types/calibration'
+import type { CalibrationProfile, PitLossCalibration, StintCalibration, TireCalibration } from '@/types/calibration'
+import {
+  DEFAULT_PITLOSS_CALIBRATION,
+  DEFAULT_STINT_CALIBRATION,
+  DEFAULT_TIRE_CALIBRATION,
+} from '@/types/calibration'
 
 const COMPOUND_ORDER: readonly TireCompound[] = ['C1', 'C2', 'C3', 'C4', 'C5']
 
@@ -38,5 +42,97 @@ export function sanitizeTireCalibration(tires: TireCalibration): TireCalibration
     ...tires,
     degradationRates: rates,
     gripLevels: { ...tires.gripLevels },
+  }
+}
+
+/**
+ * Ensure a PitLossCalibration shape is valid. Fills missing fields with
+ * defaults so legacy JSON profiles (pre-IP-07) load cleanly, and floors
+ * implausible values (negative mean or stddev).
+ */
+export function sanitizePitLossCalibration(
+  pitLoss: Partial<PitLossCalibration> | undefined,
+): PitLossCalibration {
+  if (!pitLoss) return { ...DEFAULT_PITLOSS_CALIBRATION }
+
+  const meanLossSeconds =
+    typeof pitLoss.meanLossSeconds === 'number' && pitLoss.meanLossSeconds > 0
+      ? pitLoss.meanLossSeconds
+      : DEFAULT_PITLOSS_CALIBRATION.meanLossSeconds
+
+  const stddevSeconds =
+    typeof pitLoss.stddevSeconds === 'number' && pitLoss.stddevSeconds >= 0
+      ? pitLoss.stddevSeconds
+      : DEFAULT_PITLOSS_CALIBRATION.stddevSeconds
+
+  const sampleCount =
+    typeof pitLoss.sampleCount === 'number' && pitLoss.sampleCount >= 0
+      ? Math.floor(pitLoss.sampleCount)
+      : 0
+
+  return { meanLossSeconds, stddevSeconds, sampleCount }
+}
+
+/**
+ * Ensure a StintCalibration shape is valid. Floors absurdly short per-compound
+ * stint lengths (timing glitches like a 2-lap C5) at a realistic minimum, and
+ * caps absurdly long ones (OpenF1 samples can report a 61-lap C3 at Monaco)
+ * at a realistic maximum.
+ */
+const STINT_MIN_REALISTIC_LAPS = 5
+const STINT_MAX_REALISTIC_LAPS = 60
+
+export function sanitizeStintCalibration(
+  stint: Partial<StintCalibration> | undefined,
+): StintCalibration {
+  if (!stint || !stint.expectedLaps) {
+    return {
+      expectedLaps: { ...DEFAULT_STINT_CALIBRATION.expectedLaps },
+      sampleCount: DEFAULT_STINT_CALIBRATION.sampleCount,
+    }
+  }
+
+  const expectedLaps: Record<TireCompound, number> = {
+    C1: DEFAULT_STINT_CALIBRATION.expectedLaps.C1,
+    C2: DEFAULT_STINT_CALIBRATION.expectedLaps.C2,
+    C3: DEFAULT_STINT_CALIBRATION.expectedLaps.C3,
+    C4: DEFAULT_STINT_CALIBRATION.expectedLaps.C4,
+    C5: DEFAULT_STINT_CALIBRATION.expectedLaps.C5,
+  }
+
+  for (const c of COMPOUND_ORDER) {
+    const v = stint.expectedLaps[c]
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < 1) continue
+    const rounded = Math.round(v)
+    if (rounded < STINT_MIN_REALISTIC_LAPS) {
+      // Keep the default for this compound — a <5-lap stint is a timing anomaly.
+      continue
+    }
+    if (rounded > STINT_MAX_REALISTIC_LAPS) {
+      expectedLaps[c] = STINT_MAX_REALISTIC_LAPS
+      continue
+    }
+    expectedLaps[c] = rounded
+  }
+
+  const sampleCount =
+    typeof stint.sampleCount === 'number' && stint.sampleCount >= 0
+      ? Math.floor(stint.sampleCount)
+      : 0
+
+  return { expectedLaps, sampleCount }
+}
+
+/**
+ * Fill in required post-IP-07 calibration sections (pitLoss, stint) on a
+ * legacy profile that predates the schema extension. Existing sections are
+ * left untouched; missing ones get defaults.
+ */
+export function sanitizeCalibrationProfile(profile: CalibrationProfile): CalibrationProfile {
+  return {
+    ...profile,
+    tires: sanitizeTireCalibration(profile.tires),
+    pitLoss: sanitizePitLossCalibration(profile.pitLoss),
+    stint: sanitizeStintCalibration(profile.stint),
   }
 }

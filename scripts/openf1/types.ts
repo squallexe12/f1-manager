@@ -40,6 +40,17 @@ export interface OpenF1Weather {
   humidity: number
 }
 
+/**
+ * OpenF1 /v1/pit endpoint entry — a single pit stop, keyed by driver+lap.
+ * `pit_duration` is the stationary-plus-pit-lane time delta in seconds;
+ * null when the upstream timing system missed the stop.
+ */
+export interface OpenF1PitStop {
+  driver_number: number
+  lap_number: number
+  pit_duration: number | null
+}
+
 // ---------------------------------------------------------------------------
 // Consolidated session bundle — pre-normalization container passed to the
 // pure normalizer functions. All fetch I/O happens before this shape is built.
@@ -52,4 +63,5 @@ export interface OpenF1SessionBundle {
   laps: OpenF1Lap[]
   stints: OpenF1Stint[]
   weather: OpenF1Weather[]
+  pitStops: OpenF1PitStop[]
 }

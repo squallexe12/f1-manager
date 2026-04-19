@@ -46,6 +46,32 @@ export interface OvertakeCalibration {
 }
 
 // ---------------------------------------------------------------------------
+// Pit-loss calibration — per-circuit pit stop time loss (IP-07)
+// Derived from OpenF1 /v1/pit endpoint stop-and-go durations.
+// ---------------------------------------------------------------------------
+
+export interface PitLossCalibration {
+  /** Mean full pit-lane time loss relative to staying out, in seconds */
+  meanLossSeconds: number
+  /** Standard deviation of pit-loss samples, in seconds (0 for default profile) */
+  stddevSeconds: number
+  /** Number of OpenF1 pit-stop samples that produced this profile (0 for fallback) */
+  sampleCount: number
+}
+
+// ---------------------------------------------------------------------------
+// Stint calibration — per-compound expected stint length in laps (IP-07)
+// Derived from OpenF1 stint data; powers pre-race intelligence hints.
+// ---------------------------------------------------------------------------
+
+export interface StintCalibration {
+  /** Mean observed stint length in laps for each compound */
+  expectedLaps: Record<TireCompound, number>
+  /** Number of OpenF1 stint samples that produced this profile */
+  sampleCount: number
+}
+
+// ---------------------------------------------------------------------------
 // Combined profile — one per circuit
 // ---------------------------------------------------------------------------
 
@@ -55,6 +81,8 @@ export interface CalibrationProfile {
   tires: TireCalibration
   weather: WeatherCalibration
   overtake: OvertakeCalibration
+  pitLoss: PitLossCalibration
+  stint: StintCalibration
 }
 
 // ---------------------------------------------------------------------------
@@ -95,6 +123,26 @@ export const DEFAULT_OVERTAKE_CALIBRATION: OvertakeCalibration = {
   drsEffectiveness: 0.5,
 }
 
+export const DEFAULT_PITLOSS_CALIBRATION: PitLossCalibration = {
+  // Generic F1 pit-lane loss — ~2.5s stationary + ~18s pit-lane delta.
+  meanLossSeconds: 21,
+  stddevSeconds: 1.5,
+  sampleCount: 0,
+}
+
+export const DEFAULT_STINT_CALIBRATION: StintCalibration = {
+  // Conservative per-compound defaults aligned with medium-wear tracks.
+  // Softer compounds run shorter; harder compounds run longer.
+  expectedLaps: {
+    C1: 32,
+    C2: 26,
+    C3: 20,
+    C4: 15,
+    C5: 11,
+  },
+  sampleCount: 0,
+}
+
 // ---------------------------------------------------------------------------
 // Factory — creates a fallback profile for any circuit ID
 // ---------------------------------------------------------------------------
@@ -115,6 +163,11 @@ export function createFallbackProfile(circuitId: string): CalibrationProfile {
       temperatureRange: { ...DEFAULT_WEATHER_CALIBRATION.temperatureRange },
     },
     overtake: { ...DEFAULT_OVERTAKE_CALIBRATION },
+    pitLoss: { ...DEFAULT_PITLOSS_CALIBRATION },
+    stint: {
+      expectedLaps: { ...DEFAULT_STINT_CALIBRATION.expectedLaps },
+      sampleCount: DEFAULT_STINT_CALIBRATION.sampleCount,
+    },
   }
 }
 
@@ -147,6 +200,17 @@ export function deriveCalibrationFromCircuit(circuit: Circuit): CalibrationProfi
   const variability = WEATHER_VARIABILITY_BY_LEVEL[circuit.weatherVariability]
   const overtakeMod = OVERTAKE_MODIFIER_BY_LEVEL[circuit.overtakingDifficulty]
 
+  // Expected stint laps scale inversely with the circuit's tire-wear multiplier.
+  // A high-wear track shortens stints; a low-wear track lengthens them.
+  const stintScale = 1 / wearMul
+  const expectedLaps: Record<TireCompound, number> = {
+    C1: Math.max(1, Math.round(DEFAULT_STINT_CALIBRATION.expectedLaps.C1 * stintScale)),
+    C2: Math.max(1, Math.round(DEFAULT_STINT_CALIBRATION.expectedLaps.C2 * stintScale)),
+    C3: Math.max(1, Math.round(DEFAULT_STINT_CALIBRATION.expectedLaps.C3 * stintScale)),
+    C4: Math.max(1, Math.round(DEFAULT_STINT_CALIBRATION.expectedLaps.C4 * stintScale)),
+    C5: Math.max(1, Math.round(DEFAULT_STINT_CALIBRATION.expectedLaps.C5 * stintScale)),
+  }
+
   return {
     circuitId: circuit.id,
     source: 'fallback',
@@ -164,6 +228,11 @@ export function deriveCalibrationFromCircuit(circuit: Circuit): CalibrationProfi
     overtake: {
       overtakeModifier: overtakeMod,
       drsEffectiveness: DEFAULT_OVERTAKE_CALIBRATION.drsEffectiveness,
+    },
+    pitLoss: { ...DEFAULT_PITLOSS_CALIBRATION },
+    stint: {
+      expectedLaps,
+      sampleCount: 0,
     },
   }
 }

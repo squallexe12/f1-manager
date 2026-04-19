@@ -227,6 +227,11 @@ describe('race bootstrap', () => {
         temperatureRange: { min: 25, max: 45 },
       },
       overtake: { overtakeModifier: 0.9, drsEffectiveness: 0.6 },
+      pitLoss: { meanLossSeconds: 22, stddevSeconds: 1.2, sampleCount: 48 },
+      stint: {
+        expectedLaps: { C1: 30, C2: 24, C3: 18, C4: 13, C5: 10 },
+        sampleCount: 120,
+      },
     }
     const { calibration } = bootstrapRace(makeInput({ calibration: override }))
     expect(calibration.source).toBe('openf1')

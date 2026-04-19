@@ -34,5 +34,20 @@
   "overtake": {
     "overtakeModifier": 1,
     "drsEffectiveness": 0.5
+  },
+  "pitLoss": {
+    "meanLossSeconds": 24.73,
+    "stddevSeconds": 1.43,
+    "sampleCount": 7
+  },
+  "stint": {
+    "expectedLaps": {
+      "C1": 32,
+      "C2": 26,
+      "C3": 61,
+      "C4": 51,
+      "C5": 18
+    },
+    "sampleCount": 23
   }
 }

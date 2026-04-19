@@ -58,10 +58,16 @@ export interface RaceStrategy {
 export interface StrategyOption {
   type: 'undercut' | 'optimum' | 'overcut'
   pitLap: number
-  newCompound: TireCompound  
+  newCompound: TireCompound
   projectedOutcome: string
   probability: number // chance of gaining position
   risk: string
+  /**
+   * Expected pit-lane time loss in seconds, sourced from the circuit's
+   * PitLossCalibration when available. Undefined when calibration was not
+   * supplied to the strategy calculator (fallback path).
+   */
+  projectedPitLossSec?: number
 }
 
 export interface BattleForecast {

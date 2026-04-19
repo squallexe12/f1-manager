@@ -3,6 +3,8 @@ import {
   normalizeWeatherCalibration,
   normalizeTireCalibration,
   normalizeOvertakeCalibration,
+  normalizePitLossCalibration,
+  normalizeStintCalibration,
   normalizeCalibrationProfile,
   mapOpenF1CompoundToPirelli,
 } from '@scripts/openf1/normalize'
@@ -10,11 +12,14 @@ import {
   DEFAULT_TIRE_CALIBRATION,
   DEFAULT_WEATHER_CALIBRATION,
   DEFAULT_OVERTAKE_CALIBRATION,
+  DEFAULT_PITLOSS_CALIBRATION,
+  DEFAULT_STINT_CALIBRATION,
 } from '@/types/calibration'
 import type {
   OpenF1Lap,
   OpenF1Stint,
   OpenF1Weather,
+  OpenF1PitStop,
   OpenF1SessionBundle,
 } from '@scripts/openf1/types'
 
@@ -191,6 +196,123 @@ describe('normalizeOvertakeCalibration', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Pit-loss normalizer (IP-07 Task 2)
+// ---------------------------------------------------------------------------
+
+describe('normalizePitLossCalibration', () => {
+  it('returns defaults when no pit stops are provided', () => {
+    const result = normalizePitLossCalibration([])
+    expect(result.meanLossSeconds).toBe(DEFAULT_PITLOSS_CALIBRATION.meanLossSeconds)
+    expect(result.sampleCount).toBe(0)
+  })
+
+  it('computes mean loss from pit_duration samples', () => {
+    const stops: OpenF1PitStop[] = [
+      { driver_number: 1, lap_number: 18, pit_duration: 22.5 },
+      { driver_number: 2, lap_number: 20, pit_duration: 21.8 },
+      { driver_number: 3, lap_number: 22, pit_duration: 22.1 },
+      { driver_number: 4, lap_number: 25, pit_duration: 21.6 },
+    ]
+    const result = normalizePitLossCalibration(stops)
+    expect(result.meanLossSeconds).toBeCloseTo(22.0, 1)
+    expect(result.sampleCount).toBe(4)
+  })
+
+  it('computes a non-negative stddev from pit_duration samples', () => {
+    const stops: OpenF1PitStop[] = [
+      { driver_number: 1, lap_number: 18, pit_duration: 20 },
+      { driver_number: 2, lap_number: 20, pit_duration: 22 },
+      { driver_number: 3, lap_number: 22, pit_duration: 24 },
+    ]
+    const result = normalizePitLossCalibration(stops)
+    expect(result.stddevSeconds).toBeGreaterThan(0)
+  })
+
+  it('ignores entries with missing or non-finite pit_duration', () => {
+    const stops: OpenF1PitStop[] = [
+      { driver_number: 1, lap_number: 18, pit_duration: null },
+      { driver_number: 2, lap_number: 20, pit_duration: NaN },
+      { driver_number: 3, lap_number: 22, pit_duration: 22.0 },
+    ]
+    const result = normalizePitLossCalibration(stops)
+    expect(result.sampleCount).toBe(1)
+    expect(result.meanLossSeconds).toBeCloseTo(22.0, 2)
+  })
+
+  it('rejects implausibly small or large outliers (noise-robust)', () => {
+    const stops: OpenF1PitStop[] = [
+      { driver_number: 1, lap_number: 1, pit_duration: 2 },       // drive-through, not a stop
+      { driver_number: 2, lap_number: 2, pit_duration: 21.5 },
+      { driver_number: 3, lap_number: 3, pit_duration: 22.0 },
+      { driver_number: 4, lap_number: 4, pit_duration: 600 },     // red-flag pit, not a stop
+    ]
+    const result = normalizePitLossCalibration(stops)
+    expect(result.meanLossSeconds).toBeGreaterThan(15)
+    expect(result.meanLossSeconds).toBeLessThan(60)
+    expect(result.sampleCount).toBe(2)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Stint normalizer (IP-07 Task 2)
+// ---------------------------------------------------------------------------
+
+describe('normalizeStintCalibration', () => {
+  it('returns defaults when no stints are provided', () => {
+    const result = normalizeStintCalibration([], ['C1', 'C2', 'C3'])
+    expect(result.expectedLaps).toEqual(DEFAULT_STINT_CALIBRATION.expectedLaps)
+    expect(result.sampleCount).toBe(0)
+  })
+
+  it('computes mean stint length per compound', () => {
+    const stints: OpenF1Stint[] = [
+      { driver_number: 1, stint_number: 1, lap_start: 1, lap_end: 20, compound: 'HARD', tyre_age_at_start: 0 },
+      { driver_number: 2, stint_number: 1, lap_start: 1, lap_end: 24, compound: 'HARD', tyre_age_at_start: 0 },
+      { driver_number: 1, stint_number: 2, lap_start: 21, lap_end: 40, compound: 'MEDIUM', tyre_age_at_start: 0 },
+      { driver_number: 2, stint_number: 2, lap_start: 25, lap_end: 40, compound: 'MEDIUM', tyre_age_at_start: 0 },
+    ]
+    // compounds [C1, C2, C3]: HARD=C1, MEDIUM=C2, SOFT=C3
+    const result = normalizeStintCalibration(stints, ['C1', 'C2', 'C3'])
+    // HARD stints: length 20, 24 → mean 22
+    expect(result.expectedLaps.C1).toBe(22)
+    // MEDIUM stints: length 20, 16 → mean 18
+    expect(result.expectedLaps.C2).toBe(18)
+    // SOFT not observed → retains default
+    expect(result.expectedLaps.C3).toBe(DEFAULT_STINT_CALIBRATION.expectedLaps.C3)
+    expect(result.sampleCount).toBe(4)
+  })
+
+  it('skips intermediate and wet stints (they do not calibrate dry tire strategy)', () => {
+    const stints: OpenF1Stint[] = [
+      { driver_number: 1, stint_number: 1, lap_start: 1, lap_end: 5, compound: 'INTERMEDIATE', tyre_age_at_start: 0 },
+      { driver_number: 1, stint_number: 2, lap_start: 6, lap_end: 10, compound: 'WET', tyre_age_at_start: 0 },
+    ]
+    const result = normalizeStintCalibration(stints, ['C1', 'C2', 'C3'])
+    expect(result.sampleCount).toBe(0)
+    expect(result.expectedLaps).toEqual(DEFAULT_STINT_CALIBRATION.expectedLaps)
+  })
+
+  it('skips zero-length or negative stint ranges', () => {
+    const stints: OpenF1Stint[] = [
+      { driver_number: 1, stint_number: 1, lap_start: 10, lap_end: 10, compound: 'SOFT', tyre_age_at_start: 0 },
+      { driver_number: 2, stint_number: 1, lap_start: 15, lap_end: 10, compound: 'SOFT', tyre_age_at_start: 0 },
+    ]
+    const result = normalizeStintCalibration(stints, ['C1', 'C2', 'C3'])
+    expect(result.sampleCount).toBe(0)
+  })
+
+  it('produces JSON-safe output (no NaN, no Infinity)', () => {
+    const stints: OpenF1Stint[] = [
+      { driver_number: 1, stint_number: 1, lap_start: 1, lap_end: 15, compound: 'SOFT', tyre_age_at_start: 0 },
+    ]
+    const result = normalizeStintCalibration(stints, ['C1', 'C2', 'C3'])
+    const serialized = JSON.stringify(result)
+    expect(serialized).not.toContain('NaN')
+    expect(() => JSON.parse(serialized)).not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // End-to-end profile normalizer
 // ---------------------------------------------------------------------------
 
@@ -209,6 +331,10 @@ describe('normalizeCalibrationProfile', () => {
     weather: [
       { date: '2024-03-02T15:00:00Z', air_temperature: 25, track_temperature: 38, rainfall: 0, humidity: 45 },
     ],
+    pitStops: [
+      { driver_number: 1, lap_number: 18, pit_duration: 21.5 },
+      { driver_number: 2, lap_number: 20, pit_duration: 22.0 },
+    ],
   }
 
   it('stamps the profile with source "openf1"', () => {
@@ -221,11 +347,20 @@ describe('normalizeCalibrationProfile', () => {
     expect(profile.circuitId).toBe('bahrain')
   })
 
-  it('returns a fully-formed CalibrationProfile with all three sub-calibrations', () => {
+  it('returns a fully-formed CalibrationProfile with all sub-calibrations', () => {
     const profile = normalizeCalibrationProfile(bundle)
     expect(profile.tires).toBeDefined()
     expect(profile.weather).toBeDefined()
     expect(profile.overtake).toBeDefined()
+    expect(profile.pitLoss).toBeDefined()
+    expect(profile.stint).toBeDefined()
+  })
+
+  it('derives pit-loss and stint from the bundle (IP-07 Task 2)', () => {
+    const profile = normalizeCalibrationProfile(bundle)
+    expect(profile.pitLoss.sampleCount).toBe(2)
+    expect(profile.pitLoss.meanLossSeconds).toBeCloseTo(21.75, 2)
+    expect(profile.stint.sampleCount).toBeGreaterThan(0)
   })
 
   it('produces JSON-round-trip-safe output', () => {
