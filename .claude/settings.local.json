@@ -79,7 +79,9 @@
       "Bash(CALIBRATION_BALANCE=1 CALIBRATION_BALANCE_ITERATIONS=5 npx vitest run tests/engine/race/calibration-balance.test.ts)",
       "Bash(CALIBRATION_BALANCE=1 npx vitest run tests/engine/race/calibration-balance.test.ts)",
       "Bash(grep -E \"^\\(.+calibration|.+race-intel|.+pit-strategy|.+openf1|.+sanitize\\)\\\\\\\\.\\(ts|tsx\\)$\")",
-      "Bash(awk '/^C:\\\\\\\\/{f=$0} /error/{print f\"\\\\t\"$0}')"
+      "Bash(awk '/^C:\\\\\\\\/{f=$0} /error/{print f\"\\\\t\"$0}')",
+      "Bash(awk '{print $3}')",
+      "Bash(grep -E \"\\\\\\\\\\\\\\\\\")"
     ]
   }
 }

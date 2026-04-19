@@ -5,7 +5,7 @@ import { resolveCalibrationForCircuit } from '@/data/calibration'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
 import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
-import { useRaceSimulation, type TimingEntry } from '@/hooks/use-race-simulation'
+import { useRaceSimulation } from '@/hooks/use-race-simulation'
 import { PageShell } from '@/components/layout/page-shell'
 import { TimingTower } from '@/components/strategy/timing-tower'
 import { TireStrategy } from '@/components/strategy/tire-strategy'
@@ -37,11 +37,14 @@ export default function StrategyPage() {
     calendar: w.calendar,
   }))
 
-  // All hooks must be above early returns
+  // All hooks must be above early returns.
+  // Slice fallbacks are wrapped in useMemo so downstream hooks (driverMeta)
+  // keep a stable reference when the slice is undefined during the first
+  // render — otherwise React Compiler skips memoization on this component.
   const gameState = slice?.gameState
-  const teams = slice?.teams ?? []
-  const drivers = slice?.drivers ?? []
-  const calendar = slice?.calendar ?? []
+  const teams = useMemo(() => slice?.teams ?? [], [slice?.teams])
+  const drivers = useMemo(() => slice?.drivers ?? [], [slice?.drivers])
+  const calendar = useMemo(() => slice?.calendar ?? [], [slice?.calendar])
   const playerTeamId = gameState?.playerTeamId ?? ''
 
   const playerTeam = teams.find((t) => t.id === playerTeamId)
@@ -84,7 +87,6 @@ export default function StrategyPage() {
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production' && calibration && calibration.source !== 'openf1') {
-      // eslint-disable-next-line no-console
       console.warn(
         `[calibration] Circuit "${calibration.circuitId}" is using a "${calibration.source}" profile. ` +
           'Strategy suggestions fall back to internal heuristics instead of OpenF1-derived data.',
@@ -150,9 +152,9 @@ export default function StrategyPage() {
     startRace(payload)
   }
 
-  // Handle practice session start
-  function handleStartSession(_programId: string) {
-    // In MVP, practice just advances to qualifying
+  // Handle practice session start — MVP just advances to qualifying,
+  // so the program id is intentionally ignored (contravariant signature).
+  function handleStartSession() {
     handleAdvance()
   }
 
