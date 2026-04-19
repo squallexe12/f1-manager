@@ -19,14 +19,15 @@ export function BattleForecast({ battles, className = '' }: BattleForecastProps)
 
       {/* Battle rows — 1px line-hair separator grid */}
       <div className="flex flex-col gap-px bg-line-hair">
-        {battles.map((battle, i) => {
+        {battles.map((battle) => {
           const pct = Math.round(battle.overtakeProbability * 100)
-          // Gap direction: if description contains 'closing' treat as closing, else growing
-          const isClosing = battle.description.toLowerCase().includes('clos')
+          // Gap direction: 'Closing fast' matches 'clos'; 'DRS range' (<0.5s) also treated as closing
+          const desc = battle.description.toLowerCase()
+          const isClosing = desc.includes('clos') || desc.includes('drs')
 
           return (
             <div
-              key={i}
+              key={`${battle.attackerId}-${battle.defenderId}`}
               className="bg-surface-paper px-3.5 py-2.5 grid items-center gap-2.5"
               style={{ gridTemplateColumns: '1fr auto 1fr' }}
             >

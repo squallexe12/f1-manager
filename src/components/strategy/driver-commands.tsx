@@ -57,8 +57,8 @@ export function DriverCommands({ driverId, driverName, currentCommand, available
         {driverName}
       </span>
 
-      {/* 4-col (wrapping) command button grid — spec says 4-col; we render 5 cmds so allow wrap */}
-      <div className="grid grid-cols-4 gap-1">
+      {/* 5-col command button grid — one column per command, single aligned row */}
+      <div className="grid grid-cols-5 gap-1">
         {COMMANDS.map(({ command, label, type }) => (
           <button
             key={command}

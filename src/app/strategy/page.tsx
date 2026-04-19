@@ -37,7 +37,7 @@ function GapChartRow({ timing, isOpen, onToggle }: {
       <button
         type="button"
         onClick={onToggle}
-        className="w-full flex items-center justify-between px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-mute hover:text-ink-hi transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-mute hover:text-ink-hi transition-[color] duration-[120ms]"
       >
         <span>Gap Chart · Top 10</span>
         <span>{isOpen ? '▼' : '▶'}</span>
