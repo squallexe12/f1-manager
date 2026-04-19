@@ -65,7 +65,17 @@
       "Bash(rm -f .graphify_detect.json .graphify_extract.json .graphify_ast.json .graphify_semantic.json .graphify_analysis.json .graphify_labels.json .graphify_cached.json .graphify_uncached.txt .graphify_semantic_new.json .graphify_python)",
       "Bash(echo \"---TSC EXIT $?---\")",
       "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('mcpServers', {}\\), indent=2\\)\\)\")",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(ping -n 1 api.openf1.org)",
+      "Bash(ping -n 1 api.openf1.net)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -o /dev/null http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"strategy=%{http_code}\\\\n\" http://localhost:3000/strategy --max-time 30)",
+      "Bash(curl -s -o /dev/null -w \"paddock=%{http_code}\\\\n\" http://localhost:3000/paddock --max-time 30)",
+      "Bash(kill %1)"
     ]
   }
 }

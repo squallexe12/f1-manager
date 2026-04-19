@@ -4,7 +4,7 @@ export const CIRCUITS: Circuit[] = [
   {
     id: 'melbourne', name: 'Australian Grand Prix', country: 'Australia', laps: 58,
     downforceLevel: 'medium', tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'high',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
   },
   {
     id: 'shanghai', name: 'Chinese Grand Prix', country: 'China', laps: 56,
@@ -34,7 +34,7 @@ export const CIRCUITS: Circuit[] = [
   {
     id: 'imola', name: 'Emilia Romagna Grand Prix', country: 'Italy', laps: 63,
     downforceLevel: 'high', tireWear: 'medium', overtakingDifficulty: 'high', weatherVariability: 'medium',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
   },
   {
     id: 'monaco', name: 'Monaco Grand Prix', country: 'Monaco', laps: 78,
@@ -54,7 +54,7 @@ export const CIRCUITS: Circuit[] = [
   {
     id: 'spielberg', name: 'Austrian Grand Prix', country: 'Austria', laps: 71,
     downforceLevel: 'low', tireWear: 'medium', overtakingDifficulty: 'low', weatherVariability: 'medium',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
   },
   {
     id: 'silverstone', name: 'British Grand Prix', country: 'Great Britain', laps: 52,
@@ -62,9 +62,14 @@ export const CIRCUITS: Circuit[] = [
     sectorCount: 3, compounds: ['C1', 'C2', 'C3'],
   },
   {
+    id: 'hungary', name: 'Hungarian Grand Prix', country: 'Hungary', laps: 70,
+    downforceLevel: 'high', tireWear: 'medium', overtakingDifficulty: 'high', weatherVariability: 'medium',
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
+  },
+  {
     id: 'spa', name: 'Belgian Grand Prix', country: 'Belgium', laps: 44,
     downforceLevel: 'medium', tireWear: 'medium', overtakingDifficulty: 'low', weatherVariability: 'high',
-    sectorCount: 3, compounds: ['C1', 'C2', 'C3'],
+    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
   },
   {
     id: 'zandvoort', name: 'Dutch Grand Prix', country: 'Netherlands', laps: 72,
@@ -74,12 +79,12 @@ export const CIRCUITS: Circuit[] = [
   {
     id: 'monza', name: 'Italian Grand Prix', country: 'Italy', laps: 53,
     downforceLevel: 'low', tireWear: 'medium', overtakingDifficulty: 'low', weatherVariability: 'low',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
   },
   {
     id: 'baku', name: 'Azerbaijan Grand Prix', country: 'Azerbaijan', laps: 51,
     downforceLevel: 'low', tireWear: 'medium', overtakingDifficulty: 'low', weatherVariability: 'low',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
   },
   {
     id: 'singapore', name: 'Singapore Grand Prix', country: 'Singapore', laps: 62,
@@ -94,21 +99,26 @@ export const CIRCUITS: Circuit[] = [
   {
     id: 'mexico', name: 'Mexico City Grand Prix', country: 'Mexico', laps: 71,
     downforceLevel: 'high', tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
   },
   {
     id: 'interlagos', name: 'São Paulo Grand Prix', country: 'Brazil', laps: 71,
     downforceLevel: 'medium', tireWear: 'high', overtakingDifficulty: 'low', weatherVariability: 'high',
-    sectorCount: 3, compounds: ['C1', 'C2', 'C3'],
+    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
   },
   {
     id: 'las-vegas', name: 'Las Vegas Grand Prix', country: 'USA', laps: 50,
     downforceLevel: 'low', tireWear: 'medium', overtakingDifficulty: 'low', weatherVariability: 'low',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
+  },
+  {
+    id: 'qatar', name: 'Qatar Grand Prix', country: 'Qatar', laps: 57,
+    downforceLevel: 'high', tireWear: 'high', overtakingDifficulty: 'medium', weatherVariability: 'low',
+    sectorCount: 3, compounds: ['C1', 'C2', 'C3'],
   },
   {
     id: 'abu-dhabi', name: 'Abu Dhabi Grand Prix', country: 'UAE', laps: 58,
     downforceLevel: 'medium', tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low',
-    sectorCount: 3, compounds: ['C2', 'C3', 'C4'],
+    sectorCount: 3, compounds: ['C3', 'C4', 'C5'],
   },
 ]

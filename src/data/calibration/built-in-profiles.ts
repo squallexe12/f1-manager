@@ -5,6 +5,7 @@ import austin from './austin.json'
 import bahrain from './bahrain.json'
 import baku from './baku.json'
 import barcelona from './barcelona.json'
+import hungary from './hungary.json'
 import imola from './imola.json'
 import interlagos from './interlagos.json'
 import jeddah from './jeddah.json'
@@ -15,6 +16,7 @@ import miami from './miami.json'
 import monaco from './monaco.json'
 import montreal from './montreal.json'
 import monza from './monza.json'
+import qatar from './qatar.json'
 import shanghai from './shanghai.json'
 import silverstone from './silverstone.json'
 import singapore from './singapore.json'
@@ -41,6 +43,7 @@ export const BUILT_IN_CALIBRATION_PROFILES: readonly CalibrationProfile[] = [
   bahrain,
   baku,
   barcelona,
+  hungary,
   imola,
   interlagos,
   jeddah,
@@ -51,6 +54,7 @@ export const BUILT_IN_CALIBRATION_PROFILES: readonly CalibrationProfile[] = [
   monaco,
   montreal,
   monza,
+  qatar,
   shanghai,
   silverstone,
   singapore,

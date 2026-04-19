@@ -23,8 +23,8 @@ describe('data integrity', () => {
     }
   })
 
-  it('has 22 circuits', () => {
-    expect(CIRCUITS).toHaveLength(22)
+  it('has 24 circuits', () => {
+    expect(CIRCUITS).toHaveLength(24)
   })
 
   it('every circuit has 3 tire compounds', () => {

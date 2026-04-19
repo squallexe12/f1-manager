@@ -68,7 +68,7 @@ describe('race bootstrap', () => {
 
   it('track temperature stays within gameplay envelope (35-50 C)', () => {
     for (let seed = 1; seed < 200; seed++) {
-      for (let round = 1; round <= 22; round++) {
+      for (let round = 1; round <= 24; round++) {
         const { raceState } = bootstrapRace(makeInput({ seed, round }))
         expect(raceState.trackTemp).toBeGreaterThanOrEqual(35)
         expect(raceState.trackTemp).toBeLessThanOrEqual(50)
