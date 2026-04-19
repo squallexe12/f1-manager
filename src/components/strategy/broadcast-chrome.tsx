@@ -18,7 +18,7 @@ interface BroadcastChromeProps {
   safetyCar: 'green' | 'vsc' | 'sc'
 
   // ─── SimSpeedControl pass-through (exact types from step 2.1) ───
-  currentSpeed: SimSpeed | 'paused'
+  currentSpeed: SimSpeed
   onSetSpeed: (speed: SimSpeed) => void
   onPause: () => void
   onResume: () => void

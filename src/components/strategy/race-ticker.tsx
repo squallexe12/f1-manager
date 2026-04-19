@@ -49,6 +49,9 @@ export function RaceTicker({ entries, className = '' }: RaceTickerProps) {
         .ticker-roll-anim {
           animation: ticker-roll 30s linear infinite;
         }
+        @keyframes pulse {
+          50% { opacity: 0.3; }
+        }
       `}</style>
 
       <div

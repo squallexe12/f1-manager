@@ -1,3 +1,5 @@
+'use client'
+
 import type { WeatherForecast } from '@/types/race'
 
 interface RaceStatusBarProps {
