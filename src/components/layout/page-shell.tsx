@@ -10,7 +10,7 @@ interface PageShellProps {
 export function PageShell({ children, theme = 'kinetic' }: PageShellProps) {
   const isBroadcast = theme === 'broadcast'
   return (
-    <div data-theme={theme} className="min-h-screen bg-[var(--bg-primary)]">
+    <div data-theme={theme} className="min-h-screen bg-[var(--surface-void)]">
       {/* Skip to content link for keyboard users */}
       <a
         href="#main-content"
