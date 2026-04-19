@@ -53,7 +53,8 @@
 - `src/app/layout.tsx` (JetBrains Mono already loaded — **do not re-add**)
 - `src/app/globals.css`
 - Any file under `src/engine/`, `src/stores/`, `src/workers/`, `src/hooks/`, `src/types/`
-- Any page or component outside `src/app/strategy/` and `src/components/strategy/` except `page-shell.tsx` and `tailwind.config.ts`
+- Any file under `tests/` — Pipeline B ui-interface does not write or modify tests. `verify` runs the existing suite; no new tests are expected or wanted.
+- Any page or component outside `src/app/strategy/` and `src/components/strategy/` except `page-shell.tsx`, `tailwind.config.ts`, and `src/components/charts/gap-chart.tsx`
 
 ---
 
@@ -66,23 +67,33 @@ git status
 ```
 Expected: working tree clean on `main`. If not, stash or commit before proceeding.
 
-- [ ] **P-2: Confirm baseline builds green**
+- [ ] **P-2: Confirm baseline builds green (capture logs for later diff)**
 
 ```bash
-npx tsc --noEmit
-npx vitest run
-npm run lint
+mkdir -p scratch/baseline
+npx tsc --noEmit 2>&1 | tee scratch/baseline/tsc-precheck.log
+npx vitest run 2>&1 | tee scratch/baseline/vitest-precheck.log
+npm run lint 2>&1 | tee scratch/baseline/lint-precheck.log
 ```
-Expected: all three pass. If any fail on `main` before you start, that's a pre-existing issue — flag to user, do not proceed.
+Expected: all three pass. If any fail on `main` before you start, that's a pre-existing issue — flag to user, do not proceed. Keep the logs — later steps diff their output against these to distinguish regressions from pre-existing noise.
 
-- [ ] **P-3: Capture baseline screenshots of non-Strategy routes**
+- [ ] **P-3: Capture structured baseline of non-Strategy routes**
 
-Start dev server (background) and capture screenshots of `/paddock`, `/factory`, `/drivers` (if exists). Save to `scratch/baseline/` (gitignored). These are used as ground truth for the Kinetic-route snapshot diff in Task 1.
+Start dev server (background). For each of `/paddock`, `/factory`, and one other Kinetic route (check `src/app/` for available routes — likely `/drivers`, `/calendar`, or similar), open the URL in a browser and record a **structured baseline** in `scratch/baseline/kinetic-snapshot.md`:
+
+For each route, document:
+1. Top-bar rendered colors (background, text, accent).
+2. Nav-bar rendered colors.
+3. First card's border color + background.
+4. Body text color.
+5. Any active accent color visible.
 
 ```bash
-npm run dev &
-# wait for server ready, then capture via browser or playwright
+npm run dev
+# Visit each route, fill in the markdown table.
 ```
+
+This replaces pixel-diff tooling (which is not wired in the project). Step 1.7 compares the same five observations post-change; any visible color shift in those five observations is a failure. This is the "structured eyeball" gate per review finding H-6.
 
 ---
 
@@ -98,7 +109,13 @@ npm run dev &
 
 - [ ] **Step 1.1: Create `src/styles/themes/kinetic.css`**
 
-Move the entire current content of `src/styles/tokens.css` into this new file. Preserve the `@layer base`, `:root`, and `.high-contrast` blocks verbatim. Then add an explicit `[data-theme="kinetic"]` block that mirrors `:root`:
+Two substeps:
+
+**1.1a — Move existing Kinetic tokens verbatim.** Copy the entire current content of `src/styles/tokens.css` (every line, including `@layer base {`, `:root { … }`, `.high-contrast { … }`, and the closing `}`) into the new file `src/styles/themes/kinetic.css` with zero modifications. This preserves the Kinetic palette exactly.
+
+**1.1b — Append compatibility aliases inside `:root`.** Then extend the existing `:root` block (do **not** create a separate block, do **not** place aliases in `[data-theme="kinetic"]`) with the Broadcast-compatibility aliases below, per spec §4.4. These aliases let the new Tailwind classes (`bg-surface-paper`, `text-ink-hi`, etc.) resolve to Kinetic-equivalent colors on Kinetic pages.
+
+**Final file should look like:**
 
 ```css
 @layer base {
@@ -151,10 +168,11 @@ Move the entire current content of `src/styles/tokens.css` into this new file. P
     --font-display: var(--font-heading);
   }
 
-  [data-theme="kinetic"] {
-    /* Explicit alias; identical to :root above for now. Kept as a named hook
-       for future flexibility if :root default is ever repointed. */
-  }
+  /* No separate [data-theme="kinetic"] block — the :root above IS the Kinetic
+     theme. A <PageShell theme="kinetic"> renders with data-theme="kinetic",
+     which falls through to :root via the cascade. If the spec later changes
+     :root default away from Kinetic, duplicate these declarations into
+     [data-theme="kinetic"] at that time. */
 
   .high-contrast {
     /* --- moved verbatim from src/styles/tokens.css --- */
@@ -340,6 +358,13 @@ export function PageShell({ children, theme = 'kinetic' }: PageShellProps) {
 
 The skip-link color swap (reviewer finding L5) uses `--sig-amber` against `--bg-void` — verify WCAG 4.5:1 contrast after step 2.6.
 
+- [ ] **Step 1.5a: PageShell audit — confirm skip-link uses theme-correct tokens on both branches**
+
+```bash
+grep -nE "focus:bg-\[var\(--(accent-lime|sig-amber)\)\]|focus:text-\[var\(--(bg-void|[^)]+)\)\]" src/components/layout/page-shell.tsx
+```
+Expected: exactly two `focus:bg` matches and two `focus:text` matches (one pair per theme branch). If any legacy token (e.g. `--accent-cyan`, `--accent-red`) leaked into the skip-link, fix it before moving on.
+
 - [ ] **Step 1.6: Verify type-check, tests, lint**
 
 ```bash
@@ -347,11 +372,13 @@ npx tsc --noEmit
 npx vitest run
 npm run lint
 ```
-Expected: all three green.
+Expected: all three green. Compare against `scratch/baseline/*.log` from P-2 if any failures appear — a pre-existing failure is not a regression.
 
-- [ ] **Step 1.7: Verify Kinetic routes unchanged (screenshot diff)**
+- [ ] **Step 1.7: Verify Kinetic routes unchanged (structured eyeball)**
 
-Start `npm run dev`. Visit `/paddock`, `/factory`, and one other Kinetic route. Compare against `scratch/baseline/*.png` captured in P-3. Any visible diff indicates token leakage across the boundary — fix before commit.
+Start `npm run dev`. Visit `/paddock`, `/factory`, and the third route you recorded in P-3. Re-observe the same five data points from `scratch/baseline/kinetic-snapshot.md` (top-bar colors, nav-bar colors, first-card border+background, body text color, active accent color).
+
+Any observable color shift = token leak across the Kinetic/Broadcast boundary. Must be fixed before commit. Expected: zero observable changes — Kinetic routes should look identical to their pre-change state because only `/strategy` passes `theme="broadcast"`, and in this task `/strategy` does **not** yet pass it.
 
 - [ ] **Step 1.8: Verify `/strategy` still renders (Kinetic)**
 
@@ -376,7 +403,9 @@ tokens.css becomes an @import switchboard.
 Dual-write Tailwind: new surface.*, line.*, ink.*, sig.*, c.* buckets
 added alongside existing bg.*, border.*, accent.*, text.* (preserved
 for all non-Strategy pages). PageShell gains optional theme prop;
-skip-link color swaps per theme.
+skip-link class set swaps per theme. WCAG 4.5:1 contrast
+verification on the Broadcast skip-link deferred to Task 2 when the
+theme is first activated on /strategy.
 
 No theme activation yet. /strategy still renders Kinetic to avoid a
 transitional variable-resolution break. Activation ships in Task 2.
@@ -394,9 +423,32 @@ Spec: docs/superpowers/specs/2026-04-19-strategy-broadcast-redesign-design.md"
 - Create: `src/components/strategy/broadcast-chrome.tsx`, `src/components/strategy/hero-strip.tsx`
 - Modify: `src/components/strategy/race-status-bar.tsx`, `src/components/strategy/sim-speed-control.tsx`, `src/components/strategy/race-ticker.tsx`, `src/app/strategy/page.tsx`
 
-- [ ] **Step 2.1: Read current chrome components**
+- [ ] **Step 2.0: Pre-flight — confirm page is Client Component and count PageShell sites**
 
-Read these files before modifying to understand existing props and data flow:
+```bash
+# Verify strategy page is 'use client' (required for useState later)
+head -3 src/app/strategy/page.tsx
+# Expected: first line is 'use client'
+
+# Count PageShell instances — spec §4.3 cites six
+grep -c "<PageShell" src/app/strategy/page.tsx
+# Expected: 6
+```
+
+If the count differs from 6, STOP. Either the file has drifted since the spec was written (reconcile with user before proceeding) or the grep pattern needs escaping. Do not continue Task 2 until the count is confirmed — the `theme="broadcast"` activation in Step 2.7 depends on it.
+
+If the first line is not `'use client'`, add that directive as a separate one-line commit before starting Step 2.1 (commit message: `chore(strategy): mark page as Client Component for upcoming useState`).
+
+- [ ] **Step 2.1: Capture exact prop shapes of chrome components**
+
+Read each of these files and record the exact prop interface in `scratch/baseline/chrome-props.md` (gitignored). Specifically capture:
+- `RaceStatusBar` — interface name, each prop's name + type
+- `SimSpeedControl` — same
+- `RaceTicker` — same, with particular attention to the `entries` prop's array element type (likely `CommentaryEntry[]` — capture the import path)
+
+These exact types drive Step 2.5's `BroadcastChromeProps`. Do not guess — copy the type signatures byte-for-byte.
+
+Files to read:
 - `src/components/strategy/race-status-bar.tsx`
 - `src/components/strategy/sim-speed-control.tsx`
 - `src/components/strategy/race-ticker.tsx`
@@ -417,34 +469,47 @@ Reference CSS: `new-designs/app.css` lines 215–281. Green/yellow/red flag-mark
 
 - [ ] **Step 2.5: Create `src/components/strategy/broadcast-chrome.tsx`**
 
+Use the **exact prop types** you captured in Step 2.1 — do not invent or widen them. The interface must embed each child's prop set exactly so no casts or `as` narrowing is needed.
+
+Skeleton (fill in the placeholders from your `chrome-props.md` capture; replace `{CommentaryEntry}` with the real imported type):
+
 ```tsx
 'use client'
 
-import type { ReactNode } from 'react'
 import { RaceStatusBar } from './race-status-bar'
 import { SimSpeedControl } from './sim-speed-control'
 import { RaceTicker } from './race-ticker'
+import type { /* CommentaryEntry — use the real type captured in 2.1 */ } from '@/types/race'
+// (Replace the import path above with the actual path from step 2.1.)
 
 interface BroadcastChromeProps {
-  // Pass-through props for RaceStatusBar
+  // Phase + flag context (from spec §6).
+  phase: 'race' | 'sprint' | 'post-race'
+  flagStatus?: 'green' | 'yellow' | 'sc' | 'vsc' | 'red' | 'chequered'
+
+  // ─── RaceStatusBar pass-through (EXACT types from step 2.1) ───
   lap: number
   totalLaps: number
-  weather: string
+  weather: /* fill in */
   trackTemp: number
   safetyCar: boolean
-  // Pass-through props for SimSpeedControl
+
+  // ─── SimSpeedControl pass-through ───
   currentSpeed: number
   onSetSpeed: (speed: number) => void
   onPause: () => void
   onResume: () => void
   isPaused: boolean
-  // Pass-through props for RaceTicker
-  tickerEntries: ReactNode // or the existing commentary type
+
+  // ─── RaceTicker pass-through ───
+  tickerEntries: /* CommentaryEntry[] or whatever step 2.1 captured */
+
   // Layout
   sticky?: boolean
 }
 
 export function BroadcastChrome({
+  phase, flagStatus,
   lap, totalLaps, weather, trackTemp, safetyCar,
   currentSpeed, onSetSpeed, onPause, onResume, isPaused,
   tickerEntries, sticky = true,
@@ -461,17 +526,22 @@ export function BroadcastChrome({
           onPause={onPause} onResume={onResume} isPaused={isPaused}
         />
       </div>
-      <RaceTicker entries={tickerEntries as never} className="mt-2" />
+      <RaceTicker entries={tickerEntries} className="mt-2" />
+      {/* phase + flagStatus are carried in the prop contract per spec §6.
+          For this phase of the plan they're used only by flag-strip styling
+          decisions in Step 2.4 (passed through to RaceTicker or rendered
+          inline). If you don't use them yet, don't rename or remove them —
+          later design phases may consume them. */}
     </div>
   )
 }
 ```
 
-Exact prop types should match the existing component signatures — read each component's current props before finalizing.
+**Critical:** No `as never`, no `as any`, no `// @ts-ignore`. If TypeScript complains, the interface is wrong — go back to Step 2.1 and re-capture the exact types. AGENTS.md §1 `verify` prohibits type escapes.
 
 - [ ] **Step 2.6: Create `src/components/strategy/hero-strip.tsx`**
 
-Reference CSS: `new-designs/app.css` lines 283–444 (`.hero`, `.lap-card`, `.broadcast`, `.gap-next`). Three-cell grid: lap counter card, broadcast leader card, gap-to-next card.
+Reference CSS: `new-designs/app.css` lines 283–444 (`.hero`, `.lap-card`, `.broadcast`, `.gap-next`). Three-cell grid: lap counter card, broadcast leader card, gap-to-next card. All data derives from existing race-state fields — no new backend data.
 
 ```tsx
 'use client'
@@ -489,49 +559,144 @@ interface HeroStripProps {
   gapTrend?: 'closing' | 'growing' | 'stable'
 }
 
-export function HeroStrip({ ... }: HeroStripProps) {
-  // Render .lap-card | .broadcast | .gap-next
-  // Use surface-paper backgrounds, line-sub borders, sig-red accents,
-  // font-display for huge numerics, font-mono for labels.
+export function HeroStrip({
+  currentLap, totalLaps,
+  leaderCode, leaderFirst, leaderLast, leaderNumber,
+  leaderTeamColor, leaderTeamCode,
+  leaderGap, gapTrend = 'stable',
+}: HeroStripProps) {
+  const lapPct = totalLaps > 0 ? (currentLap / totalLaps) * 100 : 0
+  const gapLabel = typeof leaderGap === 'number' ? leaderGap.toFixed(3) : '—'
+  const trendClass = gapTrend === 'closing' ? 'text-sig-red' :
+                     gapTrend === 'growing' ? 'text-sig-green' : 'text-ink-mute'
+
+  return (
+    <div className="grid gap-3 mb-3
+                    grid-cols-1
+                    min-[1200px]:grid-cols-[320px_1fr_280px]
+                    min-[1400px]:grid-cols-[360px_1fr_300px]">
+
+      {/* .lap-card — lap counter with progress bar */}
+      <div className="relative overflow-hidden bg-surface-paper border border-line-sub rounded-rad p-5 flex flex-col gap-2.5">
+        <span className="absolute top-0 left-0 bottom-0 w-1 bg-sig-red" />
+        <div className="font-mono text-[10px] tracking-[0.14em] uppercase text-ink-dim">Current Lap</div>
+        <div className="font-display font-extrabold text-[86px] leading-[0.88] tracking-[-0.04em] text-ink-hi tabular-nums flex items-baseline gap-2">
+          {currentLap}
+          <span className="text-[28px] font-medium text-ink-dim tracking-normal">/ {totalLaps}</span>
+        </div>
+        <div className="h-1 bg-surface-hi rounded-[2px] overflow-hidden">
+          <div className="h-full bg-sig-red transition-[width] duration-500" style={{ width: `${lapPct}%` }} />
+        </div>
+        <div className="flex justify-between font-mono text-[10px] text-ink-mute tracking-[0.1em]">
+          <span>START</span>
+          <span>{Math.round(lapPct)}%</span>
+          <span>FLAG</span>
+        </div>
+      </div>
+
+      {/* .broadcast — leader callout */}
+      <div className="relative grid grid-cols-[120px_1fr_auto] bg-surface-paper border border-line-sub rounded-rad overflow-hidden items-stretch">
+        <div className="bg-sig-red text-surface-void flex items-center justify-center font-display font-extrabold text-[92px] leading-none tracking-[-0.08em] relative">
+          1
+          <span className="absolute top-2.5 right-2.5 font-mono text-[10px] tracking-[0.2em] opacity-60">P1</span>
+        </div>
+        <div className="px-5 py-3.5 flex flex-col justify-between gap-2 border-r border-line-hair">
+          <div className="flex items-baseline gap-3">
+            <span className="font-body font-light text-ink-mute text-[15px]">{leaderFirst}</span>
+            <span className="font-display font-bold text-[30px] text-ink-hi tracking-[-0.02em] leading-none">{leaderLast}</span>
+            <span className="ml-auto font-display font-extrabold text-[30px] text-ink-dim tracking-[-0.04em]">#{leaderNumber}</span>
+          </div>
+          <div className="flex gap-5 font-mono text-[11px]">
+            <span>
+              <span className="block font-mono text-[9px] uppercase tracking-[0.1em] text-ink-dim">Code</span>
+              <span className="text-ink-hi font-semibold">{leaderCode}</span>
+            </span>
+          </div>
+        </div>
+        <div
+          className="w-[68px] relative flex flex-col items-center justify-center gap-1.5 py-2.5 px-1.5"
+          style={{ background: leaderTeamColor }}
+        >
+          <span className="font-display font-extrabold text-[18px] text-white tracking-[0.02em]">{leaderTeamCode}</span>
+        </div>
+      </div>
+
+      {/* .gap-next — gap to P2 */}
+      <div className="bg-surface-paper border border-line-sub rounded-rad px-4 py-3.5 flex flex-col gap-1.5 justify-center">
+        <div className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-dim">Gap to P2</div>
+        <div className="font-display font-bold text-[38px] tracking-[-0.03em] text-ink-hi leading-none tabular-nums">
+          <span className="text-sig-red text-[24px]">+</span>
+          {gapLabel}
+          <span className="text-ink-dim text-base ml-1 font-medium">s</span>
+        </div>
+        <div className={`font-mono text-[11px] inline-flex gap-1.5 items-center ${trendClass}`}>
+          <span className="text-[10px]">{gapTrend === 'closing' ? '▼' : gapTrend === 'growing' ? '▲' : '—'}</span>
+          <span className="uppercase tracking-[0.1em]">{gapTrend}</span>
+        </div>
+      </div>
+    </div>
+  )
 }
 ```
 
-All data is derivable from existing `raceSim.currentLap`, `raceSim.totalLaps`, and `raceSim.timing[0]` (leader). No new backend data.
+Tailwind classes reference buckets added in Task 1 Step 1.4 (`surface.paper`, `line.sub`, `ink.hi/mute/dim`, `sig.red/green`, `rounded-rad`). If any class fails to compile, verify the Tailwind extension landed correctly in `tailwind.config.ts`.
 
-- [ ] **Step 2.7: Wire six `theme="broadcast"` flags in `src/app/strategy/page.tsx`**
+- [ ] **Step 2.7: Wire `theme="broadcast"` on every `PageShell` in `src/app/strategy/page.tsx`**
 
-Open `src/app/strategy/page.tsx`. Add `theme="broadcast"` to every `PageShell` tag. Verified locations (line numbers may drift after other edits in this task — grep to confirm):
+Confirm the count from Step 2.0 (should be 6). Then for each `<PageShell>` opening tag in the file, add `theme="broadcast"` as a prop. Since line numbers drift, locate by the phase landmark comments already in the file (e.g. `// Pre-race phases`, `// Post-race`, `// Race phase — show either the "Start Race" button …`, `// Default: management phase …`, and any error branch).
+
+After the edit, verify:
 
 ```bash
-# Expected grep result: exactly 6 matches
-grep -n "<PageShell" src/app/strategy/page.tsx
+grep -c 'theme="broadcast"' src/app/strategy/page.tsx
+# Expected: exactly 6 (matches the PageShell count from Step 2.0)
+
+grep -nE '<PageShell(?![^>]*theme=)' src/app/strategy/page.tsx
+# Expected: no output — zero PageShell tags without a theme prop
 ```
 
-Each `<PageShell>` becomes `<PageShell theme="broadcast">`.
+If either check fails, one or more sites were missed. Fix before moving on.
 
 - [ ] **Step 2.8: Replace inline sticky-chrome with `<BroadcastChrome>`**
 
-In the live race branch of `src/app/strategy/page.tsx` (currently lines ~278–299), replace the inline `sticky` div composing `RaceStatusBar + SimSpeedControl + RaceTicker` with `<BroadcastChrome ... />` passing the same props.
+In the live race branch of `src/app/strategy/page.tsx`, locate the inline sticky block. Use a grep landmark — the current code has a distinctive comment `═══ Sticky Control Bar ═══`:
+
+```bash
+grep -n "Sticky Control Bar" src/app/strategy/page.tsx
+```
+
+That grep returns the opening-comment line. Replace the entire JSX block from that comment through the closing `</div>` that wraps `<RaceTicker>` with a single `<BroadcastChrome ... />` call, passing the same prop values the inline components currently receive (`raceSim.currentLap`, `raceSim.totalLaps`, `raceSim.weather`, etc., plus the new `phase` prop from `gameState.phase`).
+
+If the landmark comment has been edited away, the replacement target is the only `sticky top-12 z-20` className in the file — grep for that instead.
 
 - [ ] **Step 2.9: Add `<HeroStrip>` to live race branch**
 
-After the chrome and before the existing `<CircuitMap>` hero block in the live race branch, insert:
+Immediately after the `<BroadcastChrome />` insert and before the `<CircuitMap>` block (grep landmark: `Hero: Track Map`), insert the hero strip. Use the page's existing `drivers` and `teams` arrays (read at the top of the page component; they're returned by `useGameSlice`) to look up leader fields:
 
 ```tsx
-<HeroStrip
-  currentLap={raceSim.currentLap}
-  totalLaps={raceSim.totalLaps}
-  leaderCode={raceSim.timing[0]?.driverCode ?? ''}
-  leaderFirst={/* derive from drivers lookup */ ''}
-  leaderLast={/* derive from drivers lookup */ ''}
-  leaderNumber={/* derive from drivers lookup */ 0}
-  leaderTeamColor={raceSim.timing[0]?.teamColor ?? '#666'}
-  leaderTeamCode={/* derive from teams lookup */ ''}
-  leaderGap={raceSim.timing[1]?.gapToLeader}
-/>
+{/* Derive leader fields from timing + drivers + teams */}
+{(() => {
+  const leader = raceSim.timing[0]
+  const leaderDriver = leader ? drivers.find(d => d.id === leader.driverId) : undefined
+  const leaderTeam = leaderDriver ? teams.find(t => t.id === leaderDriver.teamId) : undefined
+  const p2 = raceSim.timing[1]
+  return (
+    <HeroStrip
+      currentLap={raceSim.currentLap}
+      totalLaps={raceSim.totalLaps}
+      leaderCode={leaderDriver?.shortName ?? ''}
+      leaderFirst={leaderDriver?.firstName ?? ''}
+      leaderLast={leaderDriver?.lastName ?? ''}
+      leaderNumber={leaderDriver?.carNumber ?? 0}
+      leaderTeamColor={leaderTeam?.color ?? '#666'}
+      leaderTeamCode={leaderTeam?.shortName ?? leaderTeam?.name?.slice(0, 3).toUpperCase() ?? ''}
+      leaderGap={p2?.gapToLeader}
+    />
+  )
+})()}
 ```
 
-Use the existing `drivers` and `teams` arrays already available in the page's slice for the first/last/number/teamCode lookups.
+Field names (`shortName`, `firstName`, `lastName`, `carNumber`, `color`) are the expected shape of `Driver` and `Team` types per existing usage in the file. If TypeScript complains about any field not existing on the type, check `src/types/driver.ts` and `src/types/team.ts` (**READ-ONLY — do not modify**) and adjust the field access to match the actual shape.
 
 - [ ] **Step 2.10: Tailwind class audit — shared chrome files**
 
@@ -622,7 +787,13 @@ Update chart axes, grid lines, and series colors to Broadcast tokens (`stroke-li
 
 - [ ] **Step 3.8: Regroup live race grid in `src/app/strategy/page.tsx`**
 
-Replace the current live race JSX block (roughly lines 278–385 — grep `{/* ═══ Data Panels: 3-column below the map ═══ */}` to locate) with the new structure per spec §5.2:
+Locate the current data-panels block using the grep landmark:
+
+```bash
+grep -n "Data Panels: 3-column" src/app/strategy/page.tsx
+```
+
+Replace the JSX from that landmark comment through its closing `</div>` (the `grid grid-cols-1 lg:grid-cols-3` wrapper and its three children) with the new structure per spec §5.2:
 
 ```tsx
 <>
@@ -659,15 +830,51 @@ Replace the current live race JSX block (roughly lines 278–385 — grep `{/* �
 </>
 ```
 
-- [ ] **Step 3.9: Add local toggle state for `GapChart` secondary row**
+- [ ] **Step 3.9: Add local toggle state + `GapChartRow` helper**
 
-In `src/app/strategy/page.tsx` add:
+`src/app/strategy/page.tsx` is already `'use client'` (verified in Step 2.0). Add near the top of `StrategyPage`:
 
 ```tsx
 const [showGapChart, setShowGapChart] = useState(false)
 ```
 
-Then a `GapChartRow` inline helper component (or JSX block) that renders a collapsible section with a toggle button. **Local state only — no Zustand field, no store action.**
+Define `GapChartRow` as an **inline helper function component** inside the same file (not a separate file — this keeps scope tight and avoids over-factoring a single-use component). Place it above the `StrategyPage` export or inside the file's top-level scope. It receives the `timing` prop and renders a collapsible panel with a toggle button.
+
+```tsx
+function GapChartRow({ timing, isOpen, onToggle }: {
+  timing: typeof raceSimType.timing  // use the actual type from @/types/race
+  isOpen: boolean
+  onToggle: () => void
+}) {
+  return (
+    <div className="mt-4 bg-surface-paper border border-line-sub rounded-rad">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center justify-between px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-mute hover:text-ink-hi transition-colors"
+      >
+        <span>Gap Chart · Top 10</span>
+        <span>{isOpen ? '▼' : '▶'}</span>
+      </button>
+      {isOpen && (
+        <div className="px-4 pb-4">
+          <GapChart
+            entries={timing.slice(0, 10).map(t => ({
+              driverId: t.driverId,
+              driverName: t.driverName,
+              teamColor: t.teamColor,
+              gap: t.gapToLeader,
+              isPlayer: t.isPlayer,
+            }))}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+**Local state only — no Zustand field, no store action.** This is a UI affordance, not game state.
 
 - [ ] **Step 3.10: Tailwind class audit — live race files**
 
@@ -738,12 +945,14 @@ Spec §5.2, §9 Step 3."
 **Files:**
 - Modify: `src/components/strategy/pre-race-setup.tsx`, `src/components/strategy/race-intel-panel.tsx`, `src/components/strategy/strategy-planner.tsx`
 
-- [ ] **Step 4.1: Resolve qualifying-grid open question**
+- [ ] **Step 4.1: Resolve qualifying-grid open question (READ-ONLY)**
+
+**This step is READ-ONLY.** You may `Read` and grep any file in the repo to answer the question, but you may **NOT** edit any file outside the plan's "Files MODIFIED" list. Specifically, do not add a `qualifyingResults` field to any type, store, or engine file. If the data isn't there, apply the fallback — do not invent the data.
 
 Read `src/components/strategy/pre-race-setup.tsx` in full. Determine whether a qualifying results grid is already rendered (look for `currentRound` qualifying results, grid positions, or similar data).
 
 - **If yes:** plan to style it as `.pre-grid-strip`/`.quali-wrap` (reference `new-designs/pages.css` lines 101–123).
-- **If no:** skip that visual. Pre-race hero stays as round-name + driver-roster grid. Document the decision inline in a one-line code comment.
+- **If no:** skip that visual. Pre-race hero stays as round-name + driver-roster grid. Document the decision inline in a one-line code comment (e.g. `// IP-P1: qualifying grid dropped — no pre-race qualifying results in store`).
 
 - [ ] **Step 4.2: Restyle `pre-race-setup.tsx` — hero block**
 
@@ -757,6 +966,14 @@ Fields populate from existing `race`, `playerTeam`, `playerDrivers` props.
 
 ```tsx
 const [activeTab, setActiveTab] = useState<'sessions' | 'setup' | 'intel' | 'planner'>('sessions')
+
+// Reset tab when the phase transitions (practice → qualifying). Without this,
+// tab state could leak across phase transitions if the component remounts with
+// a fresh `phase` prop. If React unmounts the component naturally on each
+// phase change, this is a no-op. Still safer to include.
+useEffect(() => {
+  setActiveTab('sessions')
+}, [phase])
 ```
 
 Render a tab bar that maps to `.phase-switcher` styling (reference `new-designs/app.css` lines 908–932). Each tab mounts its corresponding content block.
@@ -771,7 +988,14 @@ Use existing `PRACTICE_PROGRAMS` array and `onStartSession` callback — no prop
 
 - [ ] **Step 4.5: Restyle Setup tab**
 
-Reference: `new-designs/pages.css` lines 85–98. `.setup-grid` 2-column, each row a `.setup-track` slider with mid-tick and fill gradient. If the current setup UI doesn't expose sliders (read to confirm), keep what exists and just restyle to the visual block.
+Reference: `new-designs/pages.css` lines 85–98. `.setup-grid` 2-column, each row a `.setup-track` slider with mid-tick and fill gradient.
+
+**Fallback if no sliders exist.** If the current setup UI in `pre-race-setup.tsx` doesn't expose numeric sliders (read to confirm), restyle whatever controls exist (dropdowns, select buttons, toggles) using the `.setup-grid` 2-column wrapper and Broadcast panel tokens:
+- Wrapper: `bg-surface-paper border border-line-sub rounded-rad p-5`
+- Control labels: `font-mono text-[10px] uppercase tracking-[0.16em] text-ink-mute`
+- Control values: `font-mono font-bold text-[14px] text-ink-hi`
+
+**Do not invent new controls.** If the tab currently has only informational cards, render those cards in the same `.setup-grid` layout. Never add form inputs the existing state doesn't back.
 
 - [ ] **Step 4.6: Host `<RaceIntelPanel>` inside Intel tab**
 
@@ -853,12 +1077,14 @@ Spec §5.1, §9 Step 4."
 **Files:**
 - Modify: `src/components/strategy/post-race-results.tsx`
 
-- [ ] **Step 5.1: Resolve stint-analysis open question**
+- [ ] **Step 5.1: Resolve stint-analysis open question (READ-ONLY)**
 
-Read `src/components/strategy/post-race-results.tsx`. Check its `results` prop shape and any data available from `raceSim.timing` at the post-race point. Per `src/types/race.ts` grep, no `stints` / `stintCompounds` field exists.
+**This step is READ-ONLY.** You may `Read` and grep any file in `src/types/`, `src/engine/`, `src/stores/`, or `src/workers/` to answer the question. You may **NOT** edit any of those files. If the stint data isn't in the existing shape, apply the fallback — do not add a `stints` field anywhere.
 
-- **If stint data is not derivable from existing fields:** skip the `.stint-analysis` section. Use the §5.3 fallback: post-wrap sidebar widens, classification fills left column.
-- **If stint data IS derivable** (e.g., from `compoundHistory` + `pitLap`): render `.stint-row` per driver using derived stint segments.
+Read `src/components/strategy/post-race-results.tsx`. Check its `results` prop shape and any data available from `raceSim.timing` / `raceSim.compoundHistory` at the post-race point. Per `src/types/race.ts` grep, no `stints` / `stintCompounds` top-level field exists — but `compoundHistory` may be derivable into stint segments.
+
+- **If stint data is NOT derivable from existing fields:** skip the `.stint-analysis` section. Use the §5.3 fallback: post-wrap sidebar widens, classification fills left column.
+- **If stint data IS derivable** (e.g., from `compoundHistory` + `pitLap` via a pure client-side transform inside the component): render `.stint-row` per driver using derived stint segments. The derivation lives inside the component — no engine or store change.
 
 Document the decision as a one-line code comment.
 
@@ -926,18 +1152,20 @@ Minimum two comparison rounds.
 - [ ] **Step 5.11: Final repo-wide Strategy audit**
 
 ```bash
-# No old Tailwind classes remain anywhere in the Strategy surface
+# No old Tailwind classes remain anywhere in the Strategy surface,
+# INCLUDING the gap-chart file which lives outside the strategy folder.
 grep -rE "bg-bg-(primary|secondary|surface)|text-text-(primary|secondary|muted|dim)|border-border-(default|hover)|bg-accent-(lime|cyan|red|amber|purple)" \
-  src/app/strategy/ src/components/strategy/
+  src/app/strategy/ src/components/strategy/ src/components/charts/gap-chart.tsx
 ```
 Expected: zero hits. Any hit indicates an unmigrated surface — must be fixed before this commit.
 
-Also verify the page `src/app/strategy/page.tsx` only uses new buckets:
+Also verify the page `src/app/strategy/page.tsx` and gap-chart do not carry inline old-token arbitrary values:
 
 ```bash
-grep -E "bg-\[var\(--bg-primary\)\]|bg-\[var\(--bg-surface\)\]|text-\[var\(--text-primary\)\]|border-\[var\(--border-default\)\]" src/app/strategy/page.tsx
+grep -nE "bg-\[var\(--bg-primary\)\]|bg-\[var\(--bg-surface\)\]|bg-\[var\(--bg-secondary\)\]|text-\[var\(--text-(primary|secondary|muted|dim)\)\]|border-\[var\(--border-(default|hover)\)\]|\[var\(--accent-(lime|cyan|red|amber|purple)\)\]" \
+  src/app/strategy/page.tsx src/components/charts/gap-chart.tsx
 ```
-Expected: zero hits.
+Expected: zero hits. Any inline arbitrary-value reference to an old Kinetic variable name means the restyle skipped a spot.
 
 - [ ] **Step 5.12: Full regression sweep**
 
@@ -981,11 +1209,13 @@ Spec §5.3, §9 Step 5."
 
 After all 5 tasks are committed and verified:
 
-- [ ] **Step M-1: Update memory with completed workstream**
+- [ ] **Step M-1: Update memory with completed workstream (NOT a git commit)**
 
 Update `C:\Users\kapsi\.claude\projects\c--Users-kapsi-OneDrive-Masa-st--f1-simulation\memory\project_frontend_redesign.md` to record Strategy redesign as complete and flag the next page target (likely Paddock per CLAUDE.md page list).
 
 Update `MEMORY.md` index if the entry title changes.
+
+**Note:** These files live OUTSIDE the project repo (in the user's global Claude memory directory). Do **not** `git add` or `git commit` them. They are personal memory and are not version-controlled in this project.
 
 ---
 
@@ -999,6 +1229,8 @@ Update `MEMORY.md` index if the entry title changes.
 | Tailwind class audit passes but a `className="bg-[var(--bg-primary)]"` inline still leaks | Grep command in Step 5.11 catches it | Add the inline arbitrary-value pattern to the audit grep if needed |
 | Task 4 tab state persists across phase transitions incorrectly | Manual race run after Task 4 shows wrong initial tab on re-entry | Reset `activeTab` via `useEffect` on `phase` prop change |
 | Task 5 stint/standings fallback layouts look empty | Screenshot comparison | Use §5.3 fallback (widened classification table or snapshot tile) — layout rebalances automatically |
+| Dual-write Tailwind config doubles the production CSS bundle temporarily | Measured once post-Task 1 (check `npm run build` CSS output size) | Acceptable for this phase; cleanup commit in a later v1.1 phase removes old buckets |
+| Reference HTML uses React 18 UMD + Babel standalone; our app is React 19 + TypeScript | `new-designs/` files are visual source material, never imported at runtime | All restyling is manual Tailwind-class authoring against the reference CSS. No runtime dependency on `new-designs/` |
 
 ---
 
@@ -1010,3 +1242,8 @@ Update `MEMORY.md` index if the entry title changes.
 - Kinetic-styled pages outside `/strategy` (Paddock, Factory, Driver Office, Financial HQ, Calendar, Regulations, Settings)
 - `src/app/layout.tsx` (fonts are already wired)
 - `src/app/globals.css`
+- Any file under `tests/` — Pipeline B does not write tests; `verify` runs the existing suite
+
+### Data access discipline
+
+All race-data in UI flows through either `useRaceSimulation()` (for live-race components) or the existing store slice (for pre/post-race). **Never read from `gameStore.raceRuntime` directly** — that field is the race worker's authoritative buffer outside `world` (frozen per AGENTS.md §0.1 / IP-04 Option A). UI components have no business knowing about it. If you need a field that `useRaceSimulation()` doesn't expose, STOP and check in with the user — that's a contract question, not a UI task.
