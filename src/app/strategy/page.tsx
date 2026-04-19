@@ -12,12 +12,11 @@ import { TireStrategy } from '@/components/strategy/tire-strategy'
 import { CommentaryFeed } from '@/components/strategy/commentary-feed'
 import { BattleForecast } from '@/components/strategy/battle-forecast'
 import { DriverCommands } from '@/components/strategy/driver-commands'
-import { RaceStatusBar } from '@/components/strategy/race-status-bar'
-import { SimSpeedControl } from '@/components/strategy/sim-speed-control'
+import { BroadcastChrome } from '@/components/strategy/broadcast-chrome'
+import { HeroStrip } from '@/components/strategy/hero-strip'
 import { GapChart } from '@/components/charts/gap-chart'
 import { PreRaceSetup } from '@/components/strategy/pre-race-setup'
 import { CircuitMap } from '@/components/strategy/circuit-map'
-import { RaceTicker } from '@/components/strategy/race-ticker'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
@@ -175,7 +174,7 @@ export default function StrategyPage() {
   // Pre-race phases
   if (phase === 'practice' || phase === 'qualifying' || phase === 'sprint-qualifying') {
     return (
-      <PageShell>
+      <PageShell theme="broadcast">
         <PreRaceSetup
           race={currentRace}
           playerTeam={playerTeam}
@@ -212,7 +211,7 @@ export default function StrategyPage() {
       : []
 
     return (
-      <PageShell>
+      <PageShell theme="broadcast">
         <PostRaceResults
           results={results}
           fastestLap={raceSim.fastestLap}
@@ -227,7 +226,7 @@ export default function StrategyPage() {
   if (phase === 'race' || phase === 'sprint') {
     if (isRaceErrored) {
       return (
-        <PageShell>
+        <PageShell theme="broadcast">
           <div className="flex flex-col items-center justify-center gap-4 py-20">
             <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-[var(--accent-danger,#ff5252)]">
               Race Simulation Failed
@@ -250,7 +249,7 @@ export default function StrategyPage() {
     if (!isRaceActive && !isRaceFinished) {
       // Race not started yet — show start button
       return (
-        <PageShell>
+        <PageShell theme="broadcast">
           <div className="flex flex-col items-center justify-center gap-6 py-20">
             <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-[var(--text-primary)]">
               {phase === 'sprint' ? 'Sprint Race' : 'Grand Prix'}
@@ -276,27 +275,43 @@ export default function StrategyPage() {
     }))
 
     return (
-      <PageShell>
-        {/* ═══ Sticky Control Bar ═══ */}
-        <div className="sticky top-12 z-20 bg-[var(--bg-primary)]/95 backdrop-blur-md pb-2 -mx-4 px-4 pt-1">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <RaceStatusBar
-              lap={raceSim.currentLap}
+      <PageShell theme="broadcast">
+        {/* ═══ Sticky Command Chrome ═══ */}
+        <BroadcastChrome
+          phase={phase === 'sprint' ? 'sprint' : 'race'}
+          lap={raceSim.currentLap}
+          totalLaps={raceSim.totalLaps}
+          weather={raceSim.weather}
+          trackTemp={raceSim.trackTemp}
+          safetyCar={raceSim.safetyCar}
+          currentSpeed={raceSim.simSpeed}
+          onSetSpeed={setSpeed}
+          onPause={pause}
+          onResume={resume}
+          isPaused={raceSim.phase === 'paused'}
+          tickerEntries={raceSim.commentary}
+        />
+
+        {/* ═══ Hero Strip: Leader + Lap + Gap ═══ */}
+        {(() => {
+          const leader = raceSim.timing[0]
+          const leaderDriver = leader ? drivers.find(d => d.id === leader.driverId) : undefined
+          const leaderTeam = leaderDriver ? teams.find(t => t.id === leaderDriver.teamId) : undefined
+          const p2 = raceSim.timing[1]
+          return (
+            <HeroStrip
+              currentLap={raceSim.currentLap}
               totalLaps={raceSim.totalLaps}
-              weather={raceSim.weather}
-              trackTemp={raceSim.trackTemp}
-              safetyCar={raceSim.safetyCar}
+              leaderCode={leaderDriver?.shortName ?? ''}
+              leaderFirst={leaderDriver?.firstName ?? ''}
+              leaderLast={leaderDriver?.lastName ?? ''}
+              leaderNumber={0}
+              leaderTeamColor={leaderTeam?.color ?? '#666'}
+              leaderTeamCode={leaderTeam?.shortName ?? leaderTeam?.name?.slice(0, 3).toUpperCase() ?? ''}
+              leaderGap={p2?.gapToLeader}
             />
-            <SimSpeedControl
-              currentSpeed={raceSim.simSpeed}
-              onSetSpeed={setSpeed}
-              onPause={pause}
-              onResume={resume}
-              isPaused={raceSim.phase === 'paused'}
-            />
-          </div>
-          <RaceTicker entries={raceSim.commentary} className="mt-2" />
-        </div>
+          )
+        })()}
 
         {/* ═══ Hero: Track Map (center, large) ═══ */}
         <div className="mt-3 mb-4">
@@ -388,7 +403,7 @@ export default function StrategyPage() {
 
   // Default: management phase — show next race info with option to advance
   return (
-    <PageShell>
+    <PageShell theme="broadcast">
       <div className="flex flex-col items-center justify-center gap-6 py-20">
         <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-[var(--text-muted)]">
           Strategy Room
