@@ -6,7 +6,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -26,13 +26,21 @@ export interface SlotInfo {
 
 /**
  * Migration map. Each entry upgrades a save written at version `from` to
- * version `from + 1`. The map is empty for v1 because IP-04 chose Option A
- * (race runtime slice lives outside `world`), so no schema change was needed.
+ * version `from + 1`. Migrations must be pure and idempotent.
  *
- * Future shape bumps append an entry here. Migrations must be pure and idempotent.
+ * v1 → v2 (IP-08): adds `recommendations` and `stagedStrategies` as empty
+ * collections. Both are repopulated on the next management-phase entry via
+ * `processManagementEntry()`, so a legacy save remains playable with no
+ * observable data loss.
  */
 export type Migration = (data: FullGameState) => FullGameState
-export const MIGRATIONS: Record<number, Migration> = {}
+export const MIGRATIONS: Record<number, Migration> = {
+  1: (data) => ({
+    ...data,
+    recommendations: [],
+    stagedStrategies: {},
+  }),
+}
 
 /**
  * Applies every registered migration from `fromVersion` up to `SCHEMA_VERSION`

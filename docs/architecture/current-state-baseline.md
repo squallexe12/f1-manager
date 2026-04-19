@@ -134,7 +134,7 @@ These gaps are frozen as follow-up items for later implementation phases:
 | Worker execution is not production-wired | _Resolved IP-04._ Adapter wires worker to store | — |
 | Race bootstrap has non-deterministic pieces | Some init paths may vary | IP-01 (Determinism) |
 | No OpenF1 real-data integration | _Resolved IP-06 and IP-07._ 24 circuits carry OpenF1-derived tire, weather, overtake, pit-loss, and stint calibration; pre-race intel surface consumes them | — |
-| No engineer recommendation system | Not yet implemented | IP-08 (Gameplay Expansion) |
+| No engineer recommendation system | _Resolved IP-08._ `world.recommendations` generated in `processManagementEntry()`, surfaced on Paddock + Factory + pre-race Strategy; apply/dismiss wired through the store | — |
 | Race state not in Zustand store | _Resolved IP-04._ `raceRuntime` slice lives outside `world` (see §3.1) | — |
 
 ---

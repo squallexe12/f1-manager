@@ -3,11 +3,33 @@ import type { Driver } from '@/types/driver'
 import type { FinanceState } from '@/types/finance'
 import type { RaceStrategy, TireCompound } from '@/types/race'
 import type { PRNG } from '@/engine/core/prng'
+import type { Recommendation } from '@/types/delegation'
+import type { FullGameState } from '@/engine/core/state-manager'
 
 export interface DepartmentDecision {
   department: string
   action: string
   description: string
+}
+
+/**
+ * Action prefixes that map to a store-level apply path. Used by the UI to
+ * decide whether to render an Apply button (vs. treating the recommendation
+ * as informational-only).
+ */
+const APPLICABLE_PREFIXES = ['start-rnd:', 'strategy:', 'sponsor-outreach', 'driver-talk:'] as const
+
+export function classifyApplicable(action: string): boolean {
+  return APPLICABLE_PREFIXES.some(prefix =>
+    prefix.endsWith(':') ? action.startsWith(prefix) : action === prefix,
+  )
+}
+
+const ROLE_FROM_DEPARTMENT: Record<string, DepartmentHead['role']> = {
+  'Technical Director': 'technical-director',
+  'Race Engineer': 'race-engineer',
+  'Commercial Director': 'commercial-director',
+  'Team Manager': 'team-manager',
 }
 
 /**
@@ -159,4 +181,39 @@ export function getAllDepartmentDecisions(
     commercialDirectorDecision(team, finance, rng),
     teamManagerDecision(team, drivers, rng),
   ]
+}
+
+/**
+ * Generate the full Recommendation[] surfaced to the player for the current
+ * management phase. Pure — computed at orchestrator time only and persisted
+ * in `world.recommendations`. Never call from a render path.
+ */
+export function generateRecommendations(
+  world: FullGameState,
+  rng: PRNG,
+): Recommendation[] {
+  const team = world.teams.find(t => t.id === world.gameState.playerTeamId)
+  if (!team) return []
+
+  const finance = world.finance[team.id]
+  const nextRace = world.calendar[world.gameState.currentRound - 1]
+  const compounds = (nextRace?.circuit.compounds ?? ['C1', 'C2', 'C3']) as [TireCompound, TireCompound, TireCompound]
+  const totalLaps = nextRace?.circuit.laps ?? 60
+
+  const decisions = getAllDepartmentDecisions(team, world.drivers, finance, compounds, totalLaps, rng)
+  const round = world.gameState.currentRound
+
+  return decisions.map((d): Recommendation => {
+    const role = ROLE_FROM_DEPARTMENT[d.department] ?? 'team-manager'
+    return {
+      id: `${round}:${role}`,
+      role,
+      department: d.department,
+      action: d.action,
+      description: d.description,
+      applicable: classifyApplicable(d.action),
+      status: 'active',
+      generatedAtRound: round,
+    }
+  })
 }

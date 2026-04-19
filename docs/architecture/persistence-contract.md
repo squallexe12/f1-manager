@@ -1,6 +1,7 @@
 # Persistence Contract
 
 **Frozen:** 2026-04-13 (IP-05)
+**Last updated:** 2026-04-19 (IP-08 — schema v2, adds `recommendations` + `stagedStrategies`)
 **Status:** Active
 
 This document is the contract for what the game persists, what it does not, how autosave behaves, and how schema versions evolve. It is paired with the runtime code in `src/engine/core/save-system.ts`, `src/stores/persistence-setup.ts`, and `src/hooks/use-save-game.ts`.
@@ -67,8 +68,8 @@ Autosave uses the dedicated `AUTO_SAVE_SLOT` slot id (`'auto-save'`). Manual sav
 `SaveSystem` declares `SCHEMA_VERSION` in `src/engine/core/save-system.ts`. Every `SaveRecord` written includes the version that produced it.
 
 ### Current state
-- `SCHEMA_VERSION = 1`
-- `MIGRATIONS = {}` (empty — no upgrades registered)
+- `SCHEMA_VERSION = 2`
+- `MIGRATIONS = { 1: v1→v2 }` — v1→v2 adds `recommendations: []` and `stagedStrategies: {}` to `FullGameState` (IP-08). Both are repopulated on the next `processManagementEntry()` so legacy saves remain playable.
 
 ### On load
 `loadFromSlot(slotId)` calls `migrateToCurrent(data, record.schemaVersion ?? 1)` before returning. For v1 saves this is a pass-through. If a save claims a newer version than the runtime knows, `migrateToCurrent` throws — the UI should surface this as an unsupported save rather than attempt to load.

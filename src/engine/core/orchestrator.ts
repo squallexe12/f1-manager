@@ -6,6 +6,7 @@ import { processAllAITeams } from '@/engine/ai/ai-team-engine'
 import { processPostRace, type RaceResult } from './post-race-processor'
 import { processSeasonEnd } from './season-end-processor'
 import { applyTechnicalDirective, getTechnicalDirectives } from '@/engine/regulations/regulation-engine'
+import { generateRecommendations } from '@/engine/delegation/department-ai'
 
 /**
  * Process management-phase entry: R&D cycles, technical directives, AI teams.
@@ -34,10 +35,21 @@ export function processManagementEntry(world: FullGameState): FullGameState {
     updatedTeams, world.drivers, world.gameState.playerTeamId, rng
   )
 
-  return {
+  const afterAI: FullGameState = {
     ...world,
     teams: aiResult.teams,
     drivers: aiResult.drivers,
+  }
+
+  // Delegation — generate recommendations last so they reflect the
+  // post-R&D, post-AI state of the world. Uses a distinct PRNG seed offset
+  // so a rerun of this step never reuses bits the prior engines consumed.
+  const recRng = createPRNG(world.gameState.seed + world.gameState.currentRound + 7777)
+  const recommendations = generateRecommendations(afterAI, recRng)
+
+  return {
+    ...afterAI,
+    recommendations,
   }
 }
 

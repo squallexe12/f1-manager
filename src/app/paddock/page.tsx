@@ -8,6 +8,7 @@ import { HealthWidget } from '@/components/paddock/health-widget'
 import { DriverSummaryCard } from '@/components/paddock/driver-summary-card'
 import { PaddockFeed } from '@/components/paddock/paddock-feed'
 import { DepartmentPanel } from '@/components/paddock/department-panel'
+import { RecommendationsPanel } from '@/components/paddock/recommendations-panel'
 import { Button } from '@/components/ui/button'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
 
@@ -16,6 +17,8 @@ export default function PaddockPage() {
   useRequireGame() // guard only — redirects if no game
   const advancePhase = useGameStore((s) => s.advancePhase)
   const resolveEvent = useGameStore((s) => s.resolveEvent)
+  const applyRecommendation = useGameStore((s) => s.applyRecommendation)
+  const dismissRecommendation = useGameStore((s) => s.dismissRecommendation)
 
   const slice = useGameSlice((w) => ({
     gameState: w.gameState,
@@ -23,11 +26,12 @@ export default function PaddockPage() {
     drivers: w.drivers,
     finance: w.finance,
     narrativeEvents: w.narrativeEvents,
+    recommendations: w.recommendations,
   }))
 
   if (!slice) return null
 
-  const { gameState, teams, drivers, finance, narrativeEvents } = slice
+  const { gameState, teams, drivers, finance, narrativeEvents, recommendations } = slice
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
   const playerDrivers = drivers.filter((d) => d.teamId === playerTeam.id && !d.isReserve)
   const playerFinance = finance[playerTeam.id]
@@ -96,6 +100,11 @@ export default function PaddockPage() {
               teamColor={playerTeam.color}
             />
           ))}
+          <RecommendationsPanel
+            recommendations={recommendations}
+            onApply={applyRecommendation}
+            onDismiss={dismissRecommendation}
+          />
           <DepartmentPanel departments={playerTeam.staff} />
         </div>
 

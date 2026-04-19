@@ -4,6 +4,7 @@ import type { Driver } from '@/types/driver'
 import type { Race } from '@/types/race'
 import type { FinanceState, PrestigeRating } from '@/types/finance'
 import type { NarrativeEvent, StoryArc } from '@/types/narrative'
+import type { Recommendation, StagedStrategies } from '@/types/delegation'
 import { TEAMS, type TeamData } from '@/data/teams'
 import { DRIVERS } from '@/data/drivers'
 import { CALENDAR } from '@/data/calendar'
@@ -20,6 +21,8 @@ export interface FullGameState {
   finance: Record<string, FinanceState>
   narrativeEvents: NarrativeEvent[]
   storyArcs: StoryArc[]
+  recommendations: Recommendation[]
+  stagedStrategies: StagedStrategies
 }
 
 function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARIOS['find']>): Team {
@@ -162,6 +165,8 @@ export function initializeGame(
     finance,
     narrativeEvents: [],
     storyArcs: [],
+    recommendations: [],
+    stagedStrategies: {},
   }
 }
 

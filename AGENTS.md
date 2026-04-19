@@ -350,6 +350,6 @@ sim-engine (types in src/types/race.ts) → game-state (adapter + worker) → ve
 | IP-05 | Persistence hardening (migrations, observability) | Complete |
 | IP-06 | OpenF1 real-data integration (tire/weather/overtake calibration, 24 circuit profiles) | Complete |
 | IP-07 | OpenF1 extended integration (pit-loss, stint, pre-race intel, balance harness) | Complete |
-| IP-08 | Gameplay expansion (engineer recommendations) | Pending |
+| IP-08 | Gameplay expansion (engineer recommendations) | Complete |
 
 When starting work on a new IP phase, read `docs/architecture/current-state-baseline.md` first. It defines what is frozen and what is open.

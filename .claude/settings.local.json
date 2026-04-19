@@ -81,7 +81,9 @@
       "Bash(grep -E \"^\\(.+calibration|.+race-intel|.+pit-strategy|.+openf1|.+sanitize\\)\\\\\\\\.\\(ts|tsx\\)$\")",
       "Bash(awk '/^C:\\\\\\\\/{f=$0} /error/{print f\"\\\\t\"$0}')",
       "Bash(awk '{print $3}')",
-      "Bash(grep -E \"\\\\\\\\\\\\\\\\\")"
+      "Bash(grep -E \"\\\\\\\\\\\\\\\\\")",
+      "Bash(curl -fs -o /dev/null --max-time 2 http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' --max-time 30 http://localhost:3000__TRACKED_VAR__)"
     ]
   }
 }

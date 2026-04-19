@@ -28,6 +28,7 @@ export default function StrategyPage() {
   useRequireGame() // guard only
   const advancePhase = useGameStore((s) => s.advancePhase)
   const submitRaceResults = useGameStore((s) => s.submitRaceResults)
+  const applyRecommendation = useGameStore((s) => s.applyRecommendation)
   const [driverStrategies, setDriverStrategies] = useState<DriverStrategies>({})
 
   const slice = useGameSlice((w) => ({
@@ -35,6 +36,7 @@ export default function StrategyPage() {
     teams: w.teams,
     drivers: w.drivers,
     calendar: w.calendar,
+    recommendations: w.recommendations,
   }))
 
   // All hooks must be above early returns.
@@ -45,7 +47,13 @@ export default function StrategyPage() {
   const teams = useMemo(() => slice?.teams ?? [], [slice?.teams])
   const drivers = useMemo(() => slice?.drivers ?? [], [slice?.drivers])
   const calendar = useMemo(() => slice?.calendar ?? [], [slice?.calendar])
+  const recommendations = useMemo(() => slice?.recommendations ?? [], [slice?.recommendations])
   const playerTeamId = gameState?.playerTeamId ?? ''
+
+  // IP-08: surface the active Race Engineer strategy pick in PreRaceSetup.
+  const raceEngineerRec = recommendations.find(
+    (r) => r.role === 'race-engineer' && r.status === 'active' && r.action.startsWith('strategy:'),
+  )
 
   const playerTeam = teams.find((t) => t.id === playerTeamId)
   const playerDrivers = drivers.filter((d) => d.teamId === playerTeamId && !d.isReserve)
@@ -177,6 +185,8 @@ export default function StrategyPage() {
           onAdvance={handleAdvance}
           onSelectStrategies={setDriverStrategies}
           calibration={calibration}
+          raceEngineerRecommendation={raceEngineerRec}
+          onApplyRecommendation={applyRecommendation}
         />
       </PageShell>
     )

@@ -17,12 +17,19 @@ export default function FactoryPage() {
   const slice = useGameSlice((w) => ({
     teams: w.teams,
     playerTeamId: w.gameState.playerTeamId,
+    recommendations: w.recommendations,
   }))
 
   if (!slice) return null
 
   const playerTeam = slice.teams.find((t) => t.id === slice.playerTeamId)!
   const overallRating = calculateOverallRating(playerTeam.car)
+
+  // IP-08: highlight the Technical Director's current R&D pick in the tree.
+  const tdPick = slice.recommendations.find(
+    (r) => r.role === 'technical-director' && r.status === 'active' && r.action.startsWith('start-rnd:'),
+  )
+  const recommendedUpgradeId = tdPick?.action.slice('start-rnd:'.length)
 
   return (
     <PageShell>
@@ -55,6 +62,7 @@ export default function FactoryPage() {
           upgrades={playerTeam.rndUpgrades}
           onStart={allocateRnD}
           onPause={pauseRnD}
+          recommendedUpgradeId={recommendedUpgradeId}
         />
       </div>
     </PageShell>

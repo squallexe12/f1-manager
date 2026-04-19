@@ -72,11 +72,15 @@ describe('SaveSystem', () => {
 })
 
 describe('SaveSystem schema migration', () => {
+  // Snapshot built-in migrations so the cleanup below doesn't delete them
+  // and break tests that rely on the v1 → v2 step existing.
+  const BUILTIN_MIGRATIONS = { ...MIGRATIONS }
+
   afterEach(() => {
-    // Clean up any migrations added during tests
     for (const key of Object.keys(MIGRATIONS)) {
       delete MIGRATIONS[Number(key)]
     }
+    Object.assign(MIGRATIONS, BUILTIN_MIGRATIONS)
   })
 
   it('is a no-op at the current schema version', () => {
@@ -104,8 +108,45 @@ describe('SaveSystem schema migration', () => {
   })
 
   it('throws when a migration step is missing for an older version', () => {
+    // Temporarily remove the v1 → v2 built-in so the loop hits a real gap.
+    // The afterEach above restores it for subsequent tests.
+    delete MIGRATIONS[1]
     const data = { gameState: {} } as unknown as FullGameState
     expect(() => migrateToCurrent(data, SCHEMA_VERSION - 1)).toThrow(/No migration registered/)
+  })
+})
+
+describe('SaveSystem v1 → v2 recommendations migration (IP-08)', () => {
+  it('v1 saves gain empty recommendations and stagedStrategies fields on load', async () => {
+    const save = new SaveSystem(`ip08-migration-${Date.now()}`)
+    const v1Payload = {
+      gameState: { season: 1, currentRound: 5, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [],
+      drivers: [],
+      calendar: [],
+      finance: {},
+      narrativeEvents: [],
+      storyArcs: [],
+    } as unknown as FullGameState
+
+    await save.saveToSlot('legacy-v1', 'Legacy v1', v1Payload)
+
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'legacy-v1')
+    record.schemaVersion = 1
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('legacy-v1') as unknown as FullGameState & {
+      recommendations: unknown[]
+      stagedStrategies: Record<string, unknown>
+    }
+    expect(loaded.recommendations).toEqual([])
+    expect(loaded.stagedStrategies).toEqual({})
+
+    // Slot is rewritten at the current schema version after migration
+    const listed = await save.listSlots()
+    expect(listed.find(s => s.slotId === 'legacy-v1')?.schemaVersion).toBe(SCHEMA_VERSION)
   })
 })
 

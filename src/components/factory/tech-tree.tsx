@@ -7,6 +7,8 @@ interface TechTreeProps {
   upgrades: RndUpgrade[]
   onStart?: (id: string) => void
   onPause?: (id: string) => void
+  /** Upgrade id currently recommended by the Technical Director, if any */
+  recommendedUpgradeId?: string
   className?: string
 }
 
@@ -16,7 +18,7 @@ const BRANCH_CONFIG = [
   { key: 'active-aero' as const, label: 'Active Aero', color: 'var(--accent-purple)' },
 ]
 
-export function TechTree({ upgrades, onStart, onPause, className = '' }: TechTreeProps) {
+export function TechTree({ upgrades, onStart, onPause, recommendedUpgradeId, className = '' }: TechTreeProps) {
   return (
     <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${className}`}>
       {BRANCH_CONFIG.map(({ key, label, color }) => {
@@ -36,6 +38,7 @@ export function TechTree({ upgrades, onStart, onPause, className = '' }: TechTre
                 upgrade={upgrade}
                 onStart={onStart}
                 onPause={onPause}
+                recommended={upgrade.id === recommendedUpgradeId}
               />
             ))}
           </div>

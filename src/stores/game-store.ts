@@ -16,6 +16,11 @@ import { type SeasonEndResult } from '@/engine/core/season-end-processor'
 import { advanceGamePhase, processPostRacePhase, processSeasonEndPhase } from '@/engine/core/orchestrator'
 import { createRaceCommandBus, type RaceCommandBus } from '@/engine/race/race-command-bus'
 import {
+  boostSponsorSatisfaction,
+  reduceDriverFrustration,
+} from '@/engine/delegation/recommendation-helpers'
+import type { Recommendation, StagedStrategies } from '@/types/delegation'
+import {
   createInitialRaceRuntime,
   reduceWorkerEvent,
   type RaceRuntimeSlice,
@@ -46,6 +51,8 @@ interface GameStore {
   requestPit: (driverId: string, compound: TireCompound) => RaceCommandEnvelope
   changeDriverStrategy: (driverId: string, strategy: RaceStrategy) => RaceCommandEnvelope
   resolveEvent: (eventId: string, optionId: string, consequences: EventConsequence[]) => void
+  applyRecommendation: (recommendationId: string) => void
+  dismissRecommendation: (recommendationId: string) => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -54,6 +61,70 @@ interface GameStore {
   setRaceSimSpeed: (speed: SimSpeed) => void
   setDriverCommandLocal: (driverId: string, command: DriverCommand) => void
   resetRaceRuntime: () => void
+}
+
+/**
+ * Routes a recommendation to the corresponding world mutation. Pure — returns
+ * a new `FullGameState` (recommendation status unchanged here; the caller
+ * stamps it to `'applied'`). Returns null if the action prefix is unknown or
+ * the world cannot satisfy the request.
+ */
+function applyRecommendationAction(
+  world: FullGameState,
+  rec: Recommendation,
+): FullGameState | null {
+  const { action } = rec
+  const playerTeamId = world.gameState.playerTeamId
+
+  if (action.startsWith('start-rnd:')) {
+    const upgradeId = action.slice('start-rnd:'.length)
+    const teams = world.teams.map(t =>
+      t.id !== playerTeamId ? t : { ...t, rndUpgrades: startUpgrade(t.rndUpgrades, upgradeId) },
+    )
+    return { ...world, teams }
+  }
+
+  if (action.startsWith('strategy:')) {
+    const parsed = parseStrategyAction(action)
+    if (!parsed) return null
+    const race = world.calendar[world.gameState.currentRound - 1]
+    if (!race) return null
+    const compounds = race.circuit.compounds
+    const playerDriverIds = world.drivers
+      .filter(d => d.teamId === playerTeamId && !d.isReserve)
+      .map(d => d.id)
+    const staged: StagedStrategies = { ...world.stagedStrategies }
+    for (const id of playerDriverIds) {
+      staged[id] = {
+        startCompound: compounds[1],
+        stops: [{ lap: parsed.pitLap, compound: compounds[0] }],
+      }
+    }
+    return { ...world, stagedStrategies: staged }
+  }
+
+  if (action === 'sponsor-outreach') {
+    const finance = { ...world.finance }
+    finance[playerTeamId] = boostSponsorSatisfaction(finance[playerTeamId])
+    return { ...world, finance }
+  }
+
+  if (action.startsWith('driver-talk:')) {
+    const driverId = action.slice('driver-talk:'.length)
+    const drivers = reduceDriverFrustration(world.drivers, driverId)
+    if (drivers === world.drivers) return null
+    return { ...world, drivers }
+  }
+
+  return null
+}
+
+function parseStrategyAction(action: string): { pitLap: number } | null {
+  const match = /^strategy:1-stop:lap-(\d+)$/.exec(action)
+  if (!match) return null
+  const pitLap = Number(match[1])
+  if (!Number.isFinite(pitLap) || pitLap < 1) return null
+  return { pitLap }
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -149,6 +220,38 @@ export const useGameStore = create<GameStore>((set, get) => ({
       e.id === eventId ? { ...e, resolved: true } : e
     )
     set({ world: { ...world, narrativeEvents } })
+  },
+
+  applyRecommendation: (recommendationId) => {
+    const { world } = get()
+    if (!world) return
+    const rec = world.recommendations.find(r => r.id === recommendationId)
+    if (!rec || !rec.applicable || rec.status !== 'active') return
+    const next = applyRecommendationAction(world, rec)
+    if (!next) return
+    set({
+      world: {
+        ...next,
+        recommendations: next.recommendations.map(r =>
+          r.id === recommendationId ? { ...r, status: 'applied' } : r,
+        ),
+      },
+    })
+  },
+
+  dismissRecommendation: (recommendationId) => {
+    const { world } = get()
+    if (!world) return
+    const rec = world.recommendations.find(r => r.id === recommendationId)
+    if (!rec || rec.status !== 'active') return
+    set({
+      world: {
+        ...world,
+        recommendations: world.recommendations.map(r =>
+          r.id === recommendationId ? { ...r, status: 'dismissed' } : r,
+        ),
+      },
+    })
   },
 
   applyRaceWorkerEvent: (event) => {

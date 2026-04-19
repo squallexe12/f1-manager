@@ -5,6 +5,7 @@ import { colorForCompound } from '@/components/tire-roles'
 import type { Driver } from '@/types/driver'
 import type { Team } from '@/types/team'
 import type { CalibrationProfile } from '@/types/calibration'
+import type { Recommendation } from '@/types/delegation'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { StrategyPlanner, type DriverStrategies } from './strategy-planner'
@@ -33,10 +34,26 @@ interface PreRaceSetupProps {
   onSelectStrategies?: (strategies: DriverStrategies) => void
   /** IP-07: circuit calibration profile — drives the race-intelligence panel */
   calibration?: CalibrationProfile
+  /** IP-08: active Race Engineer recommendation (if any) surfaced as a banner */
+  raceEngineerRecommendation?: Recommendation
+  /** IP-08: apply handler for the Race Engineer recommendation */
+  onApplyRecommendation?: (id: string) => void
   className?: string
 }
 
-export function PreRaceSetup({ race, playerTeam, playerDrivers, phase, onStartSession, onAdvance, onSelectStrategies, calibration, className = '' }: PreRaceSetupProps) {
+export function PreRaceSetup({
+  race,
+  playerTeam,
+  playerDrivers,
+  phase,
+  onStartSession,
+  onAdvance,
+  onSelectStrategies,
+  calibration,
+  raceEngineerRecommendation,
+  onApplyRecommendation,
+  className = '',
+}: PreRaceSetupProps) {
   const compoundLabels: Record<number, string> = { 0: 'HARD', 1: 'MEDIUM', 2: 'SOFT' }
 
   return (
@@ -73,6 +90,46 @@ export function PreRaceSetup({ race, playerTeam, playerDrivers, phase, onStartSe
 
       {/* IP-07: Race Intelligence (OpenF1-derived pre-race hints) */}
       {calibration && <RaceIntelPanel circuit={race.circuit} calibration={calibration} />}
+
+      {/* IP-08: Race Engineer recommendation banner (practice only) */}
+      {phase === 'practice' && raceEngineerRecommendation && (
+        <div
+          className="
+            border border-[var(--accent-cyan)]/40 bg-[var(--accent-cyan)]/[0.05]
+            rounded-lg p-3 flex items-center gap-3
+            shadow-[0_0_14px_rgba(0,229,255,0.05)]
+          "
+          role="status"
+        >
+          <div
+            className="
+              shrink-0 w-8 h-8 rounded-md grid place-items-center
+              bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)]
+              text-[10px] font-mono font-bold tracking-wider
+            "
+            aria-hidden
+          >
+            RE
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-heading uppercase tracking-wider text-[var(--accent-cyan)]">
+              Race Engineer
+            </div>
+            <p className="text-xs text-[var(--text-primary)] leading-relaxed">
+              {raceEngineerRecommendation.description}
+            </p>
+          </div>
+          {raceEngineerRecommendation.applicable && onApplyRecommendation && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => onApplyRecommendation(raceEngineerRecommendation.id)}
+            >
+              Apply
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Tire Compounds */}
       <div className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-4">
