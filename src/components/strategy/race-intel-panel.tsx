@@ -73,7 +73,7 @@ export function RaceIntelPanel({ circuit, calibration, className = '' }: RaceInt
                   <div className="font-mono text-[9px] text-ink-dim">
                     {COMPOUND_LABEL[i] ?? ''} · {c}
                   </div>
-                  <div className="font-mono font-bold text-[16px] text-ink-hi font-variant-numeric-[tabular-nums]">
+                  <div className="font-mono font-bold text-[16px] text-ink-hi tabular-nums">
                     {laps != null ? `${laps}` : '—'}
                     <span className="text-ink-dim font-normal text-[11px] ml-1">laps</span>
                   </div>

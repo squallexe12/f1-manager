@@ -35,6 +35,8 @@ const SETUP_ITEMS: { key: keyof Circuit; label: string }[] = [
   { key: 'weatherVariability', label: 'Weather Variability' },
 ]
 
+const COMPOUND_LABELS: Record<number, string> = { 0: 'HARD', 1: 'MEDIUM', 2: 'SOFT' }
+
 type ActiveTab = 'sessions' | 'setup' | 'intel' | 'planner'
 
 const TABS: { id: ActiveTab; label: string }[] = [
@@ -82,8 +84,6 @@ export function PreRaceSetup({
     setPrevPhase(phase)
     setActiveTab('sessions')
   }
-
-  const compoundLabels: Record<number, string> = { 0: 'HARD', 1: 'MEDIUM', 2: 'SOFT' }
 
   return (
     <div className={`flex flex-col gap-5 ${className}`}>
@@ -141,7 +141,7 @@ export function PreRaceSetup({
               <CompoundChip
                 key={compound}
                 compound={compound}
-                label={compoundLabels[i] ?? ''}
+                label={COMPOUND_LABELS[i] ?? ''}
                 circuitCompounds={race.circuit.compounds}
               />
             ))}

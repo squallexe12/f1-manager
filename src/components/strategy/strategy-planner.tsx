@@ -120,7 +120,7 @@ function GanttStint({
         ? 'var(--c-med)'
         : 'var(--c-hard)'
 
-  const textColor = role === 'hard' ? 'var(--bg-void, #0a0a0a)' : 'var(--bg-void, #0a0a0a)'
+  const textColor = 'var(--bg-void, #0a0a0a)'
 
   return (
     <div
@@ -301,8 +301,7 @@ export function StrategyPlanner({ race, team, playerDrivers, onSelectStrategies,
                 {/* Label column — .gantt-label */}
                 <div className="flex flex-col gap-1">
                   <span
-                    className="font-display font-bold text-[15px] text-ink-hi cursor-pointer"
-                    onClick={() => setActiveDriver(driverIdx)}
+                    className="font-display font-bold text-[15px] text-ink-hi"
                   >
                     {driver.shortName}
                   </span>
