@@ -19,6 +19,7 @@ import { GapChart } from '@/components/charts/gap-chart'
 import { PreRaceSetup } from '@/components/strategy/pre-race-setup'
 import { CircuitMap } from '@/components/strategy/circuit-map'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
+import { RaceStartScreen } from '@/components/strategy/race-start-screen'
 import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
@@ -285,20 +286,15 @@ export default function StrategyPage() {
     }
 
     if (!isRaceActive && !isRaceFinished) {
-      // Race not started yet — show start button
+      // Race not started yet — Broadcast StartScreen with lights gantry.
       return (
         <PageShell theme="broadcast">
-          <div className="flex flex-col items-center justify-center gap-6 py-20">
-            <h2 className="text-lg font-heading font-bold uppercase tracking-wider text-[var(--text-primary)]">
-              {phase === 'sprint' ? 'Sprint Race' : 'Grand Prix'}
-            </h2>
-            <p className="text-xs text-[var(--text-muted)]">
-              {currentRace?.name} — {currentRace?.circuit.laps} Laps
-            </p>
-            <Button size="lg" onClick={handleStartRace}>
-              Start Race Simulation
-            </Button>
-          </div>
+          <RaceStartScreen
+            circuitName={currentRace?.name ?? 'Grand Prix'}
+            laps={currentRace?.circuit.laps ?? 0}
+            isSprint={phase === 'sprint'}
+            onStart={handleStartRace}
+          />
         </PageShell>
       )
     }
