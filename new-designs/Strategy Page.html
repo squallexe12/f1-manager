@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="broadcast">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Strategy — Pitwall Command</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css"/>
+</head>
+<body>
+<template id="__bundler_thumbnail" data-bg-color="#0f1013">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#0f1013"/>
+    <rect x="60" y="80" width="80" height="80" rx="4" fill="#e63946"/>
+    <text x="100" y="138" font-family="Space Grotesk, sans-serif" font-weight="800" font-size="64" fill="#0f1013" text-anchor="middle">P</text>
+    <text x="180" y="130" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="44" fill="#f5f5f5">PITWALL</text>
+    <text x="180" y="170" font-family="monospace" font-size="18" fill="#888" letter-spacing="4">STRATEGY · COMMAND</text>
+    <rect x="60" y="240" width="1080" height="2" fill="#333"/>
+    <text x="60" y="420" font-family="Space Grotesk, sans-serif" font-weight="800" font-size="220" fill="#f5f5f5">34</text>
+    <text x="380" y="420" font-family="Space Grotesk, sans-serif" font-weight="500" font-size="100" fill="#555">/57</text>
+    <text x="60" y="470" font-family="monospace" font-size="18" fill="#888" letter-spacing="3">CURRENT LAP</text>
+    <rect x="60" y="560" width="1080" height="6" fill="#222"/>
+    <rect x="60" y="560" width="640" height="6" fill="#e63946"/>
+    <rect x="60" y="640" width="340" height="80" fill="#1a1a1f" stroke="#333"/>
+    <rect x="420" y="640" width="340" height="80" fill="#1a1a1f" stroke="#333"/>
+    <rect x="780" y="640" width="360" height="80" fill="#1a1a1f" stroke="#333"/>
+  </svg>
+</template>
+<div id="root"></div>
+
+<!-- Tweaks panel (shown when toolbar enables edit mode) -->
+<div id="tweaks" class="tweaks">
+  <h4>◈ TWEAKS</h4>
+  <div class="tweak-group">
+    <div class="tweak-label">Visual Direction</div>
+    <div class="tweak-row" data-group="theme">
+      <button class="tweak-btn active" data-val="broadcast">Broadcast</button>
+      <button class="tweak-btn" data-val="terminal">Terminal</button>
+      <button class="tweak-btn" data-val="editorial">Editorial</button>
+    </div>
+  </div>
+  <div class="tweak-group">
+    <div class="tweak-label">Race Phase</div>
+    <div class="tweak-row" data-group="phase">
+      <button class="tweak-btn" data-val="pre">Pre-Race</button>
+      <button class="tweak-btn" data-val="start">Start</button>
+      <button class="tweak-btn active" data-val="live">Live</button>
+      <button class="tweak-btn" data-val="post">Post-Race</button>
+    </div>
+  </div>
+  <div class="tweak-group">
+    <div class="tweak-label">Accent Hue</div>
+    <div class="tweak-row" data-group="accent">
+      <button class="tweak-btn active" data-val="25">Red</button>
+      <button class="tweak-btn" data-val="55">Amber</button>
+      <button class="tweak-btn" data-val="300">Magenta</button>
+      <button class="tweak-btn" data-val="210">Cyan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Always-visible phase switcher so the user can easily see all phases -->
+<div class="phase-switcher" id="phase-switcher">
+  <button data-val="pre">PRE</button>
+  <button data-val="start">START</button>
+  <button data-val="live" class="active">LIVE</button>
+  <button data-val="post">POST</button>
+</div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="data.js"></script>
+<script type="text/babel" src="atoms.jsx"></script>
+<script type="text/babel" src="hero-timing.jsx"></script>
+<script type="text/babel" src="map-strategy.jsx"></script>
+<script type="text/babel" src="phases.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+function LiveRaceView() {
+  const g = window.RACE_DATA;
+  const [speed, setSpeed] = useState(2);
+  const [paused, setPaused] = useState(false);
+  const [lap, setLap] = useState(g.session.currentLap);
+
+  // Slow lap counter progression (for flavor)
+  useEffect(() => {
+    if (paused) return;
+    const id = setInterval(() => {
+      setLap(l => l < g.session.totalLaps ? l + 1 : l);
+    }, 15000 / speed);
+    return () => clearInterval(id);
+  }, [paused, speed]);
+
+  return (
+    <div className="shell" data-screen-label="Live Race">
+      <TopBar speed={speed} setSpeed={setSpeed} paused={paused} setPaused={setPaused}/>
+      <FlagStrip flag="GREEN" weather={g.weather}/>
+
+      <HeroStrip lap={lap} totalLaps={g.session.totalLaps}/>
+
+      <div className="main-grid">
+        <div>
+          <TimingTower timing={g.timing}/>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+          <CircuitMap lap={lap} totalLaps={g.session.totalLaps} paused={paused} speed={speed}/>
+          <StrategyPanel/>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:"14px"}}>
+          <WeatherPanel/>
+          <BattlesPanel/>
+          <FeedPanel/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PreRaceShell() {
+  const [speed, setSpeed] = useState(1);
+  const [paused, setPaused] = useState(true);
+  return (
+    <div className="shell" data-screen-label="Pre-Race">
+      <TopBar speed={speed} setSpeed={setSpeed} paused={paused} setPaused={setPaused}/>
+      <FlagStrip flag="GREEN" weather={window.RACE_DATA.weather}/>
+      <PreRaceView/>
+    </div>
+  );
+}
+
+function StartShell() {
+  const [speed, setSpeed] = useState(1);
+  const [paused, setPaused] = useState(true);
+  return (
+    <div className="shell" data-screen-label="Start">
+      <TopBar speed={speed} setSpeed={setSpeed} paused={paused} setPaused={setPaused}/>
+      <FlagStrip flag="GREEN" weather={window.RACE_DATA.weather}/>
+      <StartScreen/>
+    </div>
+  );
+}
+
+function PostShell() {
+  const [speed, setSpeed] = useState(1);
+  const [paused, setPaused] = useState(true);
+  return (
+    <div className="shell" data-screen-label="Post-Race">
+      <TopBar speed={speed} setSpeed={setSpeed} paused={paused} setPaused={setPaused}/>
+      <FlagStrip flag="RED" weather={window.RACE_DATA.weather}/>
+      <PostRaceView/>
+    </div>
+  );
+}
+
+function App() {
+  const [phase, setPhase] = useState(localStorage.getItem("pw-phase") || "live");
+  useEffect(() => { localStorage.setItem("pw-phase", phase); }, [phase]);
+
+  // Listen for phase switch clicks
+  useEffect(() => {
+    const handler = (e) => {
+      const btn = e.target.closest("[data-val]");
+      if (!btn) return;
+      const group = btn.closest("[data-group], #phase-switcher");
+      if (!group) return;
+      const val = btn.dataset.val;
+      if (group.id === "phase-switcher" || group.dataset?.group === "phase") {
+        setPhase(val);
+        document.querySelectorAll("#phase-switcher [data-val]").forEach(b => b.classList.toggle("active", b.dataset.val === val));
+        document.querySelectorAll('[data-group="phase"] [data-val]').forEach(b => b.classList.toggle("active", b.dataset.val === val));
+      } else if (group.dataset?.group === "theme") {
+        document.documentElement.setAttribute("data-theme", val);
+        group.querySelectorAll(".tweak-btn").forEach(b => b.classList.toggle("active", b === btn));
+      } else if (group.dataset?.group === "accent") {
+        const hue = val;
+        document.documentElement.style.setProperty("--sig-red", `oklch(0.68 0.22 ${hue})`);
+        document.documentElement.style.setProperty("--sig-red-dk", `oklch(0.42 0.16 ${hue})`);
+        group.querySelectorAll(".tweak-btn").forEach(b => b.classList.toggle("active", b === btn));
+      }
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
+
+  // Edit-mode availability handshake
+  useEffect(() => {
+    const onMsg = (e) => {
+      const tweaks = document.getElementById("tweaks");
+      if (e.data?.type === "__activate_edit_mode") tweaks.classList.add("open");
+      if (e.data?.type === "__deactivate_edit_mode") tweaks.classList.remove("open");
+    };
+    window.addEventListener("message", onMsg);
+    window.parent.postMessage({ type: "__edit_mode_available" }, "*");
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
+
+  if (phase === "pre") return <PreRaceShell/>;
+  if (phase === "start") return <StartShell/>;
+  if (phase === "post") return <PostShell/>;
+  return <LiveRaceView/>;
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+</body>
+</html>

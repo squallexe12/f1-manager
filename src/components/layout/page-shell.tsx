@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { TopBar } from './top-bar'
 import { NavBar } from './nav-bar'
 
@@ -9,8 +9,15 @@ interface PageShellProps {
 
 export function PageShell({ children, theme = 'kinetic' }: PageShellProps) {
   const isBroadcast = theme === 'broadcast'
+  // Broadcast theme expands the shell to match the reference design (1760px).
+  // CSS variable cascades to TopBar/NavBar so their inner containers align.
+  const shellMax = isBroadcast ? '1760px' : '64rem'
   return (
-    <div data-theme={theme} className="min-h-screen bg-[var(--surface-void)]">
+    <div
+      data-theme={theme}
+      className="min-h-screen bg-[var(--surface-void)]"
+      style={{ '--shell-max': shellMax } as CSSProperties}
+    >
       {/* Skip to content link for keyboard users */}
       <a
         href="#main-content"
@@ -23,7 +30,11 @@ export function PageShell({ children, theme = 'kinetic' }: PageShellProps) {
         Skip to content
       </a>
       <TopBar />
-      <main id="main-content" className="max-w-5xl mx-auto px-4 pt-4 pb-20" role="main">
+      <main
+        id="main-content"
+        className="mx-auto px-4 pt-4 pb-20 w-full max-w-[var(--shell-max,64rem)]"
+        role="main"
+      >
         {children}
       </main>
       <NavBar />

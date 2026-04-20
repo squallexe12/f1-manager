@@ -25,7 +25,7 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 bg-[var(--bg-primary)]/95 backdrop-blur-md border-b border-[var(--border-default)]">
-      <div className="flex items-center justify-between max-w-5xl mx-auto px-4 h-12">
+      <div className="flex items-center justify-between w-full max-w-[var(--shell-max,64rem)] mx-auto px-4 h-12">
         {/* Left: Team + Season */}
         <div className="flex flex-col">
           <span
