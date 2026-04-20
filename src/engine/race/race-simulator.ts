@@ -33,6 +33,10 @@ export interface SimRaceState {
   strategies: RaceStrategy[]
   tireStates: Record<string, TireState>
   positions: string[] // driver IDs in position order
+  // Cumulative race time per driver. Authority for position ordering and
+  // gap-to-leader: a pit stop's calibrated time loss permanently widens this
+  // value, so it remains visible on every subsequent lap.
+  cumulativeTimes: Record<string, number>
 }
 
 export interface RaceSetup {
@@ -63,6 +67,16 @@ const COMMAND_MODIFIERS: Record<DriverCommand, [number, number]> = {
   overtake: [1.03, 1.4],
   defend: [0.99, 1.1],
   pit: [0.95, 1.0], // slowing down to pit
+}
+
+// Standard normal sample via Box–Muller. Used to convert a calibrated Gaussian
+// standard deviation into a correctly-distributed scatter value. A uniform
+// sampler would understate variance by ~42% and hard-cap at ±σ, erasing the
+// rare botched-stop tail that the OpenF1-derived σ is meant to represent.
+function sampleGaussian(rng: PRNG): number {
+  const u1 = Math.max(rng.next(), 1e-9) // avoid log(0)
+  const u2 = rng.next()
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
 }
 
 function calculateBaseLapTime(driver: RaceDriver, tirePerf: number, weather: WeatherState): number {
@@ -149,8 +163,15 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         wear: 100,
         lapsFitted: 0,
       }
-      // Add pit stop time penalty (~22 seconds)
-      lapTime += 22
+      const pitLoss = state.calibration.pitLoss
+      let scatter = 0
+      if (pitLoss.stddevSeconds > 0) {
+        // Clamp to ±3σ so simulator output stays bounded; 99.7% of the true
+        // Gaussian mass is already inside that window.
+        const z = Math.max(-3, Math.min(3, sampleGaussian(rng)))
+        scatter = z * pitLoss.stddevSeconds
+      }
+      lapTime += pitLoss.meanLossSeconds + scatter
       pitted = true
       // Reset command back to standard after pitting
       strategy.currentCommand = 'standard'
@@ -188,47 +209,72 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     })
   }
 
-  // Sort by cumulative time (use lap time as proxy for position changes)
-  // Simple position model: compare consecutive drivers for overtakes
+  // Accumulate each driver's lap time into the cumulative race clock.
+  // Pit penalties, tire wear, weather, and command modifiers all land here,
+  // so the cumulative delta is the single source of truth for position/gap.
+  for (const result of lapResults) {
+    const prior = state.cumulativeTimes[result.driverId] ?? 0
+    state.cumulativeTimes[result.driverId] = prior + result.lapTime
+  }
+
+  // Adjacent-pair overtake gate. Iterates prior-order pairs: where this lap's
+  // cumulative times would invert the order, roll the overtake probability to
+  // decide if the swap is allowed. A failed roll (or a sub-threshold lap-time
+  // delta from pure noise) is blocked by throttling the trailing driver's
+  // cumulative — they were physically stuck behind. This is what preserves
+  // grid order on lap 1 (no seeded offsets needed) and keeps circuit
+  // difficulty / racecraft / tire delta authoritative over position changes.
+  const STUCK_EPSILON = 0.001
   for (let i = 1; i < positions.length; i++) {
     const aheadId = positions[i - 1]
     const behindId = positions[i]
+    const cumAhead = state.cumulativeTimes[aheadId]!
+    const cumBehind = state.cumulativeTimes[behindId]!
+    if (cumBehind >= cumAhead) continue // no inversion, nothing to gate
+
     const aheadResult = lapResults.find(r => r.driverId === aheadId)!
     const behindResult = lapResults.find(r => r.driverId === behindId)!
-    const behindDriver = state.drivers.find(d => d.id === behindId)!
+    const lapDelta = aheadResult.lapTime - behindResult.lapTime
 
-    // If car behind is significantly faster this lap, check overtake
-    const timeDelta = aheadResult.lapTime - behindResult.lapTime
-    if (timeDelta > 0.15) {
+    let allowSwap = false
+    if (lapDelta > 0.15) {
+      const behindDriver = state.drivers.find(d => d.id === behindId)!
       const overtakeResult = calculateOvertakeProbability({
-        performanceDelta: timeDelta,
+        performanceDelta: lapDelta,
         racecraft: behindDriver.attributes.racecraft,
         calibration: overtakeCal,
-        tireDelta: (state.tireStates[behindId].wear - state.tireStates[aheadId].wear),
+        tireDelta: state.tireStates[behindId].wear - state.tireStates[aheadId].wear,
       })
+      allowSwap = rng.chance(overtakeResult.probability)
+    }
 
-      if (rng.chance(overtakeResult.probability)) {
-        // Swap positions
-        positions[i - 1] = behindId
-        positions[i] = aheadId
-        commentary.push({
-          lap: state.currentLap,
-          text: `${behindId.toUpperCase()} overtakes ${aheadId.toUpperCase()} for P${i}!`,
-          severity: 'highlight',
-        })
-      }
+    if (allowSwap) {
+      positions[i - 1] = behindId
+      positions[i] = aheadId
+      commentary.push({
+        lap: state.currentLap,
+        text: `${behindId.toUpperCase()} overtakes ${aheadId.toUpperCase()}!`,
+        severity: 'highlight',
+      })
+    } else {
+      // Block the inversion: pin trailing driver's cumulative to just behind
+      // the leading driver. Preserves gap reporting without faking the lap.
+      state.cumulativeTimes[behindId] = cumAhead + STUCK_EPSILON
     }
   }
 
-  // Update positions in results
+  // Write positions + cumulative-time-based gaps back into the lap results.
+  const leaderCumulative = state.cumulativeTimes[positions[0]]!
   for (let i = 0; i < positions.length; i++) {
-    const result = lapResults.find(r => r.driverId === positions[i])!
+    const driverId = positions[i]
+    const result = lapResults.find(r => r.driverId === driverId)!
     result.position = i + 1
-    result.gapToLeader = i === 0 ? 0 : result.lapTime - lapResults.find(r => r.driverId === positions[0])!.lapTime
-    result.gapToAhead = i === 0 ? 0 : result.lapTime - lapResults.find(r => r.driverId === positions[i - 1])!.lapTime
+    result.gapToLeader = state.cumulativeTimes[driverId]! - leaderCumulative
+    result.gapToAhead = i === 0
+      ? 0
+      : state.cumulativeTimes[driverId]! - state.cumulativeTimes[positions[i - 1]]!
   }
 
-  // Update state positions
   state.positions = positions
 
   return { lapResults, commentary, incidents }
@@ -287,6 +333,7 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     strategies: setup.strategies.map(s => ({ ...s })),
     tireStates,
     positions: setup.gridOrder || setup.drivers.map(d => d.id),
+    cumulativeTimes: Object.fromEntries(setup.drivers.map(d => [d.id, 0])),
   }
 
   const allLapData: LapResult[][] = []

@@ -179,6 +179,7 @@ export function __handleMessage(msg: unknown): void {
         strategies,
         tireStates,
         positions: strategies.map((s) => s.driverId),
+        cumulativeTimes: Object.fromEntries(strategies.map((s) => [s.driverId, 0])),
       }
 
       isPaused = false

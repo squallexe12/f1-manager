@@ -25,6 +25,7 @@ function makeSim(): SimRaceState {
     strategies,
     tireStates: {},
     positions: ['d1', 'd2'],
+    cumulativeTimes: { d1: 0, d2: 0 },
   }
 }
 
