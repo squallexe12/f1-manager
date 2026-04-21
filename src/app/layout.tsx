@@ -4,6 +4,7 @@ import { ContrastProvider } from '@/components/layout/contrast-provider'
 import { PersistenceProvider } from '@/components/providers/persistence-provider'
 import '../styles/tokens.css'
 import './globals.css'
+import '../styles/topbar.css'
 import '../styles/paddock.css'
 
 const spaceGrotesk = Space_Grotesk({

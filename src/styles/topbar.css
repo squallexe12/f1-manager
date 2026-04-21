@@ -1,0 +1,257 @@
+/* ═══════════════════════════════════════════════════════════
+   PITWALL / STRATEGY — universal top bar + flag strip
+   Ported from new-designs/paddock/app.css (topbar + flag-strip)
+   Consumes broadcast theme tokens; falls back to kinetic aliases.
+   ═══════════════════════════════════════════════════════════ */
+
+.topbar-shell {
+  max-width: var(--shell-max, 1760px);
+  margin: 0 auto;
+  padding: 12px 16px 0;
+}
+
+/* ─── Top command bar ────────────────────────────────────── */
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: stretch;
+  gap: 1px;
+  background: var(--line-hair);
+  border: 1px solid var(--line-sub);
+  border-radius: var(--rad);
+  overflow: hidden;
+  margin-bottom: 1px;
+}
+
+.topbar > div { background: var(--bg-paper); padding: 10px 14px; }
+
+.topbar .brand {
+  display: flex; align-items: center; gap: 10px;
+  min-width: 240px;
+}
+.topbar .brand-mark {
+  width: 28px; height: 28px;
+  background: var(--sig-red);
+  color: var(--bg-void);
+  display: grid; place-items: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 16px;
+  border-radius: var(--rad);
+  letter-spacing: -0.04em;
+  position: relative;
+}
+.topbar .brand-mark::after {
+  content: ""; position: absolute; inset: 2px;
+  border: 1px solid oklch(1 0 0 / 0.25);
+  border-radius: inherit;
+  pointer-events: none;
+}
+.topbar .brand-text { display: flex; flex-direction: column; gap: 2px; }
+.topbar .brand-text .b1 {
+  font-family: var(--font-display);
+  font-weight: 700; letter-spacing: 0.02em;
+  font-size: 13px; color: var(--ink-hi);
+  text-transform: uppercase;
+}
+.topbar .brand-text .b2 {
+  font-family: var(--font-mono);
+  font-size: 9px; letter-spacing: 0.2em;
+  color: var(--ink-dim); text-transform: uppercase;
+}
+
+.topbar-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  border-left: 1px solid var(--line-hair);
+  border-right: 1px solid var(--line-hair);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.topbar-center .stat {
+  display: flex; flex-direction: column; gap: 2px; align-items: center;
+  min-width: 0;
+}
+.topbar-center .stat .k {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.2em;
+  color: var(--ink-dim); text-transform: uppercase;
+}
+.topbar-center .stat .v {
+  font-family: var(--font-mono); font-weight: 600; font-size: 14px;
+  color: var(--ink-hi); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.topbar-center .stat .v.accent { color: var(--sig-red); }
+.topbar-center .stat .v.green  { color: var(--sig-green); }
+.topbar-center .stat .v.cyan   { color: var(--sig-cyan); }
+.topbar-center .stat .v.amber  { color: var(--sig-amber); }
+
+.topbar-right {
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* Phase badge (right-side content when not in race) */
+.topbar-phase {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  padding: 6px 10px;
+  border: 1px solid var(--line-sub);
+  border-radius: var(--rad);
+  background: var(--bg-raised);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.topbar-phase .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--sig-cyan);
+  box-shadow: 0 0 6px var(--sig-cyan);
+}
+.topbar-phase.live .dot { background: var(--sig-red); box-shadow: 0 0 8px var(--sig-red); animation: pulse 1.4s ease-in-out infinite; }
+.topbar-phase.live { color: var(--sig-red); border-color: var(--sig-red-dk); }
+
+/* Sim controls */
+.topbar .sim-btn {
+  background: var(--bg-raised);
+  border: 1px solid var(--line-sub);
+  color: var(--ink-body);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  padding: 7px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  border-radius: var(--rad);
+  transition: background .12s, border-color .12s, color .12s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.topbar .sim-btn:hover { background: var(--bg-hi); border-color: var(--line-strong); }
+.topbar .sim-btn.active { background: var(--sig-red); color: var(--bg-void); border-color: var(--sig-red); }
+.topbar .sim-btn.danger { color: var(--sig-red); border-color: var(--sig-red-dk); }
+.topbar .sim-btn.danger:hover { background: var(--sig-red); color: var(--bg-void); }
+
+.topbar .sim-group {
+  display: inline-flex;
+  border: 1px solid var(--line-sub);
+  border-radius: var(--rad);
+  overflow: hidden;
+}
+.topbar .sim-group .sim-btn {
+  border: none;
+  border-right: 1px solid var(--line-hair);
+  border-radius: 0;
+}
+.topbar .sim-group .sim-btn:last-child { border-right: none; }
+
+/* ─── Flag strip (marquee) ───────────────────────────────── */
+.flag-strip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  background: var(--bg-paper);
+  border: 1px solid var(--line-sub);
+  border-top: none;
+  border-radius: 0 0 var(--rad) var(--rad);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.flag-marker {
+  background: var(--sig-green);
+  color: var(--bg-void);
+  padding: 8px 16px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  font-size: 12px;
+  display: flex; align-items: center; gap: 8px;
+  position: relative;
+  white-space: nowrap;
+}
+.flag-marker::before {
+  content: ""; width: 8px; height: 8px; background: currentColor;
+  box-shadow: 0 0 12px currentColor;
+  border-radius: 50%;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.flag-marker.yellow { background: var(--sig-amber); }
+.flag-marker.red { background: var(--sig-red); color: #fff; }
+.flag-marker.sc { background: var(--sig-amber); }
+.flag-marker.idle {
+  background: var(--bg-raised);
+  color: var(--ink-mute);
+}
+.flag-marker.idle::before {
+  background: var(--ink-mute);
+  box-shadow: 0 0 6px var(--ink-mute);
+  animation: none;
+}
+
+.topbar-ticker {
+  overflow: hidden;
+  position: relative;
+  display: flex; align-items: center;
+}
+.topbar-ticker-track {
+  display: flex;
+  gap: 32px;
+  padding: 0 16px;
+  white-space: nowrap;
+  animation: ticker-roll 60s linear infinite;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+.topbar-ticker-track > span { display: inline-flex; gap: 8px; align-items: center; }
+.topbar-ticker-track .tk-lap { color: var(--sig-amber); font-weight: 600; }
+.topbar-ticker-track .tk-dot {
+  width: 3px; height: 3px;
+  background: var(--line-strong);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.flag-right {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  border-left: 1px solid var(--line-hair);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+}
+.flag-right .fr-item { display: inline-flex; gap: 6px; align-items: center; }
+.flag-right .fr-k { color: var(--ink-dim); letter-spacing: 0.12em; text-transform: uppercase; font-size: 9px; }
+.flag-right .fr-v { color: var(--ink-hi); font-weight: 600; }
+
+/* Animations (scoped names so they don't collide) */
+@keyframes ticker-roll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes pulse { 50% { opacity: 0.3; } }
+@keyframes blink { 50% { opacity: 0.2; } }
+.topbar .blink { animation: blink 1s ease-in-out infinite; }
+
+/* ─── Responsive ──────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .topbar-center { gap: 18px; }
+  .topbar-center .stat .v { font-size: 13px; }
+}
+@media (max-width: 900px) {
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+  .topbar-center {
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid var(--line-hair);
+    border-bottom: 1px solid var(--line-hair);
+    justify-content: space-between;
+    gap: 14px;
+    overflow-x: auto;
+  }
+  .topbar-right { justify-content: flex-end; }
+  .topbar .brand { min-width: 0; }
+  .flag-right { display: none; }
+}

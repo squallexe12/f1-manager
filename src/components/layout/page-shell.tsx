@@ -29,10 +29,11 @@ export function PageShell({ children, theme = 'kinetic' }: PageShellProps) {
       >
         Skip to content
       </a>
-      <TopBar />
+      {/* TopBar is broadcast-theme only until the other pages get their redesign. */}
+      {isBroadcast && <TopBar />}
       <main
         id="main-content"
-        className="mx-auto px-4 pt-4 pb-20 w-full max-w-[var(--shell-max,64rem)]"
+        className={`mx-auto px-4 pb-20 w-full max-w-[var(--shell-max,64rem)] ${isBroadcast ? '' : 'pt-4'}`}
         role="main"
       >
         {children}
