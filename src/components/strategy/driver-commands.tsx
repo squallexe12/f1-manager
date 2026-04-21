@@ -71,61 +71,54 @@ export function DriverCommands({ driverId, driverName, currentCommand, available
         ))}
       </div>
 
-      {/* Pit stop row — radio-line style amber border */}
-      <div
-        className="relative mt-1 px-2.5 py-2 bg-surface-void border-l-2 border-sig-amber font-mono text-[11px] text-ink-body italic"
-      >
-        {/* ▸ RADIO label */}
-        <span
-          className="not-italic absolute -top-[7px] left-2 px-1.5 bg-surface-paper font-mono text-[8px] uppercase tracking-[0.14em] text-sig-amber font-bold"
-        >
+      {/* Pit stop row — single compact line with amber-left accent */}
+      <div className="flex items-center gap-2 flex-wrap px-2 py-1.5 bg-surface-void border-l-2 border-sig-amber rounded-r-rad">
+        <span className="font-mono text-[8px] uppercase tracking-[0.14em] text-sig-amber font-bold shrink-0">
           ▸ PIT STOP
         </span>
-        <div className="flex items-center gap-2 flex-wrap mt-0.5">
-          <button
-            type="button"
-            onClick={() => setShowPitMenu(!showPitMenu)}
-            className="
-              not-italic font-mono text-[9px] uppercase tracking-[0.12em] font-bold
-              px-2.5 py-1 rounded-rad
-              bg-sig-red border border-sig-red text-white
-              hover:opacity-90
-              transition-opacity duration-[120ms]
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50
-            "
-          >
-            {showPitMenu ? 'CANCEL' : 'PIT NOW'}
-          </button>
+        <button
+          type="button"
+          onClick={() => setShowPitMenu(!showPitMenu)}
+          className="
+            font-mono text-[9px] uppercase tracking-[0.12em] font-bold
+            px-2.5 py-1 rounded-rad
+            bg-sig-red border border-sig-red text-white
+            hover:opacity-90
+            transition-opacity duration-[120ms]
+            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50
+          "
+        >
+          {showPitMenu ? 'CANCEL' : 'PIT NOW'}
+        </button>
 
-          {showPitMenu && (
-            <div className="flex gap-1 flex-wrap">
-              {compounds.map((compound, idx) => (
-                <button
-                  key={compound}
-                  type="button"
-                  onClick={() => {
-                    onPitWithCompound?.(driverId, compound)
-                    setShowPitMenu(false)
-                  }}
-                  className="
-                    not-italic flex items-center gap-1 px-2 py-1 rounded-rad
-                    font-mono text-[9px] font-bold uppercase tracking-[0.1em]
-                    bg-surface-raised border border-line-sub text-ink-hi
-                    hover:bg-surface-hi hover:border-line-strong
-                    transition-[background,border-color] duration-[120ms]
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50
-                  "
-                >
-                  <div
-                    className="w-2 h-2 rounded-full shrink-0"
-                    style={{ backgroundColor: ROLE_COLORS[idx] ?? '#888' }}
-                  />
-                  {ROLE_LABELS[idx] ?? compound}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+        {showPitMenu && (
+          <div className="flex gap-1 flex-wrap">
+            {compounds.map((compound, idx) => (
+              <button
+                key={compound}
+                type="button"
+                onClick={() => {
+                  onPitWithCompound?.(driverId, compound)
+                  setShowPitMenu(false)
+                }}
+                className="
+                  flex items-center gap-1 px-2 py-1 rounded-rad
+                  font-mono text-[9px] font-bold uppercase tracking-[0.1em]
+                  bg-surface-raised border border-line-sub text-ink-hi
+                  hover:bg-surface-hi hover:border-line-strong
+                  transition-[background,border-color] duration-[120ms]
+                  focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50
+                "
+              >
+                <div
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: ROLE_COLORS[idx] ?? '#888' }}
+                />
+                {ROLE_LABELS[idx] ?? compound}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
