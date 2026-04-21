@@ -12,6 +12,34 @@ import { SCENARIOS } from '@/data/scenarios'
 import { RND_TREE } from '@/data/rnd-tree'
 import { SPONSORS } from '@/data/sponsors'
 import { getAvailableSponsors, signSponsor } from '@/engine/finance/sponsor-engine'
+import type { DepartmentHead } from '@/types/team'
+
+/**
+ * Default contract window (in seasons) applied to each department head at
+ * game init. Staggered by role so not every contract expires at once —
+ * mirrors how real teams bundle multi-year agreements.
+ */
+const STAFF_CONTRACT_LENGTH: Record<DepartmentHead['role'], number> = {
+  'technical-director': 4,
+  'race-engineer': 2,
+  'commercial-director': 3,
+  'team-manager': 5,
+}
+
+/** Accepts either fully-typed DepartmentHead (mid-game) or data-file rows
+ * lacking `contractEndSeason`, and emits a fully hydrated DepartmentHead. */
+function hydrateStaff(
+  staff: readonly (DepartmentHead | Omit<DepartmentHead, 'contractEndSeason'>)[],
+  startingSeason: number,
+): DepartmentHead[] {
+  return staff.map(head => {
+    const hasContract = 'contractEndSeason' in head && typeof head.contractEndSeason === 'number'
+    const contractEndSeason = hasContract
+      ? (head as DepartmentHead).contractEndSeason
+      : startingSeason + STAFF_CONTRACT_LENGTH[head.role]
+    return { ...head, contractEndSeason }
+  })
+}
 
 export interface FullGameState {
   gameState: GameState
@@ -25,11 +53,13 @@ export interface FullGameState {
   stagedStrategies: StagedStrategies
 }
 
-function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARIOS['find']>): Team {
+function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARIOS['find']>, startingSeason: number): Team {
   const s = scenario!
   const carMod = s.carPerformanceModifier
+  const morale = Math.max(0, Math.min(100, team.morale + s.moraleModifier))
   return {
     ...team,
+    staff: hydrateStaff(team.staff, startingSeason),
     car: {
       downforce: Math.max(0, Math.min(100, team.car.downforce + carMod)),
       straightSpeed: Math.max(0, Math.min(100, team.car.straightSpeed + carMod)),
@@ -38,7 +68,7 @@ function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARI
       braking: Math.max(0, Math.min(100, team.car.braking + carMod)),
       cornering: Math.max(0, Math.min(100, team.car.cornering + carMod)),
     },
-    morale: Math.max(0, Math.min(100, team.morale + s.moraleModifier)),
+    morale,
     rndUpgrades: RND_TREE.map(template => ({
       ...template,
       progress: 0,
@@ -46,12 +76,17 @@ function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARI
     })),
     constructorPoints: 0,
     constructorPosition: 0,
+    previousConstructorPosition: 0,
+    previousMorale: morale,
+    seasonForm: [],
+    lastProcessedRound: 0,
   }
 }
 
-function buildTeam(teamData: TeamData): Team {
+function buildTeam(teamData: TeamData, startingSeason: number): Team {
   return {
     ...teamData,
+    staff: hydrateStaff(teamData.staff, startingSeason),
     rndUpgrades: RND_TREE.map(template => ({
       ...template,
       progress: 0,
@@ -59,6 +94,10 @@ function buildTeam(teamData: TeamData): Team {
     })),
     constructorPoints: 0,
     constructorPosition: 0,
+    previousConstructorPosition: 0,
+    previousMorale: teamData.morale,
+    seasonForm: [],
+    lastProcessedRound: 0,
   }
 }
 
@@ -129,14 +168,19 @@ export function initializeGame(
 ): FullGameState {
   const scenario = SCENARIOS.find(s => s.id === scenarioType)!
 
+  const startingSeason = 1
   const teams: Team[] = TEAMS.map(teamData => {
     if (teamData.id === teamId) {
-      return applyScenarioToTeam(teamData, scenario)
+      return applyScenarioToTeam(teamData, scenario, startingSeason)
     }
-    return buildTeam(teamData)
+    return buildTeam(teamData, startingSeason)
   })
 
-  const drivers: Driver[] = DRIVERS.map(d => ({ ...d }))
+  const drivers: Driver[] = DRIVERS.map(d => ({
+    ...d,
+    form: [],
+    lastRaceResult: null,
+  }))
 
   const finance: Record<string, FinanceState> = {}
   const usedSponsorIds = new Set<string>()

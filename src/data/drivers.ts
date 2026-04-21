@@ -1,10 +1,18 @@
 import type { Driver } from '@/types/driver'
 
+/**
+ * Fields hydrated by `initializeGame()` / `processSeasonEnd()`, not by the
+ * static data file. Keeps this export from listing `form: []` and
+ * `lastRaceResult: null` on every row.
+ */
+type DriverData = Omit<Driver, 'form' | 'lastRaceResult'>
+
 const emptyStats = () => ({
-  points: 0, wins: 0, podiums: 0, dnfs: 0, penalties: 0, bestFinish: 99, averageFinish: 0,
+  points: 0, wins: 0, podiums: 0, poles: 0, dnfs: 0, penalties: 0,
+  bestFinish: 99, averageFinish: 0, lastProcessedRound: 0,
 })
 
-export const DRIVERS: Driver[] = [
+export const DRIVERS: DriverData[] = [
   // --- McLaren ---
   {
     id: 'norris', firstName: 'Lando', lastName: 'Norris', shortName: 'NOR',

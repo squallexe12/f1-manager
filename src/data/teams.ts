@@ -1,6 +1,24 @@
-import type { Team } from '@/types/team'
+import type { Team, DepartmentHead } from '@/types/team'
 
-export type TeamData = Omit<Team, 'rndUpgrades' | 'constructorPoints' | 'constructorPosition'>
+/**
+ * Runtime-populated fields stripped from the static data file. State-manager
+ * seeds these from scratch on `initializeGame()`; `processSeasonEnd()` and
+ * `processPostRace()` maintain them from there. Staff `contractEndSeason`
+ * is hydrated by `hydrateStaff()` at init so the data rows stay minimal.
+ */
+export type TeamData = Omit<
+  Team,
+  | 'rndUpgrades'
+  | 'constructorPoints'
+  | 'constructorPosition'
+  | 'previousConstructorPosition'
+  | 'previousMorale'
+  | 'seasonForm'
+  | 'lastProcessedRound'
+  | 'staff'
+> & {
+  staff: Omit<DepartmentHead, 'contractEndSeason'>[]
+}
 
 export const TEAMS: TeamData[] = [
   {

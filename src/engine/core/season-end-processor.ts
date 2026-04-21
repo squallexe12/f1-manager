@@ -75,11 +75,17 @@ export function processSeasonEnd(
         points: 0,
         wins: 0,
         podiums: 0,
+        poles: 0,
         dnfs: 0,
         penalties: 0,
         bestFinish: 0,
         averageFinish: 0,
+        lastProcessedRound: 0,
       },
+      // Reset rolling form window per season; continuity across seasons
+      // would mislead the Paddock sparkline.
+      form: [],
+      lastRaceResult: null,
     }
   })
 
@@ -115,9 +121,13 @@ export function processSeasonEnd(
     // Reset aero testing allocation
     windTunnelHoursUsed: 0,
     cfdRunsUsed: 0,
-    // Reset constructor standings
+    // Reset constructor standings + Paddock hero trend snapshots.
     constructorPoints: 0,
     constructorPosition: 0,
+    previousConstructorPosition: 0,
+    previousMorale: team.morale,
+    seasonForm: [],
+    lastProcessedRound: 0,
   }))
 
   // 5. Apply next season's regulation changes

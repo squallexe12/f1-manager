@@ -4,6 +4,7 @@ import type { FinanceState } from '@/types/finance'
 import type { NarrativeEvent, EventConsequence } from '@/types/narrative'
 import type { PRNG } from '@/engine/core/prng'
 import { updateMood, type MoodEvent } from '@/engine/drivers/mood-system'
+import { pushForm, FORM_DNF } from '@/engine/drivers/form-history'
 import { recordSpend } from '@/engine/finance/budget-engine'
 import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige'
 import { generateEvents, resolveExpiredEvents, type GameContext } from '@/engine/narrative/event-generator'
@@ -52,10 +53,14 @@ export function processPostRace(
 ): PostRaceUpdate {
   const pointsTable = isSprint ? SPRINT_POINTS : RACE_POINTS
 
-  // 1. Update driver season stats and points
+  // 1. Update driver season stats and points.
+  //    Idempotency guard (see SeasonStats.lastProcessedRound) skips drivers
+  //    whose stats were already credited for `currentRound` — defends against
+  //    any double-fire of submitRaceResults.
   let updatedDrivers = drivers.map(driver => {
     const result = results.find(r => r.driverId === driver.id)
     if (!result) return driver
+    if (driver.seasonStats.lastProcessedRound >= currentRound) return driver
 
     const points = pointsTable[result.position] ?? 0
     const fastestLapBonus = result.fastestLap && result.position <= 10 ? 1 : 0
@@ -68,13 +73,25 @@ export function processPostRace(
     if (!result.dnf && (stats.bestFinish === 0 || result.position < stats.bestFinish)) {
       stats.bestFinish = result.position
     }
-    // Running average
-    const totalRaces = stats.wins + stats.podiums + stats.dnfs + Math.max(0, currentRound - stats.wins - stats.podiums - stats.dnfs)
-    stats.averageFinish = totalRaces > 0
-      ? Math.round(((stats.averageFinish * (totalRaces - 1)) + result.position) / totalRaces * 10) / 10
-      : result.position
+    // Running average over rounds actually completed. Uses `currentRound` as
+    // the denominator — the prior formula conflated wins/podiums/dnfs with
+    // race count and under-counted whenever a driver podiumed.
+    const completedRounds = Math.max(1, currentRound)
+    stats.averageFinish = completedRounds === 1
+      ? result.position
+      : Math.round(
+        ((stats.averageFinish * (completedRounds - 1)) + result.position)
+        / completedRounds * 10,
+      ) / 10
+    stats.lastProcessedRound = currentRound
 
-    return { ...driver, seasonStats: stats }
+    const formSample = result.dnf ? FORM_DNF : result.position
+    return {
+      ...driver,
+      seasonStats: stats,
+      form: pushForm(driver.form, formSample),
+      lastRaceResult: result.dnf ? null : result.position,
+    }
   })
 
   // 2. Update driver moods
@@ -107,18 +124,37 @@ export function processPostRace(
     return { ...driver, mood: updateMood(driver.mood, moodEvents) }
   })
 
-  // 3. Update constructor standings
+  // 3. Update constructor standings. Same idempotency guard as drivers: a
+  //    team already processed for `currentRound` keeps its prior snapshots
+  //    and seasonForm — points reflect driver totals but position/form/
+  //    snapshots only write once per round.
   let updatedTeams = teams.map(team => {
     const teamDrivers = updatedDrivers.filter(d => d.teamId === team.id && !d.isReserve)
     const constructorPoints = teamDrivers.reduce((sum, d) => sum + d.seasonStats.points, 0)
-    return { ...team, constructorPoints }
+    const alreadyProcessed = team.lastProcessedRound >= currentRound
+    return {
+      ...team,
+      constructorPoints,
+      previousConstructorPosition: alreadyProcessed
+        ? team.previousConstructorPosition
+        : team.constructorPosition,
+      previousMorale: alreadyProcessed ? team.previousMorale : team.morale,
+    }
   })
 
   // Sort and assign positions
   const sorted = [...updatedTeams].sort((a, b) => b.constructorPoints - a.constructorPoints)
   updatedTeams = updatedTeams.map(team => {
     const pos = sorted.findIndex(t => t.id === team.id) + 1
-    return { ...team, constructorPosition: pos }
+    if (team.lastProcessedRound >= currentRound) {
+      return { ...team, constructorPosition: pos }
+    }
+    return {
+      ...team,
+      constructorPosition: pos,
+      seasonForm: pushForm(team.seasonForm, pos),
+      lastProcessedRound: currentRound,
+    }
   })
 
   // 4. Update finance — per-race operational spend

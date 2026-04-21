@@ -6,7 +6,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 4
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -32,6 +32,18 @@ export interface SlotInfo {
  * collections. Both are repopulated on the next management-phase entry via
  * `processManagementEntry()`, so a legacy save remains playable with no
  * observable data loss.
+ *
+ * v2 → v3 (Paddock hero redesign): hydrates rolling form + trend snapshots
+ * that power the new Paddock surfaces. Defaults are empty/zero so existing
+ * saves render the hero panels with blank series on first load, then refill
+ * after the next post-race processing pass.
+ *   - `team.previousConstructorPosition` ← 0
+ *   - `team.previousMorale`              ← team.morale
+ *   - `team.seasonForm`                  ← []
+ *   - `team.staff[*].contractEndSeason`  ← gameState.season + 3 (mid-band)
+ *   - `driver.form`                      ← []
+ *   - `driver.lastRaceResult`            ← null
+ *   - `driver.seasonStats.poles`         ← 0
  */
 export type Migration = (data: FullGameState) => FullGameState
 export const MIGRATIONS: Record<number, Migration> = {
@@ -40,6 +52,85 @@ export const MIGRATIONS: Record<number, Migration> = {
     recommendations: [],
     stagedStrategies: {},
   }),
+  2: (data) => {
+    const fallbackContractSeason = (data.gameState?.season ?? 1) + 3
+    return {
+      ...data,
+      teams: data.teams.map(team => ({
+        ...team,
+        previousConstructorPosition: team.previousConstructorPosition ?? 0,
+        previousMorale: team.previousMorale ?? team.morale,
+        seasonForm: team.seasonForm ?? [],
+        staff: team.staff.map(head => ({
+          ...head,
+          contractEndSeason: head.contractEndSeason ?? fallbackContractSeason,
+        })),
+      })),
+      drivers: data.drivers.map(driver => ({
+        ...driver,
+        form: driver.form ?? [],
+        lastRaceResult: driver.lastRaceResult ?? null,
+        seasonStats: {
+          ...driver.seasonStats,
+          poles: driver.seasonStats.poles ?? 0,
+        },
+      })),
+    }
+  },
+  /**
+   * v3 → v4 (Paddock stats double-count repair): Adds `lastProcessedRound`
+   * idempotency markers to every driver and team. Also repairs corrupted
+   * season stats on saves written before the guard existed: detects any
+   * driver whose podium/win/dnf count exceeds the natural per-round
+   * ceiling and resets their season counters to zero so the running-total
+   * picks up cleanly from the next race. Points are recomputed as the
+   * minimum of the stored value and the theoretical ceiling for the
+   * rounds completed so far.
+   */
+  3: (data) => {
+    const currentRound = Math.max(0, (data.gameState?.currentRound ?? 1) - 1)
+    // Modern F1: P1=25 + FL bonus 1, P2=18. Team max per race = 44.
+    const maxPointsPerRoundPerDriver = 26
+    const maxPointsPerRoundPerTeam = 44
+
+    const repairedDrivers = data.drivers.map(driver => {
+      const s = driver.seasonStats
+      const corrupted =
+        (s.podiums ?? 0) > currentRound ||
+        (s.wins ?? 0) > currentRound ||
+        (s.points ?? 0) > currentRound * maxPointsPerRoundPerDriver
+      const safeStats = corrupted
+        ? {
+          points: 0, wins: 0, podiums: 0, poles: s.poles ?? 0,
+          dnfs: 0, penalties: s.penalties ?? 0,
+          bestFinish: 0, averageFinish: 0,
+          lastProcessedRound: 0,
+        }
+        : {
+          ...s,
+          poles: s.poles ?? 0,
+          lastProcessedRound: s.lastProcessedRound ?? 0,
+        }
+      return { ...driver, seasonStats: safeStats }
+    })
+
+    const repairedTeams = data.teams.map(team => {
+      const teamDrivers = repairedDrivers.filter(d =>
+        d.teamId === team.id && !d.isReserve && !d.isF2,
+      )
+      const recomputedPoints = teamDrivers.reduce((sum, d) => sum + d.seasonStats.points, 0)
+      const corrupted = (team.constructorPoints ?? 0) > currentRound * maxPointsPerRoundPerTeam
+      return {
+        ...team,
+        constructorPoints: corrupted ? recomputedPoints : team.constructorPoints,
+        seasonForm: corrupted ? [] : team.seasonForm,
+        previousConstructorPosition: corrupted ? 0 : team.previousConstructorPosition,
+        lastProcessedRound: team.lastProcessedRound ?? 0,
+      }
+    })
+
+    return { ...data, drivers: repairedDrivers, teams: repairedTeams }
+  },
 }
 
 /**

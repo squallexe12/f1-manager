@@ -55,12 +55,14 @@ function makeDriver(id: string, frustration: number): Driver {
     mood: { motivation: 70, frustration, confidence: 60 },
     contract: null,
     seasonStats: {
-      points: 0, wins: 0, podiums: 0, dnfs: 0,
-      penalties: 0, bestFinish: 0, averageFinish: 0,
+      points: 0, wins: 0, podiums: 0, poles: 0, dnfs: 0,
+      penalties: 0, bestFinish: 0, averageFinish: 0, lastProcessedRound: 0,
     },
     rivalries: [],
     peakAge: 28,
     declineRate: 1,
+    form: [],
+    lastRaceResult: null,
   }
 }
 

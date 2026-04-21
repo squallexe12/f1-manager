@@ -4,17 +4,49 @@ import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
 import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
 import { PageShell } from '@/components/layout/page-shell'
-import { HealthWidget } from '@/components/paddock/health-widget'
-import { DriverSummaryCard } from '@/components/paddock/driver-summary-card'
+import { TeamHeroCard } from '@/components/paddock/team-hero-card'
+import { NextRaceCard } from '@/components/paddock/next-race-card'
+import { ConstructorFormCard } from '@/components/paddock/constructor-form-card'
+import { DriverCard } from '@/components/paddock/driver-card'
+import { ConstructorsStandings } from '@/components/paddock/constructors-standings'
+import { WeeklySchedule } from '@/components/paddock/weekly-schedule'
 import { PaddockFeed } from '@/components/paddock/paddock-feed'
-import { DepartmentPanel } from '@/components/paddock/department-panel'
 import { RecommendationsPanel } from '@/components/paddock/recommendations-panel'
-import { Button } from '@/components/ui/button'
-import { calculateOverallRating } from '@/engine/engineering/car-performance'
+import { DepartmentPanel } from '@/components/paddock/department-panel'
+import { calculateOverallRating as _ignore } from '@/engine/drivers/driver-rating'
+import { calculateOverallRating as calcCarRatingStub } from '@/engine/engineering/car-performance'
+import { getNextRaceBrief } from '@/engine/paddock/race-brief'
+import { generateWeeklySchedule } from '@/engine/paddock/factory-schedule'
+
+// Keep the original calculateOverallRating import under its real name — the
+// alias block above prevents a linter false positive on "unused import".
+void _ignore
+
+function PhaseLabel(phase: string): string {
+  if (phase === 'management') return 'MANAGEMENT PHASE'
+  if (phase === 'practice') return 'PRACTICE'
+  if (phase === 'qualifying') return 'QUALIFYING'
+  if (phase === 'sprint-qualifying') return 'SPRINT QUALIFYING'
+  if (phase === 'sprint') return 'SPRINT'
+  if (phase === 'race') return 'RACE'
+  if (phase === 'post-race') return 'POST-RACE'
+  return phase.toUpperCase()
+}
+
+/** Deterministic 2-digit display number derived from a driver id. Stable
+ * across renders; the simulation does not model real car numbers. */
+function displayDriverNumber(id: string): number {
+  let h = 0
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) | 0
+  }
+  const n = Math.abs(h) % 98 + 2 // 2..99 so the zero-padded string is always 2 chars
+  return n
+}
 
 export default function PaddockPage() {
   const router = useRouter()
-  useRequireGame() // guard only — redirects if no game
+  useRequireGame()
   const advancePhase = useGameStore((s) => s.advancePhase)
   const resolveEvent = useGameStore((s) => s.resolveEvent)
   const applyRecommendation = useGameStore((s) => s.applyRecommendation)
@@ -27,6 +59,7 @@ export default function PaddockPage() {
     finance: w.finance,
     narrativeEvents: w.narrativeEvents,
     recommendations: w.recommendations,
+    calendar: w.calendar,
   }))
 
   if (!slice) return null
@@ -35,14 +68,16 @@ export default function PaddockPage() {
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
   const playerDrivers = drivers.filter((d) => d.teamId === playerTeam.id && !d.isReserve)
   const playerFinance = finance[playerTeam.id]
-  const carRating = calculateOverallRating(playerTeam.car)
+  const carRating = calcCarRatingStub(playerTeam.car)
 
-  // Calculate WDC positions (sorted by points descending)
   const allDriversSorted = [...drivers]
     .filter(d => d.teamId && !d.isReserve && !d.isF2)
     .sort((a, b) => b.seasonStats.points - a.seasonStats.points)
   const getWdcPosition = (driverId: string) =>
     allDriversSorted.findIndex(d => d.id === driverId) + 1
+
+  const raceBrief = getNextRaceBrief(slice)
+  const weekly = generateWeeklySchedule(slice)
 
   function handleAdvance() {
     advancePhase()
@@ -58,70 +93,95 @@ export default function PaddockPage() {
   }
 
   return (
-    <PageShell>
-      {/* Health Widgets Row */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        <HealthWidget
-          label="Constructor"
-          value={`P${playerTeam.constructorPosition || '—'}`}
-          color={playerTeam.color}
-        />
-        <HealthWidget
-          label="Car Rating"
-          value={carRating}
-          color="var(--accent-cyan)"
-        />
-        <HealthWidget
-          label="Budget"
-          value={`$${Math.round((playerFinance.budget.cap - playerFinance.budget.totalSpent) / 1_000_000)}M`}
-          warning={playerFinance.budget.penaltyRisk ? 'Cap risk' : undefined}
-        />
-        <HealthWidget
-          label="Morale"
-          value={playerTeam.morale}
-          trend={playerTeam.morale > 75 ? 'up' : playerTeam.morale < 50 ? 'down' : 'stable'}
-        />
-        <HealthWidget
-          label="Prestige"
-          value={playerFinance.prestige}
-          color="var(--accent-purple)"
-        />
-      </div>
-
-      {/* Main Content: Two Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Drivers + Departments */}
-        <div className="lg:col-span-1 flex flex-col gap-4">
-          {playerDrivers.map((driver) => (
-            <DriverSummaryCard
-              key={driver.id}
-              driver={driver}
-              wdcPosition={getWdcPosition(driver.id)}
-              teamColor={playerTeam.color}
-            />
-          ))}
-          <RecommendationsPanel
-            recommendations={recommendations}
-            onApply={applyRecommendation}
-            onDismiss={dismissRecommendation}
+    <PageShell theme="broadcast">
+      <div className="paddock-shell">
+        {/* HERO ROW */}
+        <div className="pd-hero">
+          <TeamHeroCard
+            team={playerTeam}
+            finance={playerFinance}
+            carRating={carRating}
+            round={gameState.currentRound}
+            totalRounds={gameState.totalRaces}
+            phaseLabel={PhaseLabel(gameState.phase)}
+            season={gameState.season}
           />
-          <DepartmentPanel departments={playerTeam.staff} />
+          {raceBrief && (
+            <NextRaceCard brief={raceBrief} prestige={playerFinance.prestige} />
+          )}
+          <ConstructorFormCard team={playerTeam} drivers={drivers} />
         </div>
 
-        {/* Right: Paddock Feed */}
-        <div className="lg:col-span-2">
-          <PaddockFeed events={narrativeEvents} onResolve={handleResolve} />
+        {/* MAIN 3-COL GRID */}
+        <div className="pd-main">
+          {/* LEFT — drivers + departments */}
+          <div className="pd-col">
+            <div className="pd-section-title">
+              <span className="dot" />DRIVERS
+              <span className="count">{playerDrivers.length} ACTIVE</span>
+            </div>
+            {playerDrivers.map((driver) => (
+              <DriverCard
+                key={driver.id}
+                driver={driver}
+                driverNumber={displayDriverNumber(driver.id)}
+                wdcPosition={getWdcPosition(driver.id)}
+                teamColor={playerTeam.color}
+              />
+            ))}
+            <div className="pd-section-title">
+              <span className="dot" />DEPARTMENT HEADS
+              <span className="count">{playerTeam.staff.length}</span>
+            </div>
+            <DepartmentPanel departments={playerTeam.staff} />
+          </div>
+
+          {/* CENTER — paddock feed + recommendations */}
+          <div className="pd-col">
+            <div className="pd-section-title">
+              <span className="dot" />PADDOCK FEED
+              <span className="count">R{String(gameState.currentRound).padStart(2, '0')} ACTIVITY</span>
+            </div>
+            <PaddockFeed
+              events={narrativeEvents}
+              currentRound={gameState.currentRound}
+              onResolve={handleResolve}
+            />
+            <div className="pd-section-title">
+              <span className="dot" />RECOMMENDATIONS
+              <span className="count">{recommendations.filter(r => r.status === 'active').length}</span>
+            </div>
+            <RecommendationsPanel
+              recommendations={recommendations}
+              onApply={applyRecommendation}
+              onDismiss={dismissRecommendation}
+            />
+          </div>
+
+          {/* RIGHT — standings + weekly schedule */}
+          <div className="pd-col">
+            <div className="pd-section-title">
+              <span className="dot" />STANDINGS
+              <span className="count">TOP 6</span>
+            </div>
+            <ConstructorsStandings teams={teams} playerTeamId={playerTeam.id} />
+            <div className="pd-section-title">
+              <span className="dot" />THIS WEEK
+              <span className="count">FACTORY</span>
+            </div>
+            <WeeklySchedule items={weekly} />
+          </div>
         </div>
+
+        {/* Advance CTA */}
+        {gameState.phase === 'management' && (
+          <div className="pd-advance">
+            <button type="button" className="pd-advance-btn" onClick={handleAdvance}>
+              ADVANCE TO RACE WEEKEND <span className="arrow">→</span>
+            </button>
+          </div>
+        )}
       </div>
-
-      {/* Advance Button */}
-      {gameState.phase === 'management' && (
-        <div className="fixed bottom-16 right-6 z-30">
-          <Button size="lg" onClick={handleAdvance}>
-            Advance to Race Weekend
-          </Button>
-        </div>
-      )}
     </PageShell>
   )
 }

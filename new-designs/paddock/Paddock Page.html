@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="broadcast">
+<head>
+<meta charset="UTF-8"/>
+<title>Paddock — Pitwall Command</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css"/>
+<link rel="stylesheet" href="paddock.css"/>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script src="data.js"></script>
+<script src="paddock-data.js"></script>
+<script type="text/babel" src="atoms.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+const D = window.PADDOCK_DATA;
+const team = D.team;
+
+// ── Team hero card ─────────────────────────────
+function TeamCard() {
+  return (
+    <div className="pd-team-card" style={{"--team-color": team.color, "--team-dark": team.dark}}>
+      <div className="pd-team-head">
+        <div className="pd-team-monogram">N</div>
+        <div className="pd-team-text">
+          <div className="pd-team-name">{team.name}</div>
+          <div className="pd-team-sub">SEASON 26 · POST-ROUND 07 · MANAGEMENT PHASE</div>
+        </div>
+      </div>
+      <div className="pd-kpi-grid">
+        <div className="pd-kpi">
+          <div className="k">Constructor</div>
+          <div className="v">P{team.constructorPosition}</div>
+          <div className="trend">▲ +1 vs R06</div>
+        </div>
+        <div className="pd-kpi">
+          <div className="k">Car Rating</div>
+          <div className="v accent">{team.carRating}<span className="u">/100</span></div>
+          <div className="pd-kpi-bar"><div className="fill" style={{width: `${team.carRating}%`}}/></div>
+        </div>
+        <div className="pd-kpi">
+          <div className="k">Budget Left</div>
+          <div className="v green">${team.budget.remaining}<span className="u">M</span></div>
+          <div className="trend flat">of ${team.budget.cap}M cap</div>
+        </div>
+        <div className="pd-kpi">
+          <div className="k">Morale</div>
+          <div className="v amber">{team.morale}</div>
+          <div className="trend">▲ +4 this week</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Next race card ─────────────────────────────
+function NextRaceCard() {
+  const n = D.nextRace;
+  const ringCirc = 2 * Math.PI * 36;
+  const progress = ((24 - n.daysOut) / 24) * ringCirc;
+  return (
+    <div className="pd-next-race">
+      <div className="pd-next-head">
+        <div>
+          <div className="pd-next-k">▸ NEXT RACE · ROUND {n.round}/24</div>
+        </div>
+        <div className="pd-next-round">SUNDAY · 15:00 LOCAL</div>
+      </div>
+      <div style={{display:"flex", alignItems:"flex-start", gap:"18px"}}>
+        <div className="pd-ring">
+          <svg viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="36" className="track"/>
+            <circle cx="40" cy="40" r="36" className="prog"
+              strokeDasharray={ringCirc}
+              strokeDashoffset={ringCirc - progress}/>
+          </svg>
+          <div className="val">{n.daysOut}<span className="sub">DAYS</span></div>
+        </div>
+        <div style={{flex:1, display:"flex", flexDirection:"column", gap:"4px"}}>
+          <div className="pd-next-name">{n.name}</div>
+          <div className="pd-next-loc">{n.country.toUpperCase()} · {n.date}</div>
+        </div>
+      </div>
+      <div className="pd-sessions">
+        {n.sessions.map(s => (
+          <div key={s.k} className={`pd-session ${s.k === "RACE" ? "race" : ""}`}>
+            <div className="k">{s.k}</div>
+            <div className="d">{s.d}</div>
+          </div>
+        ))}
+      </div>
+      <div className="pd-next-weather">
+        <span><span className="k">AIR</span><span className="v">{n.air}°C</span></span>
+        <span><span className="k">TRACK</span><span className="v">{n.track}°C</span></span>
+        <span><span className="k">RAIN</span><span className="v" style={{color:"var(--sig-amber)"}}>{n.rain}%</span></span>
+        <span style={{marginLeft:"auto"}}><span className="k">PRESTIGE</span><span className="v" style={{color:"var(--sig-purple)"}}>{team.prestige}</span></span>
+      </div>
+    </div>
+  );
+}
+
+// ── Form card (constructor over last 7 rounds) ──
+function FormCard() {
+  const form = team.seasonForm;
+  const pts = form.map((p, i) => [i * (100/(form.length-1)), 100 - ((p-1)/5)*90]);
+  const line = pts.map((p,i) => (i===0?"M":"L") + p[0] + "," + p[1]).join(" ");
+  const area = line + " L100,100 L0,100 Z";
+
+  return (
+    <div className="pd-form-card">
+      <div className="pd-form-head">
+        <div className="pd-form-title">▸ CONSTRUCTOR FORM</div>
+        <div className="pd-form-sub">LAST 7 ROUNDS</div>
+      </div>
+      <div className="pd-form-chart">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path d={area} className="pd-form-area"/>
+          <path d={line} className="pd-form-line"/>
+          {pts.map((p,i) => <circle key={i} cx={p[0]} cy={p[1]} r="2" className="pd-form-dot"/>)}
+        </svg>
+      </div>
+      <div className="pd-form-rounds">
+        {form.map((p, i) => (
+          <div key={i} className={`rnd-box ${p === 1 ? "win" : p <= 3 ? "podium" : ""}`}>
+            <div className="pos">P{p}</div>
+            <div>R{i+1}</div>
+          </div>
+        ))}
+      </div>
+      <div className="pd-form-summary">
+        <div><span className="k">Wins</span><span className="v">2</span></div>
+        <div><span className="k">Podiums</span><span className="v">4</span></div>
+        <div><span className="k">Poles</span><span className="v">1</span></div>
+        <div><span className="k">DNFs</span><span className="v">0</span></div>
+      </div>
+    </div>
+  );
+}
+
+// ── Driver card ────────────────────────────────
+function DriverCard({ d }) {
+  const moodCls = d.moodLabel === "FRUSTRATED" ? "frustrated" : d.moodLabel === "MOTIVATED" ? "motivated" : "stable";
+  // Mini sparkline of finishing positions
+  const pts = d.form.map((p, i) => [i * (100/(d.form.length-1)), ((p-1)/19)*100]);
+  const sparkPath = pts.map((p,i) => (i===0?"M":"L") + p[0] + "," + p[1]).join(" ");
+
+  return (
+    <div className="pd-driver-card" style={{"--team-color": team.color}}>
+      <div className="pd-driver-head">
+        <div className="pd-driver-num">{String(d.num).padStart(2,"0")}</div>
+        <div className="pd-driver-body">
+          <div className="pd-driver-name">{d.first} {d.last}</div>
+          <div className="pd-driver-meta">{d.id} · {d.nat} · CONTRACT THRU {d.contract}</div>
+        </div>
+        <div className="pd-driver-wdc">P{d.wdc}<span className="sub">WDC</span></div>
+      </div>
+      <div className="pd-driver-stats">
+        <div className="pd-driver-stat"><div className="k">Points</div><div className="v">{d.pts}</div></div>
+        <div className="pd-driver-stat"><div className="k">Wins</div><div className="v">{d.wins}</div></div>
+        <div className="pd-driver-stat"><div className="k">Podiums</div><div className="v">{d.podiums}</div></div>
+        <div className="pd-driver-stat"><div className="k">Rating</div><div className="v" style={{color:"var(--sig-cyan)"}}>{d.rating}</div></div>
+      </div>
+      <div className="pd-driver-moods">
+        <div className="pd-mood mot">
+          <div className="k">Motivation</div>
+          <div className="pd-mood-bar"><div className="fill" style={{width:`${d.mood.motivation}%`}}/></div>
+          <div className="v">{d.mood.motivation}</div>
+        </div>
+        <div className="pd-mood con">
+          <div className="k">Confidence</div>
+          <div className="pd-mood-bar"><div className="fill" style={{width:`${d.mood.confidence}%`}}/></div>
+          <div className="v">{d.mood.confidence}</div>
+        </div>
+        <div className="pd-mood frs">
+          <div className="k">Frustration</div>
+          <div className="pd-mood-bar"><div className="fill" style={{width:`${d.mood.frustration}%`}}/></div>
+          <div className="v">{d.mood.frustration}</div>
+        </div>
+      </div>
+      <div className="pd-driver-mini">
+        <span className={`pill ${moodCls}`}>{d.moodLabel}</span>
+        <div className="sparkline">
+          <svg viewBox="0 0 100 20" preserveAspectRatio="none" style={{width:"100%", height:"20px"}}>
+            <path d={sparkPath} fill="none" stroke={moodCls === "frustrated" ? "var(--sig-red)" : "var(--sig-green)"} strokeWidth="1.5"/>
+          </svg>
+        </div>
+        <span style={{color:"var(--ink-dim)", letterSpacing:"0.14em", fontSize:"9px"}}>LAST: P{d.lastPos}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── Recommendations ────────────────────────────
+function RecPanel() {
+  return (
+    <div className="pd-rec">
+      <div className="panel-head">
+        <div className="ph-title"><span className="ph-dot"></span>Engineer Recommendations</div>
+        <div className="ph-sub">{D.recommendations.length} ACTIVE</div>
+      </div>
+      <div className="pd-rec-body">
+        {D.recommendations.map(r => (
+          <div key={r.id} className="pd-rec-item">
+            <div className="pd-rec-glyph">{r.role}</div>
+            <div className="pd-rec-content">
+              <div className="pd-rec-role">{r.roleName}</div>
+              <div className="pd-rec-text">{r.text}</div>
+              <div className="pd-rec-actions">
+                {r.applicable ? (
+                  <>
+                    <button className="pd-rec-btn primary">Apply</button>
+                    <button className="pd-rec-btn">Dismiss</button>
+                  </>
+                ) : (
+                  <span className="pd-rec-info">◆ Informational</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Department heads ───────────────────────────
+function DeptPanel() {
+  return (
+    <div className="pd-dept">
+      <div className="panel-head">
+        <div className="ph-title">Department Heads</div>
+        <div className="ph-sub">4 ROLES</div>
+      </div>
+      {D.departments.map(d => (
+        <div key={d.role} className="pd-dept-row">
+          <div className="pd-dept-glyph">{d.role}</div>
+          <div className="pd-dept-info">
+            <div className="pd-dept-name">{d.name}</div>
+            <div className="pd-dept-role">{d.roleName}</div>
+          </div>
+          <div className="pd-dept-stats">
+            <div className="pd-dept-skill">{d.skill}</div>
+            <div className="pd-dept-contract">'{d.contract.slice(2)}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Paddock feed ───────────────────────────────
+function PaddockFeed() {
+  const [filter, setFilter] = useState("all");
+  const filters = [
+    { k: "all", l: "All" },
+    { k: "breaking", l: "Breaking" },
+    { k: "decision", l: "Decisions" },
+    { k: "technical", l: "Technical" },
+    { k: "rumor", l: "Rumors" },
+    { k: "news", l: "News" },
+  ];
+  const items = filter === "all" ? D.feed : D.feed.filter(f => f.sev === filter);
+  const sevColors = {
+    breaking: "var(--sig-red)", decision: "var(--sig-amber)",
+    technical: "var(--sig-cyan)", rumor: "var(--sig-purple)",
+    news: "var(--ink-dim)"
+  };
+
+  return (
+    <div className="pd-feed">
+      <div className="panel-head">
+        <div className="ph-title"><span className="ph-dot"></span>Paddock Feed</div>
+        <div className="ph-sub">LIVE · R07</div>
+      </div>
+      <div className="pd-feed-filters">
+        {filters.map(f => (
+          <button key={f.k}
+            className={`pd-filter-btn ${filter === f.k ? "active" : ""}`}
+            onClick={() => setFilter(f.k)}>
+            {f.l}
+          </button>
+        ))}
+        <div className="pd-filter-count">{items.length} ITEMS</div>
+      </div>
+      <div className="pd-feed-list">
+        {items.length === 0 ? (
+          <div className="pd-feed-empty">
+            <div className="pd-feed-empty-icon">◇</div>
+            <div className="pd-feed-empty-t">NO EVENTS IN THIS FILTER</div>
+            <div className="pd-feed-empty-s">Scheduled briefings continue in the side panel</div>
+          </div>
+        ) : items.map(e => (
+          <div key={e.id} className="pd-feed-item" style={{"--sev-color": sevColors[e.sev]}}>
+            <div className="pd-feed-round">R{String(e.round).padStart(2,"0")}<span className="sub">ROUND</span></div>
+            <div className="pd-feed-body">
+              <div className="pd-feed-meta">
+                <span className={`pd-sev ${e.sev}`}>{e.sev}</span>
+              </div>
+              <div className="pd-feed-head">{e.head}</div>
+              <div className="pd-feed-text">{e.body}</div>
+              {e.options && !e.resolved && (
+                <div className="pd-feed-actions">
+                  {e.options.map((o, i) => (
+                    <button key={o.id} className={`pd-rec-btn ${i === 0 ? "primary" : ""}`}>{o.t}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="pd-feed-right">
+              <span className={`status-pill ${e.resolved ? "resolved" : "pending"}`}>
+                {e.resolved ? "✓ RESOLVED" : "◉ PENDING"}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Standings ──────────────────────────────────
+function Standings() {
+  return (
+    <div className="pd-standings">
+      <div className="panel-head">
+        <div className="ph-title">Constructors' Championship</div>
+        <div className="ph-sub">TOP 6 · AFTER R07</div>
+      </div>
+      {D.standings.map(s => (
+        <div key={s.team} className={`pd-std-row ${s.team === team.id ? "is-player" : ""}`} style={{"--team-color": s.color}}>
+          <div className={`pd-std-pos ${s.pos === 1 ? "leader" : ""}`}>{s.pos}</div>
+          <div className="pd-std-team"/>
+          <div className="pd-std-name">{s.name}</div>
+          <div className="pd-std-pts">{s.pts}</div>
+          <div className={`pd-std-delta ${s.delta > 0 ? "up" : s.delta < 0 ? "down" : "flat"}`}>
+            {s.delta > 0 ? `▲${s.delta}` : s.delta < 0 ? `▼${Math.abs(s.delta)}` : "—"}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Schedule ───────────────────────────────────
+function Schedule() {
+  return (
+    <div className="pd-schedule">
+      <div className="panel-head">
+        <div className="ph-title">This Week · Factory</div>
+        <div className="ph-sub">SCHEDULED</div>
+      </div>
+      {D.upcoming.map((s, i) => (
+        <div key={i} className="pd-sched-item">
+          <div className="pd-sched-when">{s.when}</div>
+          <div className="pd-sched-label">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── App ────────────────────────────────────────
+function App() {
+  const [speed, setSpeed] = useState(1);
+  const [paused, setPaused] = useState(true);
+  return (
+    <div className="paddock-shell" data-screen-label="Paddock">
+      <TopBar speed={speed} setSpeed={setSpeed} paused={paused} setPaused={setPaused}/>
+      <FlagStrip flag="GREEN" weather={{air:22, track:34, rainProb: 35}}/>
+
+      <div style={{height:"14px"}}/>
+      <div className="pd-hero">
+        <TeamCard/>
+        <NextRaceCard/>
+        <FormCard/>
+      </div>
+
+      <div className="pd-main">
+        <div className="pd-col">
+          <div className="pd-section-title"><span className="dot"/>DRIVERS<span className="count">2 ACTIVE</span></div>
+          {D.drivers.map(d => <DriverCard key={d.id} d={d}/>)}
+          <div className="pd-section-title"><span className="dot"/>DEPARTMENT HEADS<span className="count">4</span></div>
+          <DeptPanel/>
+        </div>
+
+        <div className="pd-col">
+          <div className="pd-section-title"><span className="dot"/>PADDOCK FEED<span className="count">R07 ACTIVITY</span></div>
+          <PaddockFeed/>
+          <div className="pd-section-title"><span className="dot"/>RECOMMENDATIONS<span className="count">{D.recommendations.length}</span></div>
+          <RecPanel/>
+        </div>
+
+        <div className="pd-col">
+          <div className="pd-section-title"><span className="dot"/>STANDINGS<span className="count">TOP 6</span></div>
+          <Standings/>
+          <div className="pd-section-title"><span className="dot"/>THIS WEEK<span className="count">FACTORY</span></div>
+          <Schedule/>
+        </div>
+      </div>
+
+      <div className="pd-advance">
+        <button className="pd-advance-btn">ADVANCE TO RACE WEEKEND <span className="arrow">→</span></button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

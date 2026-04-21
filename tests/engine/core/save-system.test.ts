@@ -108,11 +108,11 @@ describe('SaveSystem schema migration', () => {
   })
 
   it('throws when a migration step is missing for an older version', () => {
-    // Temporarily remove the v1 → v2 built-in so the loop hits a real gap.
-    // The afterEach above restores it for subsequent tests.
-    delete MIGRATIONS[1]
+    // Call with a version lower than any registered migration (v0) so the
+    // very first loop iteration hits MIGRATIONS[0] = undefined. The afterEach
+    // above restores the built-ins for subsequent tests.
     const data = { gameState: {} } as unknown as FullGameState
-    expect(() => migrateToCurrent(data, SCHEMA_VERSION - 1)).toThrow(/No migration registered/)
+    expect(() => migrateToCurrent(data, 0)).toThrow(/No migration registered/)
   })
 })
 
@@ -147,6 +147,177 @@ describe('SaveSystem v1 → v2 recommendations migration (IP-08)', () => {
     // Slot is rewritten at the current schema version after migration
     const listed = await save.listSlots()
     expect(listed.find(s => s.slotId === 'legacy-v1')?.schemaVersion).toBe(SCHEMA_VERSION)
+  })
+})
+
+describe('SaveSystem v2 → v3 Paddock hero migration', () => {
+  it('v2 saves gain form/trend snapshots + staff contractEndSeason on load', async () => {
+    const save = new SaveSystem(`paddock-migration-${Date.now()}`)
+    const v2Payload = {
+      gameState: { season: 3, currentRound: 1, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        {
+          id: 'mclaren',
+          morale: 78,
+          constructorPosition: 2,
+          staff: [
+            { name: 'A', role: 'technical-director', skill: 80, currentFocus: '', flaggedIssue: null },
+            { name: 'B', role: 'race-engineer', skill: 75, currentFocus: '', flaggedIssue: null },
+          ],
+        },
+      ],
+      drivers: [
+        {
+          id: 'norris',
+          seasonStats: { points: 10, wins: 1, podiums: 2, dnfs: 0, penalties: 0, bestFinish: 1, averageFinish: 4 },
+        },
+      ],
+      calendar: [],
+      finance: {},
+      narrativeEvents: [],
+      storyArcs: [],
+      recommendations: [],
+      stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('legacy-v2', 'Legacy v2', v2Payload)
+
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'legacy-v2')
+    record.schemaVersion = 2
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('legacy-v2') as unknown as FullGameState
+    const team = loaded.teams[0]
+    expect(team.previousConstructorPosition).toBe(0)
+    expect(team.previousMorale).toBe(78)
+    expect(team.seasonForm).toEqual([])
+    expect(team.staff[0].contractEndSeason).toBe(6) // season 3 + 3
+    expect(team.staff[1].contractEndSeason).toBe(6)
+
+    const driver = loaded.drivers[0]
+    expect(driver.form).toEqual([])
+    expect(driver.lastRaceResult).toBeNull()
+    expect(driver.seasonStats.poles).toBe(0)
+
+    // Slot is rewritten at the current schema version after migration
+    const listed = await save.listSlots()
+    expect(listed.find(s => s.slotId === 'legacy-v2')?.schemaVersion).toBe(SCHEMA_VERSION)
+  })
+})
+
+describe('SaveSystem v3 → v4 double-count repair migration', () => {
+  it('resets corrupted driver stats that exceed the per-round ceiling', async () => {
+    const save = new SaveSystem(`paddock-repair-${Date.now()}`)
+    const v3Payload = {
+      gameState: { season: 1, currentRound: 8, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        {
+          id: 'mclaren',
+          morale: 78,
+          constructorPoints: 500, // 7 rounds × 44 max = 308 ceiling, 500 is corrupted
+          constructorPosition: 1,
+          previousConstructorPosition: 2,
+          previousMorale: 74,
+          seasonForm: [1, 1, 1, 1, 1, 1, 1],
+          staff: [],
+        },
+      ],
+      drivers: [
+        {
+          id: 'norris', teamId: 'mclaren', isReserve: false, isF2: false,
+          form: [1, 1, 1, 1, 1, 1, 1], lastRaceResult: 1,
+          seasonStats: {
+            // 16 podiums in 7 rounds is impossible (max = 7).
+            points: 313, wins: 5, podiums: 16, poles: 0, dnfs: 0,
+            penalties: 0, bestFinish: 1, averageFinish: 1,
+          },
+        },
+        {
+          id: 'piastri', teamId: 'mclaren', isReserve: false, isF2: false,
+          form: [2, 2, 2, 2, 2, 2, 2], lastRaceResult: 2,
+          seasonStats: {
+            // Plausible stats — 6 podiums in 7 rounds is legal.
+            points: 120, wins: 0, podiums: 6, poles: 0, dnfs: 0,
+            penalties: 0, bestFinish: 2, averageFinish: 2,
+          },
+        },
+      ],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('corrupted', 'Corrupted v3', v3Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'corrupted')
+    record.schemaVersion = 3
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('corrupted') as unknown as FullGameState
+    const norris = loaded.drivers.find(d => d.id === 'norris')!
+    const piastri = loaded.drivers.find(d => d.id === 'piastri')!
+
+    // Corrupted driver is zeroed out
+    expect(norris.seasonStats.points).toBe(0)
+    expect(norris.seasonStats.podiums).toBe(0)
+    expect(norris.seasonStats.wins).toBe(0)
+    expect(norris.seasonStats.lastProcessedRound).toBe(0)
+
+    // Clean driver's stats are preserved, only the guard field is added
+    expect(piastri.seasonStats.points).toBe(120)
+    expect(piastri.seasonStats.podiums).toBe(6)
+    expect(piastri.seasonStats.lastProcessedRound).toBe(0)
+
+    // Team stats recomputed from driver points, form wiped, guard seeded
+    const mclaren = loaded.teams[0]
+    expect(mclaren.lastProcessedRound).toBe(0)
+    expect(mclaren.constructorPoints).toBe(120) // recomputed sum: 0 + 120
+    expect(mclaren.seasonForm).toEqual([])
+    expect(mclaren.previousConstructorPosition).toBe(0)
+  })
+
+  it('leaves clean v3 saves untouched except for the new guard fields', async () => {
+    const save = new SaveSystem(`paddock-clean-${Date.now()}`)
+    const cleanPayload = {
+      gameState: { season: 1, currentRound: 3, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        {
+          id: 'mclaren', morale: 85,
+          constructorPoints: 80, constructorPosition: 2,
+          previousConstructorPosition: 3, previousMorale: 82,
+          seasonForm: [3, 3, 2], staff: [],
+        },
+      ],
+      drivers: [
+        {
+          id: 'norris', teamId: 'mclaren', isReserve: false, isF2: false,
+          form: [3, 3, 2], lastRaceResult: 2,
+          seasonStats: {
+            points: 50, wins: 0, podiums: 1, poles: 0, dnfs: 0,
+            penalties: 0, bestFinish: 2, averageFinish: 2.67,
+          },
+        },
+      ],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('clean', 'Clean v3', cleanPayload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'clean')
+    record.schemaVersion = 3
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('clean') as unknown as FullGameState
+    const norris = loaded.drivers[0]
+    expect(norris.seasonStats.points).toBe(50)
+    expect(norris.seasonStats.podiums).toBe(1)
+    expect(norris.seasonStats.lastProcessedRound).toBe(0)
+    expect(loaded.teams[0].constructorPoints).toBe(80)
+    expect(loaded.teams[0].seasonForm).toEqual([3, 3, 2])
   })
 })
 

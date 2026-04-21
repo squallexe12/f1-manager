@@ -1,7 +1,7 @@
 # Persistence Contract
 
 **Frozen:** 2026-04-13 (IP-05)
-**Last updated:** 2026-04-19 (IP-08 — schema v2, adds `recommendations` + `stagedStrategies`)
+**Last updated:** 2026-04-21 (Paddock stats repair — schema v4, adds lastProcessedRound idempotency guard and resets corrupted stats)
 **Status:** Active
 
 This document is the contract for what the game persists, what it does not, how autosave behaves, and how schema versions evolve. It is paired with the runtime code in `src/engine/core/save-system.ts`, `src/stores/persistence-setup.ts`, and `src/hooks/use-save-game.ts`.
@@ -68,8 +68,11 @@ Autosave uses the dedicated `AUTO_SAVE_SLOT` slot id (`'auto-save'`). Manual sav
 `SaveSystem` declares `SCHEMA_VERSION` in `src/engine/core/save-system.ts`. Every `SaveRecord` written includes the version that produced it.
 
 ### Current state
-- `SCHEMA_VERSION = 2`
-- `MIGRATIONS = { 1: v1→v2 }` — v1→v2 adds `recommendations: []` and `stagedStrategies: {}` to `FullGameState` (IP-08). Both are repopulated on the next `processManagementEntry()` so legacy saves remain playable.
+- `SCHEMA_VERSION = 4`
+- `MIGRATIONS = { 1: v1→v2, 2: v2→v3, 3: v3→v4 }`
+  - v1→v2 adds `recommendations: []` and `stagedStrategies: {}` to `FullGameState` (IP-08). Both are repopulated on the next `processManagementEntry()` so legacy saves remain playable.
+  - v2→v3 hydrates Paddock hero fields introduced by the Paddock redesign. On each `team`: `previousConstructorPosition` ← 0, `previousMorale` ← current `morale`, `seasonForm` ← `[]`, and every `staff[*].contractEndSeason` ← `gameState.season + 3`. On each `driver`: `form` ← `[]`, `lastRaceResult` ← `null`, `seasonStats.poles` ← 0. First-round trend deltas render as zero; subsequent rounds populate from `processPostRace()`.
+  - v3→v4 adds `lastProcessedRound: 0` idempotency markers on every `team` and `driver.seasonStats`, and repairs corrupted stats on legacy saves. Any driver whose `podiums`, `wins`, or `points` exceeds the mathematical per-round ceiling (modern F1 points: 26 pts/race/driver, 44 pts/race/team) has `seasonStats` zeroed; the team's `constructorPoints`, `seasonForm`, and `previousConstructorPosition` are reset in sync. Uncorrupted saves are left untouched.
 
 ### On load
 `loadFromSlot(slotId)` calls `migrateToCurrent(data, record.schemaVersion ?? 1)` before returning. For v1 saves this is a pass-through. If a save claims a newer version than the runtime knows, `migrateToCurrent` throws — the UI should surface this as an unsupported save rather than attempt to load.

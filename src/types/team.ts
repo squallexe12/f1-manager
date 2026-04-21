@@ -13,6 +13,8 @@ export interface DepartmentHead {
   skill: number // 1-100
   currentFocus: string
   flaggedIssue: string | null
+  /** Absolute season number at which the department head's contract expires. */
+  contractEndSeason: number
 }
 
 export interface RndUpgrade {
@@ -61,4 +63,30 @@ export interface Team {
   aiPersonality: AiPersonality | null // null for player team
   constructorPoints: number
   constructorPosition: number
+  /**
+   * Constructor position recorded before the most recent post-race update.
+   * Used to render the ▲/▼ trend indicator on the Paddock hero. Initialized
+   * to 0 (meaning "no prior round"); first update snapshots the pre-result
+   * position so the indicator is meaningful from R02 onward.
+   */
+  previousConstructorPosition: number
+  /**
+   * Morale value captured before the most recent post-race morale pass, used
+   * to render the weekly morale trend. Initialized to the team's starting
+   * morale so the first-round delta is zero rather than undefined.
+   */
+  previousMorale: number
+  /**
+   * Rolling history of constructor positions for the most recent rounds of
+   * the current season, ordered oldest → newest. Capped at FORM_WINDOW
+   * entries (see `src/engine/drivers/form-history.ts`). Drives the
+   * constructor-form sparkline on the Paddock hero.
+   */
+  seasonForm: number[]
+  /**
+   * Last race round number whose standings were folded into `seasonForm`
+   * and the trend snapshots. Mirrors `SeasonStats.lastProcessedRound` and
+   * serves the same idempotency purpose for team-level post-race writes.
+   */
+  lastProcessedRound: number
 }
