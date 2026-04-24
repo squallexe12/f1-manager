@@ -20,6 +20,18 @@ describe('initializeGame', () => {
     const rebuildTeam = rebuild.teams.find(t => t.id === 'mclaren')!
     expect(goldenTeam.morale).toBeGreaterThan(rebuildTeam.morale)
   })
+
+  it('initialises every team with the 5-element 2026 PU allocation', () => {
+    const state = initializeGame('mclaren', 'golden-era', 42)
+    const expected = ['ice', 'turbo', 'mgu-k', 'ers-battery', 'gearbox']
+    for (const team of state.teams) {
+      expect(team.components.map(c => c.element)).toEqual(expected)
+      for (const c of team.components) {
+        expect(c.used).toBe(0)
+        expect(c.limit).toBeGreaterThan(0)
+      }
+    }
+  })
 })
 
 describe('advancePhase', () => {

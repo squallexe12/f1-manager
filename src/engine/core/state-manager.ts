@@ -80,6 +80,8 @@ function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARI
     previousMorale: morale,
     seasonForm: [],
     lastProcessedRound: 0,
+    ovrHistory: [],
+    lastUpgradeRound: 0,
   }
 }
 
@@ -98,6 +100,8 @@ function buildTeam(teamData: TeamData, startingSeason: number): Team {
     previousMorale: teamData.morale,
     seasonForm: [],
     lastProcessedRound: 0,
+    ovrHistory: [],
+    lastUpgradeRound: 0,
   }
 }
 

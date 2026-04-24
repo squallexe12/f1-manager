@@ -15,6 +15,8 @@ export type TeamData = Omit<
   | 'previousMorale'
   | 'seasonForm'
   | 'lastProcessedRound'
+  | 'ovrHistory'
+  | 'lastUpgradeRound'
   | 'staff'
 > & {
   staff: Omit<DepartmentHead, 'contractEndSeason'>[]
@@ -25,6 +27,7 @@ export const TEAMS: TeamData[] = [
     id: 'mclaren',
     name: 'McLaren Racing',
     shortName: 'MCL',
+    headquarters: 'Woking',
     color: '#FF8000',
     powerUnitSupplier: 'mercedes',
     driverIds: ['norris', 'piastri'],
@@ -39,6 +42,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.02 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.03 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.03 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.01 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.02 },
     ],
@@ -53,6 +57,7 @@ export const TEAMS: TeamData[] = [
     id: 'red-bull',
     name: 'Oracle Red Bull Racing',
     shortName: 'RBR',
+    headquarters: 'Milton Keynes',
     color: '#3671C6',
     powerUnitSupplier: 'red-bull',
     driverIds: ['verstappen', 'hadjar'],
@@ -67,6 +72,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.02 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.02 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.02 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.01 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.01 },
     ],
@@ -81,6 +87,7 @@ export const TEAMS: TeamData[] = [
     id: 'ferrari',
     name: 'Scuderia Ferrari',
     shortName: 'FER',
+    headquarters: 'Maranello',
     color: '#E8002D',
     powerUnitSupplier: 'ferrari',
     driverIds: ['leclerc', 'hamilton'],
@@ -95,6 +102,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.03 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.03 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.03 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.02 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.02 },
     ],
@@ -109,6 +117,7 @@ export const TEAMS: TeamData[] = [
     id: 'mercedes',
     name: 'Mercedes-AMG Petronas',
     shortName: 'MER',
+    headquarters: 'Brackley',
     color: '#27F4D2',
     powerUnitSupplier: 'mercedes',
     driverIds: ['russell', 'antonelli'],
@@ -123,6 +132,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.01 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.02 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.02 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.01 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.01 },
     ],
@@ -137,6 +147,7 @@ export const TEAMS: TeamData[] = [
     id: 'aston-martin',
     name: 'Aston Martin Aramco',
     shortName: 'AMR',
+    headquarters: 'Silverstone',
     color: '#229971',
     powerUnitSupplier: 'honda',
     driverIds: ['alonso', 'stroll'],
@@ -151,6 +162,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.03 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.03 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.03 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.02 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.02 },
     ],
@@ -165,6 +177,7 @@ export const TEAMS: TeamData[] = [
     id: 'williams',
     name: 'Williams Racing',
     shortName: 'WIL',
+    headquarters: 'Grove',
     color: '#64C4FF',
     powerUnitSupplier: 'mercedes',
     driverIds: ['albon', 'sainz'],
@@ -179,6 +192,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.03 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.04 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.04 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.02 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.03 },
     ],
@@ -193,6 +207,7 @@ export const TEAMS: TeamData[] = [
     id: 'racing-bulls',
     name: 'Visa Cash App Racing Bulls',
     shortName: 'RCB',
+    headquarters: 'Faenza',
     color: '#6692FF',
     powerUnitSupplier: 'red-bull',
     driverIds: ['lawson', 'lindblad'],
@@ -207,6 +222,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.03 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.04 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.04 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.02 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.03 },
     ],
@@ -221,6 +237,7 @@ export const TEAMS: TeamData[] = [
     id: 'alpine',
     name: 'BWT Alpine F1 Team',
     shortName: 'ALP',
+    headquarters: 'Enstone',
     color: '#FF87BC',
     powerUnitSupplier: 'renault',
     driverIds: ['gasly', 'colapinto'],
@@ -235,6 +252,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.04 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.04 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.04 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.03 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.03 },
     ],
@@ -249,6 +267,7 @@ export const TEAMS: TeamData[] = [
     id: 'haas',
     name: 'MoneyGram Haas F1 Team',
     shortName: 'HAA',
+    headquarters: 'Kannapolis',
     color: '#B6BABD',
     powerUnitSupplier: 'ferrari',
     driverIds: ['ocon', 'bearman'],
@@ -263,6 +282,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.04 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.05 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.05 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.03 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.04 },
     ],
@@ -277,6 +297,7 @@ export const TEAMS: TeamData[] = [
     id: 'audi',
     name: 'Audi F1 Team',
     shortName: 'AUD',
+    headquarters: 'Hinwil',
     color: '#FF0000',
     powerUnitSupplier: 'audi',
     driverIds: ['hulkenberg', 'bortoleto'],
@@ -291,6 +312,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.05 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.05 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.05 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.04 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.04 },
     ],
@@ -305,6 +327,7 @@ export const TEAMS: TeamData[] = [
     id: 'cadillac',
     name: 'Cadillac F1 Team',
     shortName: 'CAD',
+    headquarters: 'Charlotte',
     color: '#1E1E1E',
     powerUnitSupplier: 'ferrari',
     driverIds: ['bottas', 'perez'],
@@ -319,6 +342,7 @@ export const TEAMS: TeamData[] = [
     components: [
       { element: 'ice', used: 0, limit: 4, failureProbability: 0.05 },
       { element: 'turbo', used: 0, limit: 4, failureProbability: 0.06 },
+      { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.06 },
       { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.04 },
       { element: 'gearbox', used: 0, limit: 4, failureProbability: 0.05 },
     ],

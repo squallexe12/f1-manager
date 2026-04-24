@@ -153,3 +153,70 @@ describe('processPostRace — Paddock hero fields', () => {
     expect(mclaren.seasonForm.length).toBe(FORM_WINDOW)
   })
 })
+
+describe('processPostRace — Factory OVR history', () => {
+  it('appends the current OVR to ovrHistory for every team', async () => {
+    const { calculateOverallRating } = await import('@/engine/engineering/car-performance')
+    const world = initializeGame('mclaren', 'golden-era', 1)
+    const results: RaceResult[] = world.drivers
+      .filter(d => d.teamId && !d.isReserve && !d.isF2)
+      .map((d, i) => ({ driverId: d.id, position: i + 1, dnf: false, fastestLap: false }))
+
+    const update = processPostRace(
+      world.teams, world.drivers, world.finance,
+      [], {}, results, false, 1,
+      'mclaren',
+      createPRNG(3),
+    )
+
+    for (const team of update.teams) {
+      const preTeam = world.teams.find(t => t.id === team.id)!
+      expect(team.ovrHistory).toEqual([calculateOverallRating(preTeam.car)])
+    }
+  })
+
+  it('does not duplicate entries when the same round is processed twice', () => {
+    const world = initializeGame('mclaren', 'golden-era', 1)
+    const results: RaceResult[] = world.drivers
+      .filter(d => d.teamId && !d.isReserve && !d.isF2)
+      .map((d, i) => ({ driverId: d.id, position: i + 1, dnf: false, fastestLap: false }))
+
+    const first = processPostRace(
+      world.teams, world.drivers, world.finance,
+      [], {}, results, false, 1, 'mclaren', createPRNG(3),
+    )
+    const second = processPostRace(
+      first.teams, first.drivers, first.finance,
+      first.narrativeEvents, first.eventCooldowns, results, false, 1, 'mclaren', createPRNG(3),
+    )
+
+    const firstTeam = first.teams.find(t => t.id === 'mclaren')!
+    const secondTeam = second.teams.find(t => t.id === 'mclaren')!
+    expect(secondTeam.ovrHistory).toEqual(firstTeam.ovrHistory)
+  })
+
+  it('caps ovrHistory at OVR_HISTORY_WINDOW entries', async () => {
+    const { OVR_HISTORY_WINDOW } = await import('@/engine/drivers/form-history')
+    let { teams, drivers, finance } = initializeGame('mclaren', 'golden-era', 1)
+
+    const activeIds = drivers
+      .filter(d => d.teamId && !d.isReserve && !d.isF2)
+      .map(d => d.id)
+    const baseResults: RaceResult[] = activeIds.map((id, i) => ({
+      driverId: id, position: i + 1, dnf: false, fastestLap: false,
+    }))
+
+    for (let round = 1; round <= OVR_HISTORY_WINDOW + 3; round++) {
+      const out = processPostRace(
+        teams, drivers, finance,
+        [], {}, baseResults, false, round, 'mclaren', createPRNG(round),
+      )
+      teams = out.teams
+      drivers = out.drivers
+      finance = out.finance
+    }
+
+    const mclaren = teams.find(t => t.id === 'mclaren')!
+    expect(mclaren.ovrHistory.length).toBe(OVR_HISTORY_WINDOW)
+  })
+})

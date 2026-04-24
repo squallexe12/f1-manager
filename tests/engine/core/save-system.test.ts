@@ -321,6 +321,272 @@ describe('SaveSystem v3 → v4 double-count repair migration', () => {
   })
 })
 
+describe('SaveSystem v4 → v5 headquarters backfill migration', () => {
+  it('back-fills team.headquarters from the canonical 2026 grid map', async () => {
+    const save = new SaveSystem(`hq-migration-${Date.now()}`)
+    const v4Payload = {
+      gameState: { season: 1, currentRound: 1, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        { id: 'mclaren', shortName: 'MCL', morale: 80, constructorPosition: 1, staff: [], lastProcessedRound: 0 },
+        { id: 'red-bull', shortName: 'RBR', morale: 80, constructorPosition: 2, staff: [], lastProcessedRound: 0 },
+        { id: 'ferrari', shortName: 'FER', morale: 80, constructorPosition: 3, staff: [], lastProcessedRound: 0 },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('legacy-v4', 'Legacy v4', v4Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'legacy-v4')
+    record.schemaVersion = 4
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('legacy-v4') as unknown as FullGameState
+    expect(loaded.teams[0].headquarters).toBe('Woking')
+    expect(loaded.teams[1].headquarters).toBe('Milton Keynes')
+    expect(loaded.teams[2].headquarters).toBe('Maranello')
+
+    // Slot is rewritten at the current schema version after migration
+    const listed = await save.listSlots()
+    expect(listed.find(s => s.slotId === 'legacy-v4')?.schemaVersion).toBe(SCHEMA_VERSION)
+  })
+
+  it('falls back to shortName for unknown team ids', async () => {
+    const save = new SaveSystem(`hq-migration-fallback-${Date.now()}`)
+    const v4Payload = {
+      gameState: { season: 1, currentRound: 1, phase: 'management', playerTeamId: 'phantom', seed: 1, totalRaces: 22 },
+      teams: [
+        { id: 'phantom-constructor', shortName: 'PHN', morale: 60, constructorPosition: 11, staff: [], lastProcessedRound: 0 },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('unknown-v4', 'Unknown v4', v4Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'unknown-v4')
+    record.schemaVersion = 4
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('unknown-v4') as unknown as FullGameState
+    expect(loaded.teams[0].headquarters).toBe('PHN')
+  })
+
+  it('preserves existing headquarters if already present', async () => {
+    const save = new SaveSystem(`hq-migration-preserve-${Date.now()}`)
+    const v4Payload = {
+      gameState: { season: 1, currentRound: 1, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        { id: 'mclaren', shortName: 'MCL', headquarters: 'Custom City', morale: 80, constructorPosition: 1, staff: [], lastProcessedRound: 0 },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('preserve-v4', 'Preserve v4', v4Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'preserve-v4')
+    record.schemaVersion = 4
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('preserve-v4') as unknown as FullGameState
+    expect(loaded.teams[0].headquarters).toBe('Custom City')
+  })
+})
+
+describe('SaveSystem v5 → v6 Factory trend migration', () => {
+  it('back-fills team.ovrHistory to [] and team.lastUpgradeRound to 0', async () => {
+    const save = new SaveSystem(`ovr-migration-${Date.now()}`)
+    const v5Payload = {
+      gameState: { season: 1, currentRound: 3, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        { id: 'mclaren', shortName: 'MCL', headquarters: 'Woking', morale: 80, constructorPosition: 1, staff: [], lastProcessedRound: 0 },
+        { id: 'ferrari', shortName: 'FER', headquarters: 'Maranello', morale: 75, constructorPosition: 2, staff: [], lastProcessedRound: 0 },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('legacy-v5', 'Legacy v5', v5Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'legacy-v5')
+    record.schemaVersion = 5
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('legacy-v5') as unknown as FullGameState
+    for (const team of loaded.teams) {
+      expect(team.ovrHistory).toEqual([])
+      expect(team.lastUpgradeRound).toBe(0)
+    }
+    const listed = await save.listSlots()
+    expect(listed.find(s => s.slotId === 'legacy-v5')?.schemaVersion).toBe(SCHEMA_VERSION)
+  })
+
+  it('preserves existing ovrHistory / lastUpgradeRound values when present', async () => {
+    const save = new SaveSystem(`ovr-migration-preserve-${Date.now()}`)
+    const v5Payload = {
+      gameState: { season: 1, currentRound: 6, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        {
+          id: 'mclaren', shortName: 'MCL', headquarters: 'Woking', morale: 80,
+          constructorPosition: 2, staff: [], lastProcessedRound: 5,
+          ovrHistory: [82, 83, 84],
+          lastUpgradeRound: 4,
+        },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('preserve-v5', 'Preserve v5', v5Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'preserve-v5')
+    record.schemaVersion = 5
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('preserve-v5') as unknown as FullGameState
+    expect(loaded.teams[0].ovrHistory).toEqual([82, 83, 84])
+    expect(loaded.teams[0].lastUpgradeRound).toBe(4)
+  })
+})
+
+describe('SaveSystem v6 → v7 5-element PU migration', () => {
+  it('back-fills the mgu-k row in canonical order', async () => {
+    const save = new SaveSystem(`pu-migration-${Date.now()}`)
+    const v6Payload = {
+      gameState: { season: 1, currentRound: 3, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        {
+          id: 'mclaren', shortName: 'MCL', headquarters: 'Woking', morale: 80,
+          constructorPosition: 1, staff: [], lastProcessedRound: 0,
+          ovrHistory: [], lastUpgradeRound: 0,
+          components: [
+            { element: 'ice', used: 2, limit: 4, failureProbability: 0.02 },
+            { element: 'turbo', used: 1, limit: 4, failureProbability: 0.03 },
+            { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.01 },
+            { element: 'gearbox', used: 3, limit: 4, failureProbability: 0.02 },
+          ],
+        },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('legacy-v6', 'Legacy v6', v6Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'legacy-v6')
+    record.schemaVersion = 6
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('legacy-v6') as unknown as FullGameState
+    const mclaren = loaded.teams[0]
+    expect(mclaren.components.map(c => c.element)).toEqual([
+      'ice', 'turbo', 'mgu-k', 'ers-battery', 'gearbox',
+    ])
+    // Existing rows keep their values
+    expect(mclaren.components.find(c => c.element === 'ice')?.used).toBe(2)
+    expect(mclaren.components.find(c => c.element === 'gearbox')?.used).toBe(3)
+    // New row carries the default shape
+    const mguK = mclaren.components.find(c => c.element === 'mgu-k')!
+    expect(mguK.used).toBe(0)
+    expect(mguK.limit).toBe(4)
+    expect(mguK.failureProbability).toBeGreaterThan(0)
+
+    const listed = await save.listSlots()
+    expect(listed.find(s => s.slotId === 'legacy-v6')?.schemaVersion).toBe(SCHEMA_VERSION)
+  })
+
+  it('drops any legacy mgu-h row from a pre-release v7 save', async () => {
+    const save = new SaveSystem(`pu-migration-strip-${Date.now()}`)
+    const v6Payload = {
+      gameState: { season: 1, currentRound: 1, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        {
+          id: 'mclaren', shortName: 'MCL', headquarters: 'Woking', morale: 80,
+          constructorPosition: 1, staff: [], lastProcessedRound: 0,
+          ovrHistory: [], lastUpgradeRound: 0,
+          components: [
+            { element: 'ice', used: 1, limit: 4, failureProbability: 0.02 },
+            { element: 'turbo', used: 0, limit: 4, failureProbability: 0.03 },
+            // legacy mgu-h row — must be discarded by the migration
+            { element: 'mgu-h', used: 2, limit: 4, failureProbability: 0.04 },
+            { element: 'mgu-k', used: 0, limit: 4, failureProbability: 0.03 },
+            { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.01 },
+            { element: 'gearbox', used: 1, limit: 4, failureProbability: 0.02 },
+          ],
+        },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('strip-v6', 'Strip v6', v6Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'strip-v6')
+    record.schemaVersion = 6
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('strip-v6') as unknown as FullGameState
+    const mclaren = loaded.teams[0]
+    expect(mclaren.components.map(c => c.element)).toEqual([
+      'ice', 'turbo', 'mgu-k', 'ers-battery', 'gearbox',
+    ])
+    expect(mclaren.components.find(c => (c.element as string) === 'mgu-h')).toBeUndefined()
+  })
+
+  it('is a no-op when all five canonical elements are already present', async () => {
+    const save = new SaveSystem(`pu-migration-noop-${Date.now()}`)
+    const v6Payload = {
+      gameState: { season: 1, currentRound: 1, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [
+        {
+          id: 'mclaren', shortName: 'MCL', headquarters: 'Woking', morale: 80,
+          constructorPosition: 1, staff: [], lastProcessedRound: 0,
+          ovrHistory: [], lastUpgradeRound: 0,
+          components: [
+            { element: 'ice', used: 3, limit: 4, failureProbability: 0.02 },
+            { element: 'turbo', used: 2, limit: 4, failureProbability: 0.03 },
+            { element: 'mgu-k', used: 1, limit: 4, failureProbability: 0.03 },
+            { element: 'ers-battery', used: 0, limit: 3, failureProbability: 0.01 },
+            { element: 'gearbox', used: 2, limit: 4, failureProbability: 0.02 },
+          ],
+        },
+      ],
+      drivers: [],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    await save.saveToSlot('noop-v6', 'Noop v6', v6Payload)
+    // @ts-expect-error — touching private field to backdate schemaVersion
+    const db = await save.dbPromise
+    const record = await db.get('saves', 'noop-v6')
+    record.schemaVersion = 6
+    await db.put('saves', record)
+
+    const loaded = await save.loadFromSlot('noop-v6') as unknown as FullGameState
+    const mclaren = loaded.teams[0]
+    // All existing values survive the migration unchanged.
+    expect(mclaren.components.find(c => c.element === 'ice')?.used).toBe(3)
+    expect(mclaren.components.find(c => c.element === 'mgu-k')?.used).toBe(1)
+    expect(mclaren.components.find(c => c.element === 'mgu-k')?.failureProbability).toBe(0.03)
+  })
+})
+
 describe('SaveSystem auto-rewrite on migration', () => {
   it('rewrites a migrated save back at the current schema version', async () => {
     // Stub a migration from a hypothetical older version (0 → 1) by temporarily

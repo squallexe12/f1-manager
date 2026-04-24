@@ -4,7 +4,8 @@ import type { FinanceState } from '@/types/finance'
 import type { NarrativeEvent, EventConsequence } from '@/types/narrative'
 import type { PRNG } from '@/engine/core/prng'
 import { updateMood, type MoodEvent } from '@/engine/drivers/mood-system'
-import { pushForm, FORM_DNF } from '@/engine/drivers/form-history'
+import { pushForm, pushOvrSample, FORM_DNF } from '@/engine/drivers/form-history'
+import { calculateOverallRating } from '@/engine/engineering/car-performance'
 import { recordSpend } from '@/engine/finance/budget-engine'
 import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige'
 import { generateEvents, resolveExpiredEvents, type GameContext } from '@/engine/narrative/event-generator'
@@ -149,10 +150,14 @@ export function processPostRace(
     if (team.lastProcessedRound >= currentRound) {
       return { ...team, constructorPosition: pos }
     }
+    // Snapshot OVR alongside constructor position — same idempotency guard
+    // keeps the sparkline free of duplicate entries on re-runs.
+    const currentOvr = calculateOverallRating(team.car)
     return {
       ...team,
       constructorPosition: pos,
       seasonForm: pushForm(team.seasonForm, pos),
+      ovrHistory: pushOvrSample(team.ovrHistory, currentOvr),
       lastProcessedRound: currentRound,
     }
   })

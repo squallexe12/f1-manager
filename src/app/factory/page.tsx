@@ -3,61 +3,142 @@
 import { useGameStore } from '@/stores/game-store'
 import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
 import { PageShell } from '@/components/layout/page-shell'
-import { RadarChart } from '@/components/charts/radar-chart'
-import { ComponentStatus } from '@/components/factory/component-status'
+import { FactoryHeader } from '@/components/factory/factory-header'
+import { CarPerformanceCard } from '@/components/factory/car-performance-card'
+import { PowerUnitCard } from '@/components/factory/power-unit-card'
+import { AeroCard } from '@/components/factory/aero-card'
+import { RdPipelineHeader } from '@/components/factory/rd-pipeline-header'
+import { RdQueue } from '@/components/factory/rd-queue'
 import { TechTree } from '@/components/factory/tech-tree'
-import { AeroAllocation } from '@/components/factory/aero-allocation'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
+import {
+  peerAveragedAxes,
+  peerRank,
+  deltaVsLeaderSeconds,
+  projectNextChange,
+  projectedGridLoss,
+  atrCoefficientForPosition,
+  correlationDelta,
+  nextDeliveryRound,
+  windowResetsIn,
+  reliabilityMtbf,
+  deterministicAeroHistory,
+} from '@/engine/engineering/factory-insights'
 
 export default function FactoryPage() {
-  useRequireGame() // guard only
+  useRequireGame()
   const allocateRnD = useGameStore((s) => s.allocateRnD)
   const pauseRnD = useGameStore((s) => s.pauseRnD)
 
   const slice = useGameSlice((w) => ({
     teams: w.teams,
-    playerTeamId: w.gameState.playerTeamId,
+    gameState: w.gameState,
+    finance: w.finance,
     recommendations: w.recommendations,
   }))
 
   if (!slice) return null
 
-  const playerTeam = slice.teams.find((t) => t.id === slice.playerTeamId)!
+  const { teams, gameState, finance, recommendations } = slice
+  const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
+  const playerFinance = finance[playerTeam.id]
   const overallRating = calculateOverallRating(playerTeam.car)
+  const location = playerTeam.headquarters
 
-  // IP-08: highlight the Technical Director's current R&D pick in the tree.
-  const tdPick = slice.recommendations.find(
+  const budgetCapM = playerFinance.budget.cap / 1_000_000
+  const budgetSpentM = playerFinance.budget.totalSpent / 1_000_000
+
+  // IP-08: Technical Director's current R&D pick in the tree.
+  const tdPick = recommendations.find(
     (r) => r.role === 'technical-director' && r.status === 'active' && r.action.startsWith('start-rnd:'),
   )
   const recommendedUpgradeId = tdPick?.action.slice('start-rnd:'.length)
 
+  // Wave 1 derivations (pure engine helpers — no schema changes).
+  const peerAxes = peerAveragedAxes(teams, playerTeam.id)
+  const rank = peerRank(teams, playerTeam.id)
+  const leaderDelta = deltaVsLeaderSeconds(teams, playerTeam.id)
+  const nextChange = projectNextChange(playerTeam.components, gameState.currentRound, gameState.totalRaces)
+  const gridLoss = projectedGridLoss(playerTeam.components)
+  const atr = atrCoefficientForPosition(playerTeam.constructorPosition)
+  const corr = correlationDelta(playerTeam.id, gameState.currentRound)
+  const nextDelivery = nextDeliveryRound(playerTeam.rndUpgrades, gameState.currentRound)
+  const daysToReset = windowResetsIn(gameState.currentRound)
+
+  const nextDeliveryUpgrade = nextDelivery
+    ? playerTeam.rndUpgrades.find((u) => u.id === nextDelivery.upgradeId)
+    : undefined
+
+  // Wave 3 wiring: real persisted trend + last-upgrade round, plus derived MTBF
+  // and deterministic aero booking histograms.
+  const wtRatio = playerTeam.windTunnelHoursLimit > 0
+    ? playerTeam.windTunnelHoursUsed / playerTeam.windTunnelHoursLimit
+    : 0
+  const cfdRatio = playerTeam.cfdRunsLimit > 0
+    ? playerTeam.cfdRunsUsed / playerTeam.cfdRunsLimit
+    : 0
+  const wtHistory = deterministicAeroHistory(playerTeam.id, gameState.currentRound, wtRatio)
+  const cfdHistory = deterministicAeroHistory(
+    playerTeam.id,
+    gameState.currentRound + 100, // offset so wt/cfd bars don't mirror each other
+    cfdRatio,
+  )
+  const mtbf = reliabilityMtbf(playerTeam.car, playerTeam.components)
+
   return (
-    <PageShell>
-      {/* Top: Car Performance + Components */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div>
-          <h3 className="text-xs font-heading uppercase tracking-wider text-[var(--text-muted)] mb-3">
-            Car Performance
-            <span className="ml-2 text-[var(--accent-lime)] font-mono">{overallRating}</span>
-          </h3>
-          <RadarChart data={playerTeam.car as unknown as Record<string, number>} color="var(--accent-lime)" className="max-w-[250px] mx-auto" />
-        </div>
-        <div className="flex flex-col gap-6">
-          <ComponentStatus components={playerTeam.components} />
-          <AeroAllocation
+    <PageShell theme="broadcast">
+      <div className="factory-shell">
+        <FactoryHeader
+          teamName={playerTeam.name}
+          location={location}
+          round={gameState.currentRound}
+          budgetCap={budgetCapM}
+          budgetSpent={budgetSpentM}
+        />
+
+        <div className="fac-hero">
+          <CarPerformanceCard
+            rating={overallRating}
+            car={playerTeam.car}
+            peerAxes={peerAxes}
+            peerRank={rank}
+            trendSeries={playerTeam.ovrHistory}
+            deltaVsLeader={leaderDelta}
+            reliabilityMtbf={mtbf}
+            lastUpgradeRound={playerTeam.lastUpgradeRound}
+          />
+          <PowerUnitCard
+            components={playerTeam.components}
+            nextChangeRound={nextChange?.round}
+            nextChangeElement={nextChange?.element}
+            penaltiesTaken={0}
+            projectedGridLoss={gridLoss}
+            totalRaces={gameState.totalRaces}
+          />
+          <AeroCard
             windTunnelUsed={playerTeam.windTunnelHoursUsed}
             windTunnelLimit={playerTeam.windTunnelHoursLimit}
             cfdUsed={playerTeam.cfdRunsUsed}
             cfdLimit={playerTeam.cfdRunsLimit}
+            daysToReset={daysToReset}
+            resetDateLabel={`IN-SEASON · D−${String(daysToReset).padStart(2, '0')}`}
+            wtDaily={wtHistory}
+            cfdDaily={cfdHistory}
+            todayIndex={Math.max(0, 13 - daysToReset)}
+            atrCoefficient={atr}
+            correlationDelta={corr}
+            nextDeliveryRound={nextDelivery?.round}
           />
         </div>
-      </div>
 
-      {/* R&D Tech Tree */}
-      <div className="mb-6">
-        <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-[var(--text-primary)] mb-4">
-          R&D Development
-        </h2>
+        <RdPipelineHeader
+          upgrades={playerTeam.rndUpgrades}
+          nextDeliveryRound={nextDelivery?.round}
+          nextDeliveryLabel={nextDeliveryUpgrade?.name}
+        />
+
+        <RdQueue upgrades={playerTeam.rndUpgrades} currentRound={gameState.currentRound} />
+
         <TechTree
           upgrades={playerTeam.rndUpgrades}
           onStart={allocateRnD}

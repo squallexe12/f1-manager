@@ -128,6 +128,11 @@ export function processSeasonEnd(
     previousMorale: team.morale,
     seasonForm: [],
     lastProcessedRound: 0,
+    // Season-boundary reset: trend history and last-upgrade marker start
+    // fresh for the new championship. Factory card sparkline renders blank
+    // for R01 until the first post-race write.
+    ovrHistory: [],
+    lastUpgradeRound: 0,
   }))
 
   // 5. Apply next season's regulation changes

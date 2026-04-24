@@ -2,6 +2,7 @@
 
 import type { RndUpgrade } from '@/types/team'
 import { TechNode } from './tech-node'
+import { BranchHeader } from './branch-header'
 
 interface TechTreeProps {
   upgrades: RndUpgrade[]
@@ -9,36 +10,39 @@ interface TechTreeProps {
   onPause?: (id: string) => void
   /** Upgrade id currently recommended by the Technical Director, if any */
   recommendedUpgradeId?: string
-  className?: string
 }
 
 const BRANCH_CONFIG = [
-  { key: 'chassis' as const, label: 'Chassis', color: 'var(--accent-lime)' },
-  { key: 'power-unit' as const, label: 'Power Unit', color: 'var(--accent-cyan)' },
-  { key: 'active-aero' as const, label: 'Active Aero', color: 'var(--accent-purple)' },
+  { key: 'chassis' as const, label: 'CHASSIS', color: 'var(--sig-green)' },
+  { key: 'power-unit' as const, label: 'POWER UNIT', color: 'var(--sig-cyan)' },
+  { key: 'active-aero' as const, label: 'ACTIVE AERO', color: 'var(--sig-purple)' },
 ]
 
-export function TechTree({ upgrades, onStart, onPause, recommendedUpgradeId, className = '' }: TechTreeProps) {
+export function TechTree({ upgrades, onStart, onPause, recommendedUpgradeId }: TechTreeProps) {
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${className}`}>
+    <div className="tree-grid">
       {BRANCH_CONFIG.map(({ key, label, color }) => {
-        const branchUpgrades = upgrades.filter(u => u.branch === key)
+        const branchUpgrades = upgrades.filter((u) => u.branch === key)
+        const completed = branchUpgrades.filter((u) => u.status === 'complete').length
+        const active = branchUpgrades.some((u) => u.status === 'in-progress')
 
         return (
-          <div key={key} className="flex flex-col gap-2">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
-              <h3 className="text-xs font-heading font-bold uppercase tracking-wider" style={{ color }}>
-                {label}
-              </h3>
-            </div>
-            {branchUpgrades.map((upgrade) => (
+          <div key={key} className="branch-col">
+            <BranchHeader
+              label={label}
+              color={color}
+              completed={completed}
+              total={branchUpgrades.length}
+              active={active}
+            />
+            {branchUpgrades.map((u) => (
               <TechNode
-                key={upgrade.id}
-                upgrade={upgrade}
+                key={u.id}
+                upgrade={u}
                 onStart={onStart}
                 onPause={onPause}
-                recommended={upgrade.id === recommendedUpgradeId}
+                recommended={u.id === recommendedUpgradeId}
+                branchColor={color}
               />
             ))}
           </div>

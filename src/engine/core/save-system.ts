@@ -1,12 +1,13 @@
 import { openDB, type IDBPDatabase } from 'idb'
 import type { FullGameState } from './state-manager'
+import type { ComponentAllocation } from '@/types/team'
 
 const DB_NAME = 'mission-control-f1'
 const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 7
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -44,7 +45,83 @@ export interface SlotInfo {
  *   - `driver.form`                      ← []
  *   - `driver.lastRaceResult`            ← null
  *   - `driver.seasonStats.poles`         ← 0
+ *
+ * v4 → v5 (Factory redesign — Phase B Wave 2): Adds `team.headquarters` as a
+ * surfaced-on-UI field. Existing saves back-fill from the TEAM_HEADQUARTERS
+ * map below; unknown team ids fall back to the team's `shortName`.
+ *
+ * v5 → v6 (Factory redesign — Phase B Wave 3): Adds `team.ovrHistory: []`
+ * and `team.lastUpgradeRound: 0`. Both start empty/zero; the post-race
+ * processor appends to `ovrHistory` on each round, and the orchestrator
+ * stamps `lastUpgradeRound` when any R&D upgrade flips to `complete`.
+ * Trend sparkline renders blank until at least two post-race writes land.
+ *
+ * v6 → v7 (Factory redesign — Phase B Wave 4): Expands the 4-element
+ * power-unit allocation to a 5-element one by inserting an `mgu-k` row
+ * into every `team.components` array when missing. Insertion order
+ * (ICE → TURBO → MGU-K → ERS BATTERY → GEARBOX) matches the Factory card
+ * layout. Any legacy `mgu-h` row from pre-release v7 dev saves is
+ * dropped (MGU-H was removed for the 2026 regulation — see CLAUDE.md §7).
+ * Existing rows in the canonical set are preserved verbatim; a save
+ * that already carries all five rows is a no-op.
  */
+/**
+ * Back-fill map for `team.headquarters` when migrating a save from v4 → v5.
+ * Mirrors `src/data/teams.ts`; kept local here so `save-system.ts` stays the
+ * single source of truth for every migration step (no external data deps).
+ */
+const TEAM_HEADQUARTERS: Record<string, string> = {
+  mclaren: 'Woking',
+  'red-bull': 'Milton Keynes',
+  ferrari: 'Maranello',
+  mercedes: 'Brackley',
+  'aston-martin': 'Silverstone',
+  williams: 'Grove',
+  'racing-bulls': 'Faenza',
+  alpine: 'Enstone',
+  haas: 'Kannapolis',
+  audi: 'Hinwil',
+  cadillac: 'Charlotte',
+}
+
+/**
+ * Canonical ordering of the 5-element PU allocation, used by the v6 → v7
+ * migration. Matches the Factory card row order so a visual diff before
+ * and after migration looks identical except for the newly-added MGU-K
+ * row. Note: MGU-H was intentionally excluded — the 2026 F1 regulation
+ * removed it (see `CLAUDE.md` §7) and the Factory card now renders five
+ * rows, not six.
+ */
+const PU_ELEMENT_ORDER: ComponentAllocation['element'][] = [
+  'ice',
+  'turbo',
+  'mgu-k',
+  'ers-battery',
+  'gearbox',
+]
+
+/**
+ * Default row for an element freshly introduced by migration. `limit` of 4
+ * matches FIA 2026 allocation for MGU-K. The engine is element-agnostic on
+ * limits, so this default is safe for any non-battery element.
+ */
+function defaultComponentRow(element: ComponentAllocation['element']): ComponentAllocation {
+  return { element, used: 0, limit: 4, failureProbability: 0.03 }
+}
+
+/**
+ * Normalise every team's components array to the canonical 5-element PU
+ * layout. Preserves every existing row verbatim when the element is in
+ * the canonical set; back-fills missing ones with `defaultComponentRow`;
+ * drops any element not in the canonical set (e.g. a legacy `mgu-h` row
+ * from an in-development v7 save that never shipped).
+ */
+function ensureCanonicalElements(components: ComponentAllocation[]): ComponentAllocation[] {
+  const byElement = new Map<ComponentAllocation['element'], ComponentAllocation>()
+  for (const c of components) byElement.set(c.element, c)
+  return PU_ELEMENT_ORDER.map((el) => byElement.get(el) ?? defaultComponentRow(el))
+}
+
 export type Migration = (data: FullGameState) => FullGameState
 export const MIGRATIONS: Record<number, Migration> = {
   1: (data) => ({
@@ -87,6 +164,50 @@ export const MIGRATIONS: Record<number, Migration> = {
    * minimum of the stored value and the theoretical ceiling for the
    * rounds completed so far.
    */
+  /**
+   * v4 → v5 (Factory redesign — Phase B Wave 2): Adds `team.headquarters` as
+   * a surfaced-on-UI field. Existing saves back-fill from the canonical
+   * 2026 grid mapping below; unknown team ids fall back to the team's
+   * `shortName` so the property is always a non-empty string.
+   */
+  4: (data) => ({
+    ...data,
+    teams: data.teams.map((team) => ({
+      ...team,
+      headquarters: team.headquarters ?? TEAM_HEADQUARTERS[team.id] ?? team.shortName,
+    })),
+  }),
+  /**
+   * v5 → v6 (Factory redesign — Phase B Wave 3): Adds rolling history +
+   * last-upgrade marker on every team. Defaults are empty/zero so the
+   * Factory sparkline and "Last Upgrade" readout render blank on the first
+   * post-migration load — both repopulate naturally as subsequent rounds
+   * and R&D completions land.
+   */
+  5: (data) => ({
+    ...data,
+    teams: data.teams.map((team) => ({
+      ...team,
+      ovrHistory: team.ovrHistory ?? [],
+      lastUpgradeRound: team.lastUpgradeRound ?? 0,
+    })),
+  }),
+  /**
+   * v6 → v7 (Factory redesign — Phase B Wave 4): Inserts an `mgu-k` row
+   * into each team's components array. Existing rows in the canonical
+   * set keep their usage/limit/failureProbability values; the new row
+   * starts fresh at 0/4 with a modest failure probability. Any legacy
+   * `mgu-h` row is dropped (MGU-H is not part of the 2026 PU). Order is
+   * normalised to ICE → TURBO → MGU-K → ERS BATTERY → GEARBOX to match
+   * the Factory card layout.
+   */
+  6: (data) => ({
+    ...data,
+    teams: data.teams.map((team) => ({
+      ...team,
+      components: ensureCanonicalElements(team.components ?? []),
+    })),
+  }),
   3: (data) => {
     const currentRound = Math.max(0, (data.gameState?.currentRound ?? 1) - 1)
     // Modern F1: P1=25 + FL bonus 1, P2=18. Team max per race = 44.

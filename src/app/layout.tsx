@@ -6,6 +6,7 @@ import '../styles/tokens.css'
 import './globals.css'
 import '../styles/topbar.css'
 import '../styles/paddock.css'
+import '../styles/factory.css'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],

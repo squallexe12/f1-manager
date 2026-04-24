@@ -1,9 +1,7 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import type { RndUpgrade } from '@/types/team'
-import { ProgressBar } from '@/components/ui/progress-bar'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 
 interface TechNodeProps {
   upgrade: RndUpgrade
@@ -11,98 +9,90 @@ interface TechNodeProps {
   onPause?: (id: string) => void
   /** When true, node is the Technical Director's current active recommendation */
   recommended?: boolean
-  className?: string
+  /** Branch accent color (used for left rail override on the TD pick only) */
+  branchColor?: string
 }
 
-const STATUS_BADGE: Record<string, { label: string; variant: 'lime' | 'cyan' | 'amber' | 'neutral' }> = {
-  complete: { label: 'Complete', variant: 'lime' },
-  'in-progress': { label: 'In Progress', variant: 'cyan' },
-  available: { label: 'Available', variant: 'amber' },
-  queued: { label: 'Queued', variant: 'neutral' },
-  locked: { label: 'Locked', variant: 'neutral' },
-}
+export function TechNode({ upgrade, onStart, onPause, recommended = false, branchColor }: TechNodeProps) {
+  const { status, name, description, progress, cost, developmentRaces, performanceDelta } = upgrade
+  const isComplete = status === 'complete'
+  const isInProgress = status === 'in-progress'
+  const showRecommended = recommended && status === 'available'
 
-export function TechNode({ upgrade, onStart, onPause, recommended = false, className = '' }: TechNodeProps) {
-  const badge = STATUS_BADGE[upgrade.status]
-  const isLocked = upgrade.status === 'locked'
-  const isComplete = upgrade.status === 'complete'
-  const isInProgress = upgrade.status === 'in-progress'
-  const showRecommended = recommended && upgrade.status === 'available'
+  const etaRaces = isInProgress ? Math.ceil(((100 - progress) / 100) * developmentRaces) : 0
+  const costM = (cost / 1_000_000).toFixed(1)
+  const deltas = Object.entries(performanceDelta).filter(([, v]) => v !== undefined && v !== 0) as [string, number][]
+
+  const statusLabel = status.replace('-', ' ')
 
   return (
     <div
-      className={`
-        border rounded-lg p-3 transition-all duration-150
-        ${isComplete ? 'border-[var(--accent-lime)]/40 bg-[var(--accent-lime)]/[0.03]' : ''}
-        ${isInProgress ? 'border-[var(--accent-cyan)]/40 bg-[var(--accent-cyan)]/[0.03] shadow-[0_0_12px_rgba(0,229,255,0.06)]' : ''}
-        ${showRecommended ? 'border-[var(--accent-cyan)]/60 bg-[var(--accent-cyan)]/[0.05] shadow-[0_0_18px_rgba(0,229,255,0.10)]' : ''}
-        ${isLocked ? 'border-[var(--border-default)] opacity-40' : ''}
-        ${!isLocked && !isComplete && !isInProgress && !showRecommended ? 'border-[var(--border-default)] bg-[var(--bg-surface)]' : ''}
-        ${className}
-      `}
+      className={`tn ${status}${showRecommended ? ' td-pick' : ''}`}
+      style={branchColor ? ({ ['--branch-color' as string]: branchColor } as CSSProperties) : undefined}
     >
-      <div className="flex items-center justify-between mb-1 gap-2">
-        <span className={`text-xs font-heading font-semibold ${isLocked ? 'text-[var(--text-dim)]' : 'text-[var(--text-primary)]'}`}>
-          {isComplete && '✓ '}{upgrade.name}
-        </span>
-        <div className="flex items-center gap-1.5">
-          {showRecommended && (
-            <span
-              className="
-                text-[9px] font-mono uppercase tracking-wider
-                px-1.5 py-0.5 rounded-full
-                bg-[var(--accent-cyan)]/15 text-[var(--accent-cyan)]
-                border border-[var(--accent-cyan)]/40
-              "
-              title="Technical Director recommends this upgrade"
-            >
-              TD Pick
-            </span>
-          )}
-          <Badge variant={badge.variant}>{badge.label}</Badge>
+      <div className="tn-top">
+        <div className="tn-name">
+          {isComplete && <span className="check">✓</span>}
+          {name}
+        </div>
+        <div className="tn-tags">
+          <span className={`tn-status ${status}`}>{statusLabel}</span>
+          {showRecommended && <span className="tn-td">TD PICK</span>}
         </div>
       </div>
 
-      <p className="text-[10px] text-[var(--text-muted)] mb-2 leading-relaxed">
-        {upgrade.description}
-      </p>
+      <div className="tn-desc">{description}</div>
 
-      {isInProgress && (
-        <div className="mb-2">
-          <ProgressBar value={upgrade.progress} color="var(--accent-cyan)" />
-          <div className="text-[10px] font-mono text-[var(--text-dim)] mt-1">
-            ETA: {Math.ceil(((100 - upgrade.progress) / 100) * upgrade.developmentRaces)} races
+      {deltas.length > 0 && (
+        <div className="tn-deltas">
+          {deltas.map(([key, v]) => (
+            <span key={key} className={`tn-delta ${v > 0 ? 'pos' : 'neg'}`}>
+              {key.replace(/([A-Z])/g, ' $1').trim().toUpperCase()}: {v > 0 ? '+' : ''}
+              {v}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {(isInProgress || isComplete) && (
+        <div className="tn-prog-wrap">
+          <div className="tn-prog-label">
+            <span>PROGRESS · {Math.round(progress)}%</span>
+            {isInProgress && <span className="eta">ETA {etaRaces} RACES</span>}
+            {isComplete && <span className="deployed">DEPLOYED</span>}
+          </div>
+          <div className="tn-prog-track">
+            <div
+              className={`fill${isComplete ? ' complete' : ''}`}
+              style={{ transform: `scaleX(${progress / 100})` }}
+            />
           </div>
         </div>
       )}
 
-      {/* Performance delta preview */}
-      <div className="flex flex-wrap gap-1 mb-2">
-        {Object.entries(upgrade.performanceDelta).map(([key, val]) => (
-          val ? (
-            <span
-              key={key}
-              className={`text-[9px] font-mono px-1.5 py-0.5 rounded ${
-                val > 0 ? 'bg-[var(--accent-lime)]/10 text-[var(--accent-lime)]' : 'bg-[var(--accent-red)]/10 text-[var(--accent-red)]'
-              }`}
-            >
-              {key}: {val > 0 ? '+' : ''}{val}
-            </span>
-          ) : null
-        ))}
-      </div>
-
-      {/* Cost + Actions */}
-      <div className="flex items-center justify-between">
-        <span className="text-[10px] font-mono text-[var(--text-dim)]">
-          ${(upgrade.cost / 1_000_000).toFixed(0)}M · {upgrade.developmentRaces} races
-        </span>
-        {upgrade.status === 'available' && onStart && (
-          <Button size="sm" onClick={() => onStart(upgrade.id)}>Start</Button>
+      <div className="tn-foot">
+        <div className="tn-cost">
+          <span>
+            <span className="c-val">${costM}M</span>
+          </span>
+          <span className="c-sep">·</span>
+          <span>
+            <span className="c-val">{developmentRaces}</span> RACES
+          </span>
+        </div>
+        {status === 'available' && onStart && (
+          <button type="button" className="tn-btn start" onClick={() => onStart(upgrade.id)}>
+            START →
+          </button>
         )}
         {isInProgress && onPause && (
-          <Button size="sm" variant="ghost" onClick={() => onPause(upgrade.id)}>Pause</Button>
+          <button type="button" className="tn-btn pause" onClick={() => onPause(upgrade.id)}>
+            PAUSE
+          </button>
         )}
+        {status === 'queued' && <button type="button" className="tn-btn ghost">QUEUED</button>}
+        {status === 'locked' && <button type="button" className="tn-btn ghost">LOCKED</button>}
+        {isComplete && <button type="button" className="tn-btn ghost">DEPLOYED</button>}
       </div>
     </div>
   )

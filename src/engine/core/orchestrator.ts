@@ -18,8 +18,21 @@ export function processManagementEntry(world: FullGameState): FullGameState {
   // Process player team R&D
   const playerTeam = world.teams.find(t => t.id === world.gameState.playerTeamId)!
   const updatedUpgrades = processRnDCycle(playerTeam.rndUpgrades)
+  // Detect newly completed upgrades so we can stamp `lastUpgradeRound` for
+  // the Factory "Last Upgrade" readout. Transition is one-way — upgrade ids
+  // are stable, so a status flip from non-complete → complete at the same
+  // index is sufficient.
+  const anyNewlyCompleted = updatedUpgrades.some((u, i) =>
+    u.status === 'complete' && playerTeam.rndUpgrades[i]?.status !== 'complete',
+  )
   let updatedTeams = world.teams.map(t =>
-    t.id === playerTeam.id ? { ...t, rndUpgrades: updatedUpgrades } : t
+    t.id === playerTeam.id
+      ? {
+        ...t,
+        rndUpgrades: updatedUpgrades,
+        lastUpgradeRound: anyNewlyCompleted ? world.gameState.currentRound : t.lastUpgradeRound,
+      }
+      : t,
   )
 
   // Check for mid-season technical directives
@@ -35,9 +48,24 @@ export function processManagementEntry(world: FullGameState): FullGameState {
     updatedTeams, world.drivers, world.gameState.playerTeamId, rng
   )
 
+  // Stamp lastUpgradeRound for AI teams that shipped an upgrade this cycle.
+  // Keeps the AI engine signature frozen: the R&D status diff is computed
+  // here rather than threaded through `aiTeamManagementPhase`.
+  const aiTeamsStamped = aiResult.teams.map(team => {
+    if (team.id === world.gameState.playerTeamId) return team
+    const before = updatedTeams.find(t => t.id === team.id)
+    if (!before) return team
+    const newlyCompleted = team.rndUpgrades.some((u, i) =>
+      u.status === 'complete' && before.rndUpgrades[i]?.status !== 'complete',
+    )
+    return newlyCompleted
+      ? { ...team, lastUpgradeRound: world.gameState.currentRound }
+      : team
+  })
+
   const afterAI: FullGameState = {
     ...world,
-    teams: aiResult.teams,
+    teams: aiTeamsStamped,
     drivers: aiResult.drivers,
   }
 

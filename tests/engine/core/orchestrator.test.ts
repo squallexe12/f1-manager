@@ -233,3 +233,66 @@ describe('orchestrator — processSeasonEndPhase', () => {
     expect(snapshot(resultA.world)).toBe(snapshot(resultB.world))
   })
 })
+
+describe('orchestrator — Factory lastUpgradeRound stamping', () => {
+  it('sets lastUpgradeRound on the player team when an R&D upgrade completes', () => {
+    let world = initializeGame('mclaren', 'golden-era', 1)
+
+    // Arrange: fast-forward an in-progress upgrade so the next cycle finishes it.
+    // Pick the first available upgrade, move to in-progress at 99% so processRnDCycle
+    // tips it over 100 and marks it complete.
+    world = {
+      ...world,
+      teams: world.teams.map(t => {
+        if (t.id !== 'mclaren') return t
+        const rnd = t.rndUpgrades.map((u, i) =>
+          i === 0 ? { ...u, status: 'in-progress' as const, progress: 99 } : u,
+        )
+        return { ...t, rndUpgrades: rnd }
+      }),
+      gameState: { ...world.gameState, phase: 'post-race', currentRound: 3 },
+    }
+
+    const next = advanceGamePhase(world)
+    const mclaren = next.teams.find(t => t.id === 'mclaren')!
+    expect(mclaren.lastUpgradeRound).toBe(4) // advanceGamePhase increments to round 4 in management
+    expect(mclaren.rndUpgrades[0].status).toBe('complete')
+  })
+
+  it('does not bump lastUpgradeRound when no upgrade completes this cycle', () => {
+    let world = initializeGame('mclaren', 'golden-era', 1)
+    // Seed the existing marker so we can detect a stale overwrite.
+    world = {
+      ...world,
+      teams: world.teams.map(t =>
+        t.id === 'mclaren' ? { ...t, lastUpgradeRound: 2 } : t,
+      ),
+      gameState: { ...world.gameState, phase: 'post-race', currentRound: 5 },
+    }
+
+    const next = advanceGamePhase(world)
+    const mclaren = next.teams.find(t => t.id === 'mclaren')!
+    // No upgrade was close to done, so the marker stays at its prior value.
+    expect(mclaren.lastUpgradeRound).toBe(2)
+  })
+
+  it('stamps lastUpgradeRound independently on AI teams that ship an upgrade', () => {
+    let world = initializeGame('mclaren', 'golden-era', 1)
+
+    world = {
+      ...world,
+      teams: world.teams.map(t => {
+        if (t.id !== 'ferrari') return t
+        const rnd = t.rndUpgrades.map((u, i) =>
+          i === 0 ? { ...u, status: 'in-progress' as const, progress: 99 } : u,
+        )
+        return { ...t, rndUpgrades: rnd }
+      }),
+      gameState: { ...world.gameState, phase: 'post-race', currentRound: 6 },
+    }
+
+    const next = advanceGamePhase(world)
+    const ferrari = next.teams.find(t => t.id === 'ferrari')!
+    expect(ferrari.lastUpgradeRound).toBe(7)
+  })
+})

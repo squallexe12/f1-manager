@@ -31,7 +31,7 @@ export interface RndUpgrade {
 }
 
 export interface ComponentAllocation {
-  element: 'ice' | 'turbo' | 'ers-battery' | 'gearbox'
+  element: 'ice' | 'turbo' | 'mgu-k' | 'ers-battery' | 'gearbox'
   used: number
   limit: number
   failureProbability: number
@@ -48,6 +48,8 @@ export interface Team {
   name: string
   shortName: string
   color: string
+  /** Factory / team headquarters city. Surfaced on the Factory page header. */
+  headquarters: string
   powerUnitSupplier: string
   driverIds: [string, string]
   reserveDriverId: string | null
@@ -89,4 +91,17 @@ export interface Team {
    * serves the same idempotency purpose for team-level post-race writes.
    */
   lastProcessedRound: number
+  /**
+   * Rolling history of the team's OVR car rating, ordered oldest → newest.
+   * Capped at OVR_HISTORY_WINDOW entries. Appended in `processPostRace`
+   * under the same idempotency guard as `seasonForm`. Drives the 6-race
+   * trend sparkline on the Factory car-performance card.
+   */
+  ovrHistory: number[]
+  /**
+   * Round number of the most recently completed R&D upgrade. 0 means "no
+   * upgrade shipped yet this season". Updated by the orchestrator when
+   * `processRnDCycle` flips any upgrade from `in-progress` to `complete`.
+   */
+  lastUpgradeRound: number
 }
