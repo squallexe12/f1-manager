@@ -123,3 +123,65 @@ describe('evaluateContestedEvent', () => {
     }
   })
 })
+
+import { openInvestigation, resolveInvestigations, type PendingInvestigation } from '@/engine/race/penalty-engine'
+
+describe('openInvestigation', () => {
+  it('decideOnLap is currentLap + a value within [minLaps, maxLaps]', () => {
+    const rng = createPRNG(1)
+    const inv = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, rng)
+    expect(inv.decideOnLap).toBeGreaterThanOrEqual(11)
+    expect(inv.decideOnLap).toBeLessThanOrEqual(15)
+    expect(inv.openedOnLap).toBe(10)
+    expect(inv.driverId).toBe('drv-1')
+  })
+
+  it('clamps decideOnLap to totalLaps when window would exceed it', () => {
+    const rng = createPRNG(1)
+    const inv = openInvestigation('drv-1', 'minor', 'forcing-off', 49, 50, rng)
+    expect(inv.decideOnLap).toBeLessThanOrEqual(50)
+  })
+
+  it('id is deterministic for the same seed and inputs', () => {
+    const rngA = createPRNG(42)
+    const rngB = createPRNG(42)
+    const a = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, rngA)
+    const b = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, rngB)
+    expect(a.id).toBe(b.id)
+    expect(a.decideOnLap).toBe(b.decideOnLap)
+  })
+})
+
+describe('resolveInvestigations', () => {
+  const sample = (overrides: Partial<PendingInvestigation> = {}): PendingInvestigation => ({
+    id: 'inv-1',
+    driverId: 'drv-1',
+    openedOnLap: 5,
+    decideOnLap: 8,
+    severity: 'minor',
+    offenceType: 'forcing-off',
+    ...overrides,
+  })
+
+  it('partitions resolved vs stillPending at currentLap', () => {
+    const pending: PendingInvestigation[] = [
+      sample({ id: 'a', decideOnLap: 8 }),
+      sample({ id: 'b', decideOnLap: 10 }),
+      sample({ id: 'c', decideOnLap: 7 }),
+    ]
+    const result = resolveInvestigations(pending, 8)
+    expect(result.resolved.map((i) => i.id).sort()).toEqual(['a', 'c'])
+    expect(result.stillPending.map((i) => i.id)).toEqual(['b'])
+  })
+
+  it('returns no resolved entries when currentLap is below all decideOnLap', () => {
+    const pending = [sample({ decideOnLap: 10 })]
+    expect(resolveInvestigations(pending, 5).resolved).toHaveLength(0)
+  })
+
+  it('returns empty arrays when input is empty', () => {
+    const r = resolveInvestigations([], 10)
+    expect(r.resolved).toHaveLength(0)
+    expect(r.stillPending).toHaveLength(0)
+  })
+})

@@ -105,3 +105,45 @@ export function evaluateContestedEvent(
   }
   return { attackerFault, defenderFault, decision: { driverId, severity, offenceType } }
 }
+
+export interface PendingInvestigation {
+  id: string
+  driverId: string
+  openedOnLap: number
+  decideOnLap: number
+  severity: SeverityTier
+  offenceType: OffenceType
+}
+
+export function openInvestigation(
+  driverId: string,
+  severity: SeverityTier,
+  offenceType: OffenceType,
+  currentLap: number,
+  totalLaps: number,
+  rng: PRNG,
+): PendingInvestigation {
+  // Use rng.next() to drive a deterministic window pick. We don't use rng.range
+  // directly so the seeded value is encoded into the id for traceability.
+  const r = rng.next()
+  // Default window: [1, 5] inclusive
+  const min = 1
+  const max = 5
+  const offset = min + Math.floor(r * (max - min + 1))
+  const decideOnLap = Math.min(currentLap + offset, totalLaps)
+  const id = `inv-${currentLap}-${driverId}-${Math.floor(r * 1e9)}`
+  return { id, driverId, openedOnLap: currentLap, decideOnLap, severity, offenceType }
+}
+
+export function resolveInvestigations(
+  pending: PendingInvestigation[],
+  currentLap: number,
+): { resolved: PendingInvestigation[]; stillPending: PendingInvestigation[] } {
+  const resolved: PendingInvestigation[] = []
+  const stillPending: PendingInvestigation[] = []
+  for (const inv of pending) {
+    if (currentLap >= inv.decideOnLap) resolved.push(inv)
+    else stillPending.push(inv)
+  }
+  return { resolved, stillPending }
+}
