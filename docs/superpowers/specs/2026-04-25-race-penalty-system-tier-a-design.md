@@ -167,7 +167,9 @@ apply nextRaceGridDrop to qualifying-ordered grid:
 
 ### 4.4 Worker Protocol Additions
 
-`RaceIncident` discriminator in [src/types/race.ts](../../src/types/race.ts) gains three new types under the existing `incident` worker-output channel — no new top-level worker message types required:
+#### 4.4.1 `RaceIncident` Discriminator
+
+`RaceIncident` in [src/types/race.ts](../../src/types/race.ts) gains three new types under the existing `incident` worker-output channel — no new top-level worker message types required for incidents:
 
 ```ts
 export type OffenceType =
@@ -208,9 +210,33 @@ export interface RaceIncident {
 }
 ```
 
-The legacy `'penalty'` sub-type (currently in the discriminator union but never emitted by the simulator) is **removed**. Since it was never produced and never consumed, this is a type-only cleanup with no runtime impact. Race state is not persisted — this change does not require a save-system migration on its own.
+The legacy `'penalty'` sub-type (currently in the discriminator union at [src/types/race.ts:100](../../src/types/race.ts#L100) but never emitted by the simulator) is **removed**. Removing a discriminator value is a breaking change to the type union, so the implementation step that removes it MUST first run a grep-sweep across `src/` and `tests/` for the literal string `'penalty'` in incident-typing positions to confirm no test fixture, store reducer, store selector, or UI component currently switches on it. Since no producer exists in `race-simulator.ts`, the expectation is zero hits — but verification is mandatory before removal. Race state is not persisted; this change does not require a save-system migration on its own.
 
-### 4.5 New `AppliedPenalty` Type on `RaceResult`
+#### 4.4.2 `'raceEnd'` Event — New `appliedPenaltiesByDriver` Field
+
+The cross-thread surface for `AppliedPenalty[]` is the **`'raceEnd'` worker output event**, not a redefinition of any existing `RaceResult` shape. Today's `'raceEnd'` carries `finalResults: LapResult[]` (per [src/types/race.ts:224](../../src/types/race.ts#L224)) and `fastestLap`. We add **one new top-level optional field** alongside them:
+
+```ts
+// In src/types/race.ts — WorkerOutEvent union, 'raceEnd' member:
+| {
+    type: 'raceEnd'
+    finalResults: LapResult[]                                       // unchanged
+    fastestLap: { driverId: string; time: number }                  // unchanged
+    appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>      // NEW
+  }
+```
+
+Rationale for keeping it as a sibling map rather than restructuring `finalResults`: `finalResults` is per-lap-per-driver (the full `LapResult[]` for the final lap), and `AppliedPenalty[]` is per-driver-cumulative across the whole race. Different cardinalities. Joining them onto a per-driver shape is a main-thread responsibility — see §4.5.
+
+The worker accumulates entries in `state.appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>` during the race (see §5.4.1) and emits the snapshot on `'raceEnd'`. The map is keyed by driver ID; drivers with no penalties this race appear with an empty array (or are simply absent — main-thread code MUST treat missing keys as empty).
+
+This is a **Pipeline E change** — the worker protocol is extended additively. Type guards and adapter utilities in [src/workers/race-worker-protocol.ts](../../src/workers/race-worker-protocol.ts) need a parallel update; existing JSON round-trip safety tests (per AGENTS.md §1 Pipeline E rule) gain a case for the new field.
+
+### 4.5 `AppliedPenalty` Type and the Two `RaceResult` Shapes
+
+#### 4.5.1 `AppliedPenalty` Type Definition
+
+Lives in [src/types/race.ts](../../src/types/race.ts) alongside the other race types:
 
 ```ts
 export interface AppliedPenalty {
@@ -221,17 +247,51 @@ export interface AppliedPenalty {
   warningCounted: boolean
   raceLap: number
 }
+```
 
+#### 4.5.2 The Two Existing `RaceResult` Shapes (Disambiguation)
+
+The codebase has two unrelated types both named `RaceResult`:
+
+| Source | Shape | Purpose |
+|---|---|---|
+| [src/engine/race/race-simulator.ts:283](../../src/engine/race/race-simulator.ts#L283) | `{ finalPositions, lapData, commentary, incidents, fastestLap }` | The aggregated **engine-side return value** of `simulateRace()` (used only for non-worker batch simulation in tests / scripts). |
+| [src/engine/core/post-race-processor.ts:25](../../src/engine/core/post-race-processor.ts#L25) | `{ driverId, position, dnf, fastestLap }` | The **per-driver input** that `processPostRace()` consumes. |
+
+Neither shape crosses the worker boundary. The worker `'raceEnd'` event ships a third shape (`LapResult[]` plus the new `appliedPenaltiesByDriver` map). The conversion from worker output to `processPostRace` input happens in the main thread — currently in [src/app/strategy/page.tsx](../../src/app/strategy/page.tsx) around line 114-122, where `LapResult[]` is reduced to per-driver `RaceResult` records.
+
+#### 4.5.3 Extending the Post-Race-Processor `RaceResult`
+
+Only the **post-race-processor** `RaceResult` (the per-driver shape) gains `appliedPenalties`:
+
+```ts
+// In src/engine/core/post-race-processor.ts:
 export interface RaceResult {
   driverId: string
   position: number
   dnf: boolean
   fastestLap: boolean
-  appliedPenalties: AppliedPenalty[]   // NEW
+  appliedPenalties: AppliedPenalty[]   // NEW — sourced from raceEnd's appliedPenaltiesByDriver[driverId]
 }
 ```
 
-The worker accumulates `AppliedPenalty` entries per driver during the race. They flow to the main thread on `'raceEnd'` as part of the final results, then `processPostRace` reads them.
+The engine-side `RaceResult` (the `simulateRace()` return) is **not modified** — `simulateRace` is used today only in non-worker batch simulation paths (tests and scripts). For determinism-replay tests that still need penalty data, those tests can read directly from the seeded race's `state.appliedPenaltiesByDriver` accumulator at the end of the loop or extend the engine return as a separate, lower-priority concern. v1 ships only the worker-path integration.
+
+#### 4.5.4 Main-Thread Join
+
+In [src/app/strategy/page.tsx](../../src/app/strategy/page.tsx) (or wherever the per-driver `RaceResult` is built today), the join is straightforward:
+
+```ts
+const perDriverResults: RaceResult[] = drivers.map(d => ({
+  driverId: d.id,
+  position: <derived from finalResults>,
+  dnf: <derived from finalResults>,
+  fastestLap: d.id === fastestLap.driverId,
+  appliedPenalties: appliedPenaltiesByDriver[d.id] ?? [],   // NEW
+}))
+```
+
+The `?? []` fallback handles the case where the worker never recorded penalties for that driver.
 
 ## 5. Engine Modules
 
@@ -460,9 +520,20 @@ All three are session-only. They live in the worker and never reach `world`. The
 
 3. **After the contested-overtake gate decides** (currently around lines 240–263): regardless of whether the swap was allowed, build a `ContestedEventInput`, call `evaluateContestedEvent`, and if `decision !== null`, call `openInvestigation` and push the `'investigation-opened'` incident.
 
-#### 5.4.3 Call-site Edits in `simulateRace`
+#### 5.4.3 Call-site Edits in `simulateRace` and the Worker
 
-After the final-lap loop completes (currently around lines 344–361), iterate `state.pendingTimePenalties` and add any non-zero entries to `state.cumulativeTimes`. Re-sort `state.positions` by cumulative time. Use the resorted `state.positions` as `finalPositions`. Emit any remaining items in `state.appliedPenaltiesByDriver` to the worker's `'raceEnd'` payload (each driver's `RaceResult` carries its own `appliedPenalties` array).
+After the final-lap loop completes (currently around lines 344–361 of [race-simulator.ts](../../src/engine/race/race-simulator.ts)):
+
+1. Iterate `state.pendingTimePenalties` and add any non-zero entries to `state.cumulativeTimes`. Zero each entry after applying.
+2. Re-sort `state.positions` by cumulative time. Use the resorted `state.positions` as `finalPositions`.
+3. Recompute the `position` field on each driver's final-lap `LapResult` so that the per-lap data emitted on `'raceEnd'` reflects the post-penalty ordering. The pre-penalty positions on prior laps stay as-is — those are historical lap data and must not be retroactively rewritten.
+
+The **worker** (`src/workers/race-sim-worker.ts`) emits the `'raceEnd'` event **after** steps 1–3 complete. The event carries:
+- `finalResults: LapResult[]` — the final-lap `LapResult[]` with **post-penalty** position values (consumers reading `r.position` from this array see the corrected grid).
+- `fastestLap: { driverId; time }` — unchanged.
+- `appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>` — snapshot of `state.appliedPenaltiesByDriver` (see §4.4.2).
+
+This ordering invariant — re-sort first, emit second — prevents the strategy page's `r.position` map at [src/app/strategy/page.tsx:117](../../src/app/strategy/page.tsx#L117) from surfacing the pre-penalty grid. A test must explicitly assert that for a race where the final-lap re-sort changes positions, the emitted `finalResults[i].position` matches the post-penalty order, not the lap-time-only order.
 
 #### 5.4.4 Determinism
 
@@ -484,7 +555,8 @@ for each appliedPenalty in result.appliedPenalties:
     })
   if appliedPenalty.warningCounted:
     driver.warningsThisSeason += 1
-  driver.seasonStats.penalties += 1
+  if appliedPenalty.timePenaltySeconds > 0:
+    driver.seasonStats.penalties += 1   // counts time penalties only, not reprimands/fines
 
 driver.penaltyPoints = expirePenaltyPoints(driver.penaltyPoints, currentSeason, currentRound)
 
@@ -551,7 +623,7 @@ export interface Driver {
 }
 ```
 
-`SeasonStats.penalties` already exists in the codebase but is currently never incremented. It gets wired up in `processPostRace`.
+`SeasonStats.penalties` already exists in the codebase but is currently never incremented. It gets wired up in `processPostRace` with the rule **increment only when `appliedPenalty.timePenaltySeconds > 0`** — i.e., the counter tracks time penalties only. Reprimands (`timePenaltySeconds: 0`, no penalty points) and fines do not increment it; they track separately via `warningsThisSeason` and the finance engine respectively. This keeps the existing UI surfaces that display `seasonStats.penalties` semantically meaningful (a "penalties" count of 3 means three time-penalty incidents, not three any-sanction incidents including soft warnings).
 
 ### 6.2 Schema Migration v7 → v8
 
@@ -736,7 +808,8 @@ These are deliberately unresolved at the design layer and will be resolved durin
 
 - **(D.4.a)** Where exactly does the existing qualifying flow set `gridOrder` for the race-worker bootstrap? §5.6 assumed a thin adapter step in `race-bootstrap.ts`; to be confirmed.
 - **(D.4.b)** Does `team.reserveDriverId` exist on the current `Team` type, or is reserve lookup done purely through `Driver.isReserve` filtering? To be confirmed by reading [src/types/team.ts](../../src/types/team.ts). The substitution logic in §5.6 already handles both shapes via the `??` chain — only the type signatures on the bootstrap input need to match reality.
-- **(D.4.c)** Does the existing `submitRaceResults` codepath (referenced in [src/engine/core/post-race-processor.ts:60](../../src/engine/core/post-race-processor.ts#L60)) already carry per-driver event metadata that `appliedPenalties` can ride on, or do we need a new field on the cross-thread `RaceResult` shape? The shape of any existing per-driver event accumulator should be reused if present.
+
+*(D.4.c — resolved in §4.4.2 / §4.5: the worker `'raceEnd'` event gains a new top-level `appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>` field; the per-driver join happens main-thread when building `RaceResult[]` for `processPostRace`.)*
 
 ## 11. Future Work (Tier B and Tier C Brainstorm Triggers)
 
