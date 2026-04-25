@@ -10,6 +10,8 @@ import { calculateOverallRating } from '@/engine/engineering/car-performance'
 import { recordSpend } from '@/engine/finance/budget-engine'
 import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige'
 import { generateEvents, resolveExpiredEvents, type GameContext } from '@/engine/narrative/event-generator'
+import { expirePenaltyPoints, sumActivePoints, wipeContributingPoints } from '@/engine/drivers/penalty-points'
+import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
 
 // Points per position (standard race)
 const RACE_POINTS: Record<number, number> = {
@@ -58,16 +60,23 @@ export function processPostRace(
   results: RaceResult[],
   isSprint: boolean,
   currentRound: number,
+  currentSeason: number,
   playerTeamId: string,
   rng: PRNG,
 ): PostRaceUpdate {
   const pointsTable = isSprint ? SPRINT_POINTS : RACE_POINTS
 
+  // Clear any ban whose suspended round equals currentRound — that race has
+  // now been served.  Operate on the input drivers before any further mutation.
+  let activeDrivers: Driver[] = drivers.map((d) =>
+    d.banUntilRound === currentRound ? { ...d, banUntilRound: null } : d,
+  )
+
   // 1. Update driver season stats and points.
   //    Idempotency guard (see SeasonStats.lastProcessedRound) skips drivers
   //    whose stats were already credited for `currentRound` — defends against
   //    any double-fire of submitRaceResults.
-  let updatedDrivers = drivers.map(driver => {
+  let updatedDrivers = activeDrivers.map(driver => {
     const result = results.find(r => r.driverId === driver.id)
     if (!result) return driver
     if (driver.seasonStats.lastProcessedRound >= currentRound) return driver
@@ -95,12 +104,53 @@ export function processPostRace(
       ) / 10
     stats.lastProcessedRound = currentRound
 
+    // Fold appliedPenalties into the driver's persistent state.
+    let penaltyPoints = [...driver.penaltyPoints]
+    let warningsThisSeason = driver.warningsThisSeason
+    let nextRaceGridDrop = driver.nextRaceGridDrop
+    let banUntilRound = driver.banUntilRound
+    const applied = result.appliedPenalties ?? []
+    for (const ap of applied) {
+      if (ap.penaltyPointsIssued > 0) {
+        penaltyPoints.push({
+          points: ap.penaltyPointsIssued,
+          issuedSeason: currentSeason,
+          issuedRound: currentRound,
+          offenceType: ap.offenceType,
+          raceId: `r${currentRound}`,
+        })
+      }
+      if (ap.warningCounted) warningsThisSeason += 1
+      if (ap.timePenaltySeconds > 0) stats.penalties += 1
+    }
+    // Expire stale entries (22-round rolling window)
+    penaltyPoints = expirePenaltyPoints(
+      penaltyPoints,
+      currentSeason,
+      currentRound,
+      DEFAULT_PENALTY_CALIBRATION.rollingWindowRounds,
+    )
+    // Ban check: crossing banThreshold triggers suspension for banDurationRounds
+    if (sumActivePoints(penaltyPoints) >= DEFAULT_PENALTY_CALIBRATION.banThreshold) {
+      banUntilRound = currentRound + DEFAULT_PENALTY_CALIBRATION.banDurationRounds
+      penaltyPoints = wipeContributingPoints(penaltyPoints, DEFAULT_PENALTY_CALIBRATION.banThreshold)
+    }
+    // Warning threshold: 5 warnings → 10-place grid drop next race, reset counter
+    if (warningsThisSeason >= DEFAULT_PENALTY_CALIBRATION.warningThreshold) {
+      nextRaceGridDrop = Math.max(nextRaceGridDrop, DEFAULT_PENALTY_CALIBRATION.warningGridDrop)
+      warningsThisSeason = 0
+    }
+
     const formSample = result.dnf ? FORM_DNF : result.position
     return {
       ...driver,
       seasonStats: stats,
       form: pushForm(driver.form, formSample),
       lastRaceResult: result.dnf ? null : result.position,
+      penaltyPoints,
+      warningsThisSeason,
+      nextRaceGridDrop,
+      banUntilRound,
     }
   })
 

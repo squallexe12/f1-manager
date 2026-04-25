@@ -118,6 +118,7 @@ export function processPostRacePhase(
     world.narrativeEvents, eventCooldowns,
     results, isSprint,
     world.gameState.currentRound,
+    world.gameState.season,
     world.gameState.playerTeamId,
     rng,
   )
