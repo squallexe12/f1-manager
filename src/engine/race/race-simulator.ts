@@ -11,7 +11,7 @@ import { getTirePerformance, degradeTire } from './tire-model'
 import { calculateOvertakeProbability } from './overtake'
 import { WeatherEngine } from './weather'
 import { resolveCalibrationForCircuit } from '@/data/calibration'
-import { resolveInvestigations, selectSanction } from './penalty-engine'
+import { resolveInvestigations, selectSanction, evaluateContestedEvent, openInvestigation } from './penalty-engine'
 import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
 
 export interface RaceDriver {
@@ -300,6 +300,50 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       // Block the inversion: pin trailing driver's cumulative to just behind
       // the leading driver. Preserves gap reporting without faking the lap.
       state.cumulativeTimes[behindId] = cumAhead + STUCK_EPSILON
+    }
+
+    // Penalty-engine fault evaluation. Runs on every contested pair regardless
+    // of the swap outcome — failed dive bombs are more likely to cause
+    // incidents than clean overtakes.
+    const aheadDriver = state.drivers.find((d) => d.id === aheadId)!
+    const behindDriver2 = state.drivers.find((d) => d.id === behindId)!
+    const aheadStrat = state.strategies.find((s) => s.driverId === aheadId)!
+    const behindStrat = state.strategies.find((s) => s.driverId === behindId)!
+    const evaluation = evaluateContestedEvent({
+      attacker: behindDriver2,
+      defender: aheadDriver,
+      attackerCommand: behindStrat.currentCommand,
+      defenderCommand: aheadStrat.currentCommand,
+      lapDelta,
+      tireDelta: state.tireStates[behindId].wear - state.tireStates[aheadId].wear,
+      circuit: { overtakingDifficulty: state.circuit.overtakingDifficulty },
+      // Mood is not currently in RaceDriver; default to neutral. This is a
+      // known gap — RaceDriver.attributes does not include mood. Future:
+      // pipe driver mood through BootstrapDriverInput. For v1, evaluate on
+      // observable race state only and rely on racecraft + experience.
+      attackerMood: { frustration: 50, confidence: 60 },
+      defenderMood: { frustration: 50, confidence: 60 },
+      calibration: DEFAULT_PENALTY_CALIBRATION,
+    }, rng)
+    if (evaluation.decision) {
+      const inv = openInvestigation(
+        evaluation.decision.driverId,
+        evaluation.decision.severity,
+        evaluation.decision.offenceType,
+        state.currentLap,
+        state.totalLaps,
+        rng,
+      )
+      state.pendingInvestigations.push(inv)
+      incidents.push({
+        lap: state.currentLap,
+        type: 'investigation-opened',
+        driverIds: [evaluation.decision.driverId],
+        description: `${evaluation.decision.driverId.toUpperCase()} under investigation: ${evaluation.decision.offenceType}`,
+        investigationId: inv.id,
+        offenceType: evaluation.decision.offenceType,
+        decideOnLap: inv.decideOnLap,
+      })
     }
   }
 

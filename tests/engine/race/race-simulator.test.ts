@@ -269,6 +269,55 @@ describe('race simulator', () => {
     expect(penState.pendingTimePenalties['d1']).toBe(0)
   })
 
+  it('contested overtake with reckless attacker opens an investigation', () => {
+    // Attacker (d2) is placed directly behind lead (d1) in positions.
+    // Attacker attributes: racecraft=30, experience=20, command='overtake'.
+    // Computed attacker fault ≈ 0.71 > faultThreshold 0.55 → investigation must open.
+    // To force the overtake gate to fire, we set cumulative times so d2 is
+    // behind in positions but would invert this lap (cumBehind < cumAhead).
+    // We give d2 a superior car so it posts a fast lap time, then pre-set
+    // cumulativeTimes to trigger the gate on the first lap.
+    const SEED = 42
+    const state = mockRaceState()
+    state.circuit.overtakingDifficulty = 'high'
+    state.circuit.compounds = ['C2', 'C3', 'C4'] as [TireCompound, TireCompound, TireCompound]
+
+    // Two-driver state: lead (d1) and attacker (d2)
+    state.drivers = [
+      {
+        id: 'd1',
+        car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 },
+        attributes: { pace: 80, racecraft: 80, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 },
+      },
+      {
+        id: 'd2',
+        car: { downforce: 90, straightSpeed: 90, reliability: 90, tireManagement: 90, braking: 90, cornering: 90 },
+        attributes: { pace: 90, racecraft: 30, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+      },
+    ]
+    state.positions = ['d1', 'd2']
+    // Pre-seed cumulative times so d2 is close behind d1. After this lap d2's
+    // superior car will post a faster lap, making cumBehind < cumAhead and
+    // triggering the contested gate.
+    state.cumulativeTimes = { d1: 900, d2: 899.0 }
+    state.tireStates = {
+      d1: { compound: 'C3' as TireCompound, label: 'medium' as const, wear: 40, lapsFitted: 20 },
+      d2: { compound: 'C3' as TireCompound, label: 'medium' as const, wear: 80, lapsFitted: 5 },
+    }
+    state.strategies = [
+      { driverId: 'd1', plannedStops: [], currentCommand: 'standard' as const },
+      { driverId: 'd2', plannedStops: [], currentCommand: 'overtake' as const },
+    ]
+
+    const rng = createPRNG(SEED)
+    const result = simulateLap(state, rng)
+
+    const investigationOpened = result.incidents.some(
+      (inc) => inc.type === 'investigation-opened',
+    )
+    expect(investigationOpened).toBe(true)
+  })
+
   it('pit loss persists in gap-to-leader on subsequent non-pit laps', () => {
     // A pit stop on lap N must remain visible as accumulated time loss on
     // lap N+1, N+2, ... — otherwise the driver "continues as usual".
