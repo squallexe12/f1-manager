@@ -1,3 +1,5 @@
+import type { OffenceType } from '@/types/race'
+
 export interface DriverAttributes {
   pace: number          // 0-100
   racecraft: number     // 0-100
@@ -45,6 +47,14 @@ export interface SeasonStats {
   lastProcessedRound: number
 }
 
+export interface PenaltyPointEntry {
+  points: number
+  issuedSeason: number
+  issuedRound: number
+  offenceType: OffenceType
+  raceId: string
+}
+
 export interface Driver {
   id: string
   firstName: string
@@ -71,4 +81,26 @@ export interface Driver {
   form: number[]
   /** Finish position of the driver's most recent completed race, or null. */
   lastRaceResult: number | null
+  /**
+   * Active super-licence penalty-point entries on a rolling 22-round window.
+   * Each entry expires individually (currentSeason - issuedSeason) * 22 +
+   * (currentRound - issuedRound) >= 22 rounds after issue. Default: empty.
+   */
+  penaltyPoints: PenaltyPointEntry[]
+  /**
+   * Driving-warnings counter for the current season. Resets at season end and
+   * on threshold consumption (5 → triggers 10-place grid drop). Default: 0.
+   */
+  warningsThisSeason: number
+  /**
+   * One-shot grid-position drop applied at the next race after qualifying.
+   * Consumed and zeroed by the bootstrap grid-drop step. Default: 0.
+   */
+  nextRaceGridDrop: number
+  /**
+   * If set, the driver is suspended through this round inclusive and is
+   * substituted by the reserve in `applyBanSubstitution`. Cleared at the
+   * start of post-race processing for the round equal to this value.
+   */
+  banUntilRound: number | null
 }
