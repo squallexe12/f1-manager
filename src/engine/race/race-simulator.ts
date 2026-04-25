@@ -2,7 +2,7 @@ import type { CarPerformance } from '@/types/team'
 import type { DriverAttributes } from '@/types/driver'
 import type {
   TireCompound, TireState, LapResult, RaceStrategy,
-  DriverCommand, CommentaryEntry, RaceIncident, WeatherState,
+  DriverCommand, CommentaryEntry, RaceIncident, WeatherState, AppliedPenalty,
 } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
@@ -37,6 +37,9 @@ export interface SimRaceState {
   // gap-to-leader: a pit stop's calibrated time loss permanently widens this
   // value, so it remains visible on every subsequent lap.
   cumulativeTimes: Record<string, number>
+  pendingInvestigations: import('./penalty-engine').PendingInvestigation[]
+  pendingTimePenalties: Record<string, number>
+  appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>
 }
 
 export interface RaceSetup {
@@ -334,6 +337,9 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     tireStates,
     positions: setup.gridOrder || setup.drivers.map(d => d.id),
     cumulativeTimes: Object.fromEntries(setup.drivers.map(d => [d.id, 0])),
+    pendingInvestigations: [],
+    pendingTimePenalties: {},
+    appliedPenaltiesByDriver: {},
   }
 
   const allLapData: LapResult[][] = []

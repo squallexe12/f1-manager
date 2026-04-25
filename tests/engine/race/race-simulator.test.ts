@@ -39,6 +39,9 @@ function mockRaceState(): SimRaceState {
     tireStates: Object.fromEntries(drivers.map(d => [d.id, { compound: 'C3' as TireCompound, label: 'medium' as const, wear: 72, lapsFitted: 10 }])),
     positions: drivers.map(d => d.id),
     cumulativeTimes: Object.fromEntries(drivers.map(d => [d.id, 0])),
+    pendingInvestigations: [],
+    pendingTimePenalties: {},
+    appliedPenaltiesByDriver: {},
   }
 }
 

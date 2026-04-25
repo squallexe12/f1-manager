@@ -180,6 +180,9 @@ export function __handleMessage(msg: unknown): void {
         tireStates,
         positions: strategies.map((s) => s.driverId),
         cumulativeTimes: Object.fromEntries(strategies.map((s) => [s.driverId, 0])),
+        pendingInvestigations: [],
+        pendingTimePenalties: {},
+        appliedPenaltiesByDriver: {},
       }
 
       isPaused = false
