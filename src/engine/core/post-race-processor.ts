@@ -68,7 +68,7 @@ export function processPostRace(
 
   // Clear any ban whose suspended round equals currentRound — that race has
   // now been served.  Operate on the input drivers before any further mutation.
-  let activeDrivers: Driver[] = drivers.map((d) =>
+  const activeDrivers: Driver[] = drivers.map((d) =>
     d.banUntilRound === currentRound ? { ...d, banUntilRound: null } : d,
   )
 
