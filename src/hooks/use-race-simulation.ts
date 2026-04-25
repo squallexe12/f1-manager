@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
+  AppliedPenalty,
   SimSpeed,
   DriverCommand,
   LapResult,
@@ -82,7 +83,11 @@ interface DriverMeta {
 interface UseRaceSimulationOptions {
   driverMeta: DriverMeta[]
   playerTeamId: string
-  onRaceEnd?: (finalResults: LapResult[], fastestLap: { driverId: string; time: number }) => void
+  onRaceEnd?: (
+    finalResults: LapResult[],
+    fastestLap: { driverId: string; time: number },
+    appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>,
+  ) => void
   workerHandleFactory?: () => RaceWorkerHandle
   /**
    * Optional circuit calibration. When provided, the hook feeds the
@@ -277,9 +282,10 @@ export function useRaceSimulation({
       onRaceEnd?.(
         runtime.finalResults,
         runtime.fastestLap ?? { driverId: '', time: Infinity },
+        runtime.appliedPenaltiesByDriver,
       )
     }
-  }, [runtime.phase, runtime.finalResults, runtime.fastestLap, onRaceEnd])
+  }, [runtime.phase, runtime.finalResults, runtime.fastestLap, runtime.appliedPenaltiesByDriver, onRaceEnd])
 
   // Teardown adapter + RAF on unmount.
   useEffect(() => {

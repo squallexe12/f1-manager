@@ -1,4 +1,5 @@
 import type {
+  AppliedPenalty,
   CommentaryEntry,
   DriverCommand,
   LapResult,
@@ -51,6 +52,7 @@ export interface RaceRuntimeSlice {
   simSpeed: SimSpeed
   finalResults: LapResult[] | null
   fastestLap: { driverId: string; time: number } | null
+  appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>
   lastError: RaceRuntimeError | null
 }
 
@@ -79,6 +81,7 @@ export function createInitialRaceRuntime(): RaceRuntimeSlice {
     simSpeed: 1,
     finalResults: null,
     fastestLap: null,
+    appliedPenaltiesByDriver: {},
     lastError: null,
   }
 }
@@ -138,6 +141,7 @@ export function reduceWorkerEvent(
         phase: 'finished',
         finalResults: event.finalResults,
         fastestLap: event.fastestLap,
+        appliedPenaltiesByDriver: event.appliedPenaltiesByDriver,
       }
     case 'error':
       return {

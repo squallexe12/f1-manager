@@ -111,12 +111,17 @@ export default function StrategyPage() {
       })
   }, [drivers, teams, playerTeamId])
 
-  const onRaceEnd = useCallback((finalResults: import('@/types/race').LapResult[], fastestLap: { driverId: string; time: number }) => {
+  const onRaceEnd = useCallback((
+    finalResults: import('@/types/race').LapResult[],
+    fastestLap: { driverId: string; time: number },
+    appliedPenaltiesByDriver: Record<string, import('@/types/race').AppliedPenalty[]>,
+  ) => {
     const raceResults = finalResults.map(r => ({
       driverId: r.driverId,
       position: r.position,
       dnf: false,
       fastestLap: r.driverId === fastestLap.driverId,
+      appliedPenalties: appliedPenaltiesByDriver[r.driverId] ?? [],
     }))
     const isSprint = gameState?.phase === 'sprint'
     submitRaceResults(raceResults, isSprint ?? false)
