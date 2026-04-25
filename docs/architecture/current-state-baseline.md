@@ -1,7 +1,8 @@
 # Current-State Baseline (Post-v1.0.1)
 
 **Frozen:** 2026-04-11
-**Purpose:** Captures runtime truth after the selector, orchestrator, and persistence refactor. Serves as the contract reference for IP-01 through IP-08.
+**Last updated:** 2026-04-25 (IP-09 Penalty System Tier A)
+**Purpose:** Captures runtime truth after the selector, orchestrator, and persistence refactor. Serves as the contract reference for IP-01 through IP-09.
 
 ---
 
@@ -86,8 +87,8 @@ All under `src/engine/`, all pure functions with seeded PRNG:
 | Domain | Key Modules |
 |--------|-------------|
 | Core | `prng.ts`, `state-manager.ts`, `orchestrator.ts`, `post-race-processor.ts`, `season-end-processor.ts`, `save-system.ts` |
-| Race | `race-simulator.ts`, `tire-model.ts`, `pit-strategy.ts`, `overtake.ts`, `weather.ts` |
-| Drivers | `mood-system.ts`, `driver-model.ts`, `aging.ts`, `contract-engine.ts` |
+| Race | `race-simulator.ts`, `tire-model.ts`, `pit-strategy.ts`, `overtake.ts`, `weather.ts`, `penalty-engine.ts` |
+| Drivers | `mood-system.ts`, `driver-model.ts`, `aging.ts`, `contract-engine.ts`, `penalty-points.ts` |
 | Engineering | `rnd-engine.ts`, `car-performance.ts`, `component-lifecycle.ts` |
 | Finance | `budget-engine.ts`, `sponsor-engine.ts`, `prestige.ts` |
 | Narrative | `event-generator.ts`, `story-arc-tracker.ts` |
@@ -136,6 +137,8 @@ These gaps are frozen as follow-up items for later implementation phases:
 | No OpenF1 real-data integration | _Resolved IP-06 and IP-07._ 24 circuits carry OpenF1-derived tire, weather, overtake, pit-loss, and stint calibration; pre-race intel surface consumes them | — |
 | No engineer recommendation system | _Resolved IP-08._ `world.recommendations` generated in `processManagementEntry()`, surfaced on Paddock + Factory + pre-race Strategy; apply/dismiss wired through the store | — |
 | Race state not in Zustand store | _Resolved IP-04._ `raceRuntime` slice lives outside `world` (see §3.1) | — |
+| No race penalty / super-licence system | _Resolved IP-09._ Tier A driving offences (collision, forcing-off, illegal-defending) detected during race simulation; stewards' investigation window defers penalty resolution; time penalties fold into race results at next pit or race end; super-licence points with 22-round rolling expiry; race bans at 12 points (reserve substitution); 10-place grid drops at 5 driving warnings. See §3.2. | — |
+| Tier B / Tier C penalty offences | Pit-adjacent (unsafe release, pit-lane speeding) and track-state-adjacent (track limits, yellow/red flag breaches) offences not yet implemented. | Future |
 
 ---
 
@@ -150,6 +153,99 @@ These gaps are frozen as follow-up items for later implementation phases:
 - Tier 2 mid-race checkpoint resume is explicitly out of scope. If it is ever adopted, it requires its own snapshot schema and a dedicated migration — it does not retrofit into IP-05.
 
 **Rationale:** Race simulation is a session-scoped activity. Persisting mid-race state would force high-frequency IndexedDB writes during active races (every lap update) without a matching product requirement. The overwhelming majority of player value is captured by post-race results, which flow into `world` via `submitRaceResults()` and therefore are persisted.
+
+---
+
+## 3.2 Race Penalty System — IP-09 (Tier A v1)
+
+**Status:** Complete (2026-04-25).
+
+### Goal
+
+Detect overtake-adjacent driving offences during the simulated race; defer-resolve them through a stewards' investigation window; apply time penalties at the next pit or race end; persist super-licence penalty points with a rolling 22-round expiry; ban drivers at 12 accumulated points (with reserve substitution); apply 10-place grid drops on five driving warnings.
+
+### Scope
+
+**In scope (Tier A — overtake-adjacent):**
+- Offence types: collision, forcing-off, illegal-defending.
+- Sanctions: 5s / 10s / 30s time penalty, 3s drive-through (converted to time at race end), super-licence penalty points (1 / 2 / 3 depending on severity).
+- Driving warning → 5 warnings triggers one-shot 10-place grid drop for the next race.
+- Race ban at 12 accumulated super-licence points; reserve driver substitutes for the banned driver; points reset to 0 on return.
+- Stewards' investigation window: offences raised during lap simulation are held as `pendingInvestigations` for a configurable number of laps before resolving to a sanction or "no further action".
+- Time penalties accumulate in `pendingTimePenalties` and are applied at the driver's next pit stop or folded into final race-time at race end.
+- `RaceResult.appliedPenalties` carries the fold summary out of the worker for `processPostRace()` to consume when updating the four persisted driver fields.
+
+**Explicitly out of scope:**
+- Tier B (pit-adjacent): unsafe release, pit-lane speeding.
+- Tier C (track-state-adjacent): track limits, yellow/red flag breaches.
+- Misconduct / language penalties.
+- Post-race scrutineering DSQ.
+- FIA Right of Review.
+- Position handback pre-emption.
+
+### Files Added
+
+| File | Purpose |
+|------|---------|
+| `src/data/penalty-calibration.ts` | Per-offence-type probability weights, severity distributions, and stewards' investigation duration by circuit |
+| `src/engine/drivers/penalty-points.ts` | Pure functions: award points, expire stale entries (22-round window), check ban threshold, check warning threshold |
+| `src/engine/race/penalty-engine.ts` | Pure functions: detect offences from lap-state deltas, resolve investigations, apply time sanctions, fold penalties into results |
+| `src/components/strategy/stewards-card.tsx` | Live-race Stewards card showing pending investigations and resolved sanctions |
+| `src/components/strategy/stewards-decisions-panel.tsx` | Post-race panel summarising all applied penalties |
+| `src/components/drivers/penalty-record-section.tsx` | Driver Office detail section: super-licence points history, warnings, ban status |
+| `tests/data/penalty-calibration.test.ts` | Validates calibration shape and probability sums |
+| `tests/engine/drivers/penalty-points.test.ts` | Unit tests: award, expiry, ban/warning thresholds |
+| `tests/engine/race/penalty-engine.test.ts` | Unit tests: offence detection, investigation resolution, sanction application, time-penalty fold |
+| `tests/engine/core/post-race-penalty-fold.test.ts` | Integration test: `processPostRace()` correctly updates the four persisted driver fields from `RaceResult.appliedPenalties` |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/types/race.ts` | New types: `OffenceType`, `SanctionType`, `SeverityTier`, `AppliedPenalty`; `RaceIncident` discriminator extensions; `raceEnd` event extension |
+| `src/types/driver.ts` | `PenaltyPointEntry`; four new persisted driver fields: `penaltyPoints`, `warningsThisSeason`, `nextRaceGridDrop`, `banUntilRound` |
+| `src/data/drivers.ts` | 28 driver literals backfilled with the four new fields |
+| `src/engine/race/race-simulator.ts` | `SimRaceState` transient fields for penalty engine; `simulateLap` call sites; race-end penalty fold |
+| `src/engine/race/race-bootstrap.ts` | `applyBanSubstitution` and `applyGridDrops` helpers |
+| `src/workers/race-sim-worker.ts` | Race-end fold + `raceEnd` event emission with `appliedPenalties` |
+| `src/engine/core/post-race-processor.ts` | `currentSeason` parameter + penalty fold into driver state |
+| `src/engine/core/orchestrator.ts` | Passes `currentSeason` to `processPostRace()` |
+| `src/engine/core/save-system.ts` | `SCHEMA_VERSION = 8`; v7 → v8 migration |
+| `src/stores/race-runtime-slice.ts` | `appliedPenaltiesByDriver` field |
+| `src/stores/game-store.ts` | `consumeGridDrops` action |
+| `src/hooks/use-race-simulation.ts` | Carries `appliedPenaltiesByDriver` through to consumers |
+| `src/app/strategy/page.tsx` | Live-race Stewards card; post-race panel; pre-race ban substitution + grid drops in `handleStartRace` |
+| `src/app/drivers/page.tsx` | Penalty Record section in driver detail view |
+
+### Schema Migration
+
+v7 → v8 adds four persisted fields to every `Driver` object:
+- `penaltyPoints: PenaltyPointEntry[]` — rolling 22-round window of issued super-licence points; defaults `[]`.
+- `warningsThisSeason: number` — driving-warnings counter, reset at season end and on threshold consumption; defaults `0`.
+- `nextRaceGridDrop: number` — one-shot grid-position drop consumed by qualifying; defaults `0`.
+- `banUntilRound: number | null` — null when not banned; defaults `null`.
+
+Race-side penalty state (`pendingInvestigations`, `pendingTimePenalties`, `appliedPenaltiesByDriver`) is transient — lives exclusively in the worker's `SimRaceState` and `raceRuntime` slice, never written to IndexedDB.
+
+Full details: `docs/architecture/persistence-contract.md` §5 v7→v8 entry.
+
+### Testing Summary
+
+- ~30 new tests across the five new test modules plus integration tests for ban substitution, grid drops, post-race fold, and determinism replay.
+- Total test count on merge: 428 passed, 1 skipped.
+- TypeScript compilation: clean (`npx tsc --noEmit`).
+- ESLint: clean (`npm run lint`).
+
+### Open Follow-ups (Deferred — Not Blocking)
+
+| Item | Notes |
+|------|-------|
+| Tier B v2 — pit-adjacent offences | Separate brainstorm cycle when ready |
+| Tier C v3 — track-state-adjacent offences | Separate brainstorm cycle when ready |
+| `team.penaltiesTaken` (Factory PU card readout) | Separate workstream — race-weekend component-swap lifecycle; unrelated to driving penalties |
+| OFFENCE_LABELS map duplicated in 3 UI components | Candidate for shared utility extraction in a future cleanup pass |
+| `behindDriver2` variable name in `simulateLap` (Task 12) | Minor naming smell; candidate for cleanup |
+| 9-11 risk band renders amber in post-race panel, red in Driver Office | Task 22 simplified the 4-band spec; reconcile if visual consistency matters |
 
 ---
 
