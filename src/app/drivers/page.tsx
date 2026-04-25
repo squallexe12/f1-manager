@@ -7,6 +7,7 @@ import { DriverProfile } from '@/components/drivers/driver-profile'
 import { MoodTracker } from '@/components/drivers/mood-tracker'
 import { ContractPanel } from '@/components/drivers/contract-panel'
 import { ScoutPanel } from '@/components/drivers/scout-panel'
+import { PenaltyRecordSection } from '@/components/drivers/penalty-record-section'
 import { Button } from '@/components/ui/button'
 
 type Tab = 'car-01' | 'car-02' | 'reserve' | 'scout'
@@ -71,6 +72,11 @@ export default function DriversPage() {
             <ContractPanel
               contract={currentDriver.contract}
               driverName={`${currentDriver.firstName} ${currentDriver.lastName}`}
+            />
+            <PenaltyRecordSection
+              driver={currentDriver}
+              currentSeason={world.gameState.season}
+              currentRound={world.gameState.currentRound}
             />
           </div>
         </div>
