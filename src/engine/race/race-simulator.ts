@@ -11,6 +11,8 @@ import { getTirePerformance, degradeTire } from './tire-model'
 import { calculateOvertakeProbability } from './overtake'
 import { WeatherEngine } from './weather'
 import { resolveCalibrationForCircuit } from '@/data/calibration'
+import { resolveInvestigations, selectSanction } from './penalty-engine'
+import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
 
 export interface RaceDriver {
   id: string
@@ -105,6 +107,35 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const lapResults: LapResult[] = []
   const commentary: CommentaryEntry[] = []
   const incidents: RaceIncident[] = []
+
+  // Resolve any investigations whose decision lap has arrived.
+  const { resolved, stillPending } = resolveInvestigations(state.pendingInvestigations, state.currentLap)
+  state.pendingInvestigations = stillPending
+  for (const inv of resolved) {
+    const sanction = selectSanction(inv.severity, inv.offenceType, DEFAULT_PENALTY_CALIBRATION, rng)
+    if (sanction.timePenaltySeconds > 0) {
+      state.pendingTimePenalties[inv.driverId] = (state.pendingTimePenalties[inv.driverId] ?? 0) + sanction.timePenaltySeconds
+    }
+    if (!state.appliedPenaltiesByDriver[inv.driverId]) state.appliedPenaltiesByDriver[inv.driverId] = []
+    state.appliedPenaltiesByDriver[inv.driverId].push({
+      offenceType: inv.offenceType,
+      sanction: sanction.sanction,
+      timePenaltySeconds: sanction.timePenaltySeconds,
+      penaltyPointsIssued: sanction.penaltyPoints,
+      warningCounted: sanction.warningCounted,
+      raceLap: state.currentLap,
+    })
+    incidents.push({
+      lap: state.currentLap,
+      type: 'penalty-issued',
+      driverIds: [inv.driverId],
+      description: `${inv.driverId.toUpperCase()} penalised: ${sanction.sanction} (${inv.offenceType})`,
+      investigationId: inv.id,
+      sanction: sanction.sanction,
+      penaltyPointsIssued: sanction.penaltyPoints,
+      offenceType: inv.offenceType,
+    })
+  }
 
   const positions = [...state.positions]
   const tireCal = state.calibration.tires
