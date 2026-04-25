@@ -21,6 +21,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 90, frustration: 10, confidence: 88 },
     contract: { salary: 30_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Win', value: 500_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'piastri', firstName: 'Oscar', lastName: 'Piastri', shortName: 'PIA',
@@ -29,6 +30,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 88, frustration: 8, confidence: 85 },
     contract: { salary: 15_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Podium', value: 200_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Red Bull ---
   {
@@ -38,6 +40,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 85, frustration: 15, confidence: 95 },
     contract: { salary: 55_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'WDC', value: 10_000_000 }], releaseClause: 200_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'hadjar', firstName: 'Isack', lastName: 'Hadjar', shortName: 'HAD',
@@ -46,6 +49,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 95, frustration: 5, confidence: 70 },
     contract: { salary: 2_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 10_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Ferrari ---
   {
@@ -55,6 +59,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 92, frustration: 12, confidence: 86 },
     contract: { salary: 40_000_000, termEndSeason: 4, performanceBonuses: [{ condition: 'Win', value: 1_000_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'hamilton', firstName: 'Lewis', lastName: 'Hamilton', shortName: 'HAM',
@@ -63,6 +68,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 82, frustration: 18, confidence: 80 },
     contract: { salary: 50_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'WDC', value: 15_000_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 32, declineRate: 1.2, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Mercedes ---
   {
@@ -72,6 +78,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 88, frustration: 15, confidence: 82 },
     contract: { salary: 25_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Podium', value: 300_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'antonelli', firstName: 'Kimi', lastName: 'Antonelli', shortName: 'ANT',
@@ -80,6 +87,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 95, frustration: 8, confidence: 72 },
     contract: { salary: 3_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 15_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Williams ---
   {
@@ -89,6 +97,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 80, frustration: 20, confidence: 75 },
     contract: { salary: 10_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: 20_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'sainz', firstName: 'Carlos', lastName: 'Sainz', shortName: 'SAI',
@@ -97,6 +106,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 78, frustration: 22, confidence: 78 },
     contract: { salary: 18_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Podium', value: 500_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.6, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Racing Bulls ---
   {
@@ -106,6 +116,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 88, frustration: 10, confidence: 78 },
     contract: { salary: 4_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: 12_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'lindblad', firstName: 'Arvid', lastName: 'Lindblad', shortName: 'LIN',
@@ -114,6 +125,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 96, frustration: 5, confidence: 68 },
     contract: { salary: 1_500_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 8_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Aston Martin ---
   {
@@ -123,6 +135,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 75, frustration: 25, confidence: 82 },
     contract: { salary: 20_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Podium', value: 500_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.5, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'stroll', firstName: 'Lance', lastName: 'Stroll', shortName: 'STR',
@@ -131,6 +144,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 68, frustration: 30, confidence: 65 },
     contract: { salary: 10_000_000, termEndSeason: 4, performanceBonuses: [], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Haas ---
   {
@@ -140,6 +154,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 72, frustration: 28, confidence: 70 },
     contract: { salary: 8_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: 15_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'bearman', firstName: 'Oliver', lastName: 'Bearman', shortName: 'BEA',
@@ -148,6 +163,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 92, frustration: 8, confidence: 72 },
     contract: { salary: 2_500_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 10_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Alpine ---
   {
@@ -157,6 +173,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 74, frustration: 25, confidence: 72 },
     contract: { salary: 12_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: 20_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'colapinto', firstName: 'Franco', lastName: 'Colapinto', shortName: 'COL',
@@ -165,6 +182,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 90, frustration: 10, confidence: 72 },
     contract: { salary: 2_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 8_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Cadillac ---
   {
@@ -174,6 +192,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 65, frustration: 30, confidence: 68 },
     contract: { salary: 8_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'perez', firstName: 'Sergio', lastName: 'Perez', shortName: 'PER',
@@ -182,6 +201,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 62, frustration: 35, confidence: 60 },
     contract: { salary: 10_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   // --- Audi ---
   {
@@ -191,6 +211,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 70, frustration: 25, confidence: 70 },
     contract: { salary: 6_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 0.8, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'bortoleto', firstName: 'Gabriel', lastName: 'Bortoleto', shortName: 'BOR',
@@ -199,6 +220,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 94, frustration: 6, confidence: 72 },
     contract: { salary: 2_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 10_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
 
   // === Reserve / F2 Drivers ===
@@ -209,6 +231,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 78, frustration: 20, confidence: 65 },
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: true, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'oward', firstName: 'Pato', lastName: "O'Ward", shortName: 'OWA',
@@ -217,6 +240,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 85, frustration: 15, confidence: 72 },
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: true, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'doohan', firstName: 'Jack', lastName: 'Doohan', shortName: 'DOO',
@@ -225,6 +249,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 80, frustration: 22, confidence: 62 },
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: true, isF2: false,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'maini', firstName: 'Kush', lastName: 'Maini', shortName: 'MAI',
@@ -233,6 +258,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 82, frustration: 15, confidence: 62 },
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: false, isF2: true,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'aron', firstName: 'Paul', lastName: 'Aron', shortName: 'ARO',
@@ -241,6 +267,7 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 90, frustration: 10, confidence: 68 },
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: true,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
   {
     id: 'barnard', firstName: 'Zak', lastName: "O'Sullivan", shortName: 'OSU',
@@ -249,5 +276,6 @@ export const DRIVERS: DriverData[] = [
     mood: { motivation: 88, frustration: 12, confidence: 65 },
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: true,
+    penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
   },
 ]

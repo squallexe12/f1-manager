@@ -63,6 +63,10 @@ function makeDriver(id: string, frustration: number): Driver {
     declineRate: 1,
     form: [],
     lastRaceResult: null,
+    penaltyPoints: [],
+    warningsThisSeason: 0,
+    nextRaceGridDrop: 0,
+    banUntilRound: null,
   }
 }
 
