@@ -447,6 +447,33 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     }
   }
 
+  // Race-end fold: any pendingTimePenalties not yet served at a pit stop
+  // are added to cumulative time on the final lap. Re-sort positions and
+  // rewrite the final-lap LapResult.position values so the emitted data
+  // reflects post-penalty ordering.
+  for (const driverId of Object.keys(state.pendingTimePenalties)) {
+    const seconds = state.pendingTimePenalties[driverId]
+    if (seconds > 0) {
+      state.cumulativeTimes[driverId] = (state.cumulativeTimes[driverId] ?? 0) + seconds
+      state.pendingTimePenalties[driverId] = 0
+    }
+  }
+  const newPositions = [...state.positions].sort(
+    (a, b) => (state.cumulativeTimes[a] ?? 0) - (state.cumulativeTimes[b] ?? 0),
+  )
+  state.positions = newPositions
+
+  // Rewrite final-lap LapResult.position so consumers reading it see the
+  // post-penalty grid. Earlier laps stay as historical data.
+  const finalLapResults = allLapData[allLapData.length - 1]
+  if (finalLapResults) {
+    for (let i = 0; i < newPositions.length; i++) {
+      const driverId = newPositions[i]
+      const lr = finalLapResults.find((r) => r.driverId === driverId)
+      if (lr) lr.position = i + 1
+    }
+  }
+
   return {
     finalPositions: [...state.positions],
     lapData: allLapData,

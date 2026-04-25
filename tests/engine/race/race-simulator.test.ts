@@ -353,3 +353,138 @@ describe('race simulator', () => {
     expect(finalGap).toBeGreaterThan(15)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Race-end fold: pendingTimePenalties applied after the final lap
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a 2-driver RaceSetup where:
+ * - D1 starts P1, D2 starts P2.
+ * - D2 has a small but consistent pace advantage (~2s/lap via 'overtake' command).
+ * - D2 has very low racecraft/experience so every contested event results in
+ *   a fault investigation.
+ * - No pit stops for either driver, so any pending penalty cannot be served
+ *   during the race and MUST be applied at the race-end fold.
+ * - The race is 6 laps: over 6 laps D2 builds ~14s gap via pace advantage.
+ *   The penalty for a drive-through (collision-serious) is 20s, which EXCEEDS
+ *   the gap. So with the fold applied, D1 finishes P1.
+ * - Verified via seed-scan: seed=1 always produces a 20s penalty for D2
+ *   (collision-serious / drive-through), leaving D2 with a final gap of
+ *   ~14s BEFORE fold → D2 is P1. After fold (+20s to D2's cumulative) → D1 is P1.
+ */
+function makeRaceEndFoldSetup(): RaceSetup {
+  return {
+    drivers: [
+      {
+        id: 'd1',
+        car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+        attributes: { pace: 80, racecraft: 80, experience: 80, mentality: 80, marketability: 70, developmentPotential: 60 },
+      },
+      {
+        id: 'd2',
+        // Same car as d1 but higher pace attribute — only ~2s/lap faster, not 10s.
+        // Over 6 laps that is ~14s gap. Any ≥15s penalty flips positions.
+        car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+        // Extremely reckless: fault probability ~1.0 on every contested event.
+        attributes: { pace: 82, racecraft: 5, experience: 5, mentality: 80, marketability: 70, developmentPotential: 60 },
+      },
+    ],
+    circuit: {
+      id: 'test-fold',
+      name: 'Test Fold',
+      laps: 6,
+      tireWear: 'low',
+      overtakingDifficulty: 'high',
+      weatherVariability: 'low',
+      compounds: ['C2', 'C3', 'C4'],
+    },
+    strategies: [
+      { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+      // d2 always attacks — no planned stops so it can never serve a penalty at pit.
+      { driverId: 'd2', plannedStops: [], currentCommand: 'overtake' },
+    ],
+    weather: 'dry',
+    gridOrder: ['d1', 'd2'],
+    calibration: {
+      ...createFallbackProfile('test-fold'),
+      overtake: { overtakeModifier: 1.0, drsEffectiveness: 0.5 },
+    },
+  }
+}
+
+describe('simulateRace — race-end pendingTimePenalties fold', () => {
+  it('determinism replay: the same seed produces byte-identical results across two runs', () => {
+    // This is the strongest determinism test: full RaceResult deep-equality.
+    // The fold must not introduce any non-determinism.
+    const setup = makeRaceEndFoldSetup()
+    const SEED = 777
+    const result1 = simulateRace(setup, SEED)
+    const result2 = simulateRace(setup, SEED)
+
+    expect(result1.finalPositions).toEqual(result2.finalPositions)
+    expect(result1.incidents).toEqual(result2.incidents)
+    expect(result1.commentary).toEqual(result2.commentary)
+    expect(result1.fastestLap).toEqual(result2.fastestLap)
+    // Compare all lap data for complete byte-equality
+    expect(result1.lapData).toEqual(result2.lapData)
+  })
+
+  it('race-end fold: final-lap LapResult positions are consistent with finalPositions', () => {
+    // The fold rewrites the final-lap LapResult.position values to match the
+    // post-penalty cumulativeTimes ordering. This test verifies the invariant:
+    // the position slot for each driver in the last lap of lapData must be
+    // identical to their slot in finalPositions.
+    //
+    // Without the fold, this invariant is VIOLATED when a pending penalty exists:
+    //   - simulateLap on the final lap sets positions BEFORE penalty is applied
+    //   - simulateRace sets finalPositions = [...state.positions] also BEFORE fold
+    //   - so both agree but EXCLUDE the penalty (neither is rewritten)
+    // With the fold, BOTH are rewritten to include the penalty, preserving the
+    // invariant correctly.
+    //
+    // This test uses seed=1 which deterministically produces a 20s d2 penalty
+    // with a gap of ~14s → without fold both agree on wrong P1=d2, with fold
+    // both agree on correct P1=d1. The key assertion is the SYNC invariant;
+    // the position-flip test below tests the correctness direction.
+    const setup = makeRaceEndFoldSetup()
+    const SEED = 1
+
+    const result = simulateRace(setup, SEED)
+
+    const finalLap = result.lapData[result.lapData.length - 1]
+    const finalLapByPos: string[] = new Array(result.finalPositions.length)
+    for (const lr of finalLap) {
+      finalLapByPos[lr.position - 1] = lr.driverId
+    }
+
+    // Both finalPositions and the final-lap LapResult positions must agree.
+    expect(finalLapByPos).toEqual(result.finalPositions)
+  })
+
+  it('race-end fold: d2 drops from P1 to P2 when a 20s pending penalty exceeds their ~14s gap advantage', () => {
+    // Verified setup (seed=1, 6 laps):
+    //   - D2 builds ~14s cumulative gap over D1 via 'overtake' command pace boost.
+    //   - D2 incurs a 20s drive-through penalty on lap 4 (collision-serious).
+    //   - No pits, so the penalty stays in pendingTimePenalties until race end.
+    //   - WITHOUT fold: D2's cumulativeTimes does NOT include the +20s → D2 is P1.
+    //   - WITH fold: +20s is added → D2's adjusted total exceeds D1's → D1 is P1.
+    //
+    // This test FAILS before the fold is implemented and PASSES after.
+    const setup = makeRaceEndFoldSetup()
+    const SEED = 1
+
+    const result = simulateRace(setup, SEED)
+
+    // Confirm d2 got a penalty-issued incident (validates setup is working)
+    const d2PenaltyIssued = result.incidents.some(
+      inc => inc.type === 'penalty-issued' && inc.driverIds.includes('d2'),
+    )
+    expect(d2PenaltyIssued).toBe(true)
+
+    // With the fold: the 20s penalty (> 14s gap) must push d2 behind d1.
+    // D1 should be P1, D2 should be P2.
+    expect(result.finalPositions[0]).toBe('d1')
+    expect(result.finalPositions[1]).toBe('d2')
+  })
+})
