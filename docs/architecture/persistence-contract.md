@@ -1,7 +1,7 @@
 # Persistence Contract
 
 **Frozen:** 2026-04-13 (IP-05)
-**Last updated:** 2026-04-24 (Factory redesign — schema v7, expands PU allocation to 5 elements with `mgu-k`; MGU-H removed per 2026 regulations)
+**Last updated:** 2026-04-25 (IP-09 Penalty System Tier A — schema v8, adds four persisted driver fields for in-race penalty engine)
 **Status:** Active
 
 This document is the contract for what the game persists, what it does not, how autosave behaves, and how schema versions evolve. It is paired with the runtime code in `src/engine/core/save-system.ts`, `src/stores/persistence-setup.ts`, and `src/hooks/use-save-game.ts`.
@@ -68,14 +68,15 @@ Autosave uses the dedicated `AUTO_SAVE_SLOT` slot id (`'auto-save'`). Manual sav
 `SaveSystem` declares `SCHEMA_VERSION` in `src/engine/core/save-system.ts`. Every `SaveRecord` written includes the version that produced it.
 
 ### Current state
-- `SCHEMA_VERSION = 7`
-- `MIGRATIONS = { 1: v1→v2, 2: v2→v3, 3: v3→v4, 4: v4→v5, 5: v5→v6, 6: v6→v7 }`
+- `SCHEMA_VERSION = 8`
+- `MIGRATIONS = { 1: v1→v2, 2: v2→v3, 3: v3→v4, 4: v4→v5, 5: v5→v6, 6: v6→v7, 7: v7→v8 }`
   - v1→v2 adds `recommendations: []` and `stagedStrategies: {}` to `FullGameState` (IP-08). Both are repopulated on the next `processManagementEntry()` so legacy saves remain playable.
   - v2→v3 hydrates Paddock hero fields introduced by the Paddock redesign. On each `team`: `previousConstructorPosition` ← 0, `previousMorale` ← current `morale`, `seasonForm` ← `[]`, and every `staff[*].contractEndSeason` ← `gameState.season + 3`. On each `driver`: `form` ← `[]`, `lastRaceResult` ← `null`, `seasonStats.poles` ← 0. First-round trend deltas render as zero; subsequent rounds populate from `processPostRace()`.
   - v3→v4 adds `lastProcessedRound: 0` idempotency markers on every `team` and `driver.seasonStats`, and repairs corrupted stats on legacy saves. Any driver whose `podiums`, `wins`, or `points` exceeds the mathematical per-round ceiling (modern F1 points: 26 pts/race/driver, 44 pts/race/team) has `seasonStats` zeroed; the team's `constructorPoints`, `seasonForm`, and `previousConstructorPosition` are reset in sync. Uncorrupted saves are left untouched.
   - v4→v5 adds `team.headquarters: string` — the factory city surfaced on the Factory page header. Existing saves back-fill from a canonical 2026-grid map keyed by `team.id` (McLaren → Woking, Red Bull → Milton Keynes, etc.); unknown ids fall back to the team's `shortName` so the property is always a non-empty string. No runtime behaviour changes — purely additive.
   - v5→v6 adds `team.ovrHistory: number[]` (rolling OVR rating window, capped at `OVR_HISTORY_WINDOW` = 12 entries) and `team.lastUpgradeRound: number` (round of the most recent R&D completion, 0 when none). Both default to empty/zero on migration; existing values are preserved when present. `processPostRace()` appends to `ovrHistory` under the same `lastProcessedRound` idempotency guard as `seasonForm`, and the orchestrator stamps `lastUpgradeRound` on any team whose `rndUpgrades` flip from non-complete to complete during `processManagementEntry`. Season-end (`processSeasonEnd()`) resets both back to empty/zero for every team.
   - v6→v7 expands `ComponentAllocation.element` from 4 values to 5 by adding `'mgu-k'`. For every team, the migration inserts the element if missing in canonical order (ICE → TURBO → MGU-K → ERS BATTERY → GEARBOX) with a default `{ used: 0, limit: 4, failureProbability: 0.03 }` row. Any legacy `'mgu-h'` row from a pre-release v7 development save is dropped (MGU-H was removed by the 2026 regulation — see CLAUDE.md §7). Existing canonical rows are preserved verbatim; a save that already carries all five rows is a no-op.
+  - v7→v8 adds four persisted driver fields for the IP-09 Penalty System Tier A. On every `driver`: `penaltyPoints` ← `[]` (rolling 22-round window of issued super-licence points; each entry is a `PenaltyPointEntry`), `warningsThisSeason` ← `0` (driving-warnings counter, resets at season end and on threshold consumption), `nextRaceGridDrop` ← `0` (one-shot grid-position drop consumed by qualifying, 0 when none pending), `banUntilRound` ← `null` (null when not banned). Existing driver fields are preserved verbatim. Race-side penalty state (`pendingInvestigations`, `pendingTimePenalties`, `appliedPenaltiesByDriver`) is transient — it lives exclusively in the worker's `SimRaceState` and is never written to IndexedDB. `RaceResult.appliedPenalties` flows through `lastRaceResults` (transient, session-scoped) and is consumed by `processPostRace()` to update the four persisted fields above.
 
 ### On load
 `loadFromSlot(slotId)` calls `migrateToCurrent(data, record.schemaVersion ?? 1)` before returning. For v1 saves this is a pass-through. If a save claims a newer version than the runtime knows, `migrateToCurrent` throws — the UI should surface this as an unsupported save rather than attempt to load.

@@ -7,7 +7,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -206,6 +206,22 @@ export const MIGRATIONS: Record<number, Migration> = {
     teams: data.teams.map((team) => ({
       ...team,
       components: ensureCanonicalElements(team.components ?? []),
+    })),
+  }),
+  /**
+   * v7 → v8 (IP-09 Penalty System Tier A): Adds the four persisted driver
+   * fields used by the in-race penalty engine. All defaults are "blank
+   * career" — no penalty points, no season warnings, no pending grid
+   * drop, not banned. Existing fields are preserved verbatim.
+   */
+  7: (data) => ({
+    ...data,
+    drivers: data.drivers.map((d) => ({
+      ...d,
+      penaltyPoints: d.penaltyPoints ?? [],
+      warningsThisSeason: d.warningsThisSeason ?? 0,
+      nextRaceGridDrop: d.nextRaceGridDrop ?? 0,
+      banUntilRound: d.banUntilRound ?? null,
     })),
   }),
   3: (data) => {

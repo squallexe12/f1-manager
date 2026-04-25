@@ -587,6 +587,53 @@ describe('SaveSystem v6 → v7 5-element PU migration', () => {
   })
 })
 
+describe('v7 → v8 migration (Penalty System Tier A)', () => {
+  it('back-fills the four new driver fields with default values', () => {
+    const v7State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 7 },
+      teams: [],
+      drivers: [{
+        id: 'd1',
+        firstName: 'Test',
+        lastName: 'Driver',
+        seasonStats: { points: 0, wins: 0, podiums: 0, poles: 0, dnfs: 0, penalties: 0, bestFinish: 0, averageFinish: 0, lastProcessedRound: 0 },
+      }],
+    }
+    const { data } = migrateToCurrent(v7State as any, 7)
+    expect(data.drivers[0].penaltyPoints).toEqual([])
+    expect(data.drivers[0].warningsThisSeason).toBe(0)
+    expect(data.drivers[0].nextRaceGridDrop).toBe(0)
+    expect(data.drivers[0].banUntilRound).toBeNull()
+  })
+
+  it('is idempotent — running twice yields the same result', () => {
+    const v7State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 7 },
+      teams: [],
+      drivers: [{ id: 'd1', seasonStats: {} }],
+    }
+    const once = migrateToCurrent(v7State as any, 7).data
+    const twice = migrateToCurrent(once, SCHEMA_VERSION).data
+    expect(twice).toEqual(once)
+  })
+
+  it('preserves existing driver fields untouched', () => {
+    const v7State = {
+      gameState: { season: 2, currentRound: 10, schemaVersion: 7 },
+      teams: [],
+      drivers: [{
+        id: 'd1', firstName: 'Existing', lastName: 'Field',
+        form: [3, 5, 2], lastRaceResult: 4,
+        seasonStats: { points: 50, wins: 0, podiums: 1, poles: 0, dnfs: 0, penalties: 0, bestFinish: 3, averageFinish: 3.5, lastProcessedRound: 9 },
+      }],
+    }
+    const { data } = migrateToCurrent(v7State as any, 7)
+    expect(data.drivers[0].firstName).toBe('Existing')
+    expect(data.drivers[0].form).toEqual([3, 5, 2])
+    expect(data.drivers[0].seasonStats.points).toBe(50)
+  })
+})
+
 describe('SaveSystem auto-rewrite on migration', () => {
   it('rewrites a migrated save back at the current schema version', async () => {
     // Stub a migration from a hypothetical older version (0 → 1) by temporarily
