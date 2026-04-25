@@ -3,6 +3,7 @@ import type { Driver } from '@/types/driver'
 import type { FinanceState } from '@/types/finance'
 import type { NarrativeEvent, EventConsequence } from '@/types/narrative'
 import type { PRNG } from '@/engine/core/prng'
+import type { AppliedPenalty } from '@/types/race'
 import { updateMood, type MoodEvent } from '@/engine/drivers/mood-system'
 import { pushForm, pushOvrSample, FORM_DNF } from '@/engine/drivers/form-history'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
@@ -27,6 +28,14 @@ export interface RaceResult {
   position: number
   dnf: boolean
   fastestLap: boolean
+  /**
+   * Penalties applied to this driver during the race, sourced from the
+   * worker's appliedPenaltiesByDriver map and joined per-driver by the
+   * main thread before submitRaceResults is called. Empty array if no
+   * penalties were applied. Default to [] when omitted by callers built
+   * before Tier A.
+   */
+  appliedPenalties?: AppliedPenalty[]
 }
 
 export interface PostRaceUpdate {
