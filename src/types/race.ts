@@ -1,5 +1,5 @@
 import type { CarPerformance } from '@/types/team'
-import type { DriverAttributes } from '@/types/driver'
+import type { DriverAttributes, Mood } from '@/types/driver'
 import type { CalibrationProfile } from '@/types/calibration'
 
 export type TireCompound = 'C1' | 'C2' | 'C3' | 'C4' | 'C5'
@@ -184,6 +184,12 @@ export interface BootstrapDriverInput {
   id: string
   teamId: string
   attributes: DriverAttributes
+  /**
+   * Driver mood at race start. Drives in-race fault probability via the
+   * frustration term in `evaluateContestedEvent`. Required since IP-09
+   * mood-pipe wiring; transient race state (does not feed back to world).
+   */
+  mood: Mood
   car: CarPerformance
   teamColor?: string
 }

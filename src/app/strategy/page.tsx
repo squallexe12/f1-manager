@@ -224,6 +224,7 @@ export default function StrategyPage() {
           teamId: d.teamId ?? '',
           attributes: d.attributes,
           car: dTeam.car,
+          mood: d.mood,
         }
       }),
       strategies: orderedDrivers

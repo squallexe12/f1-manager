@@ -13,6 +13,7 @@ function makeDriver(id: string, overrides: Partial<RaceDriver['attributes']> = {
       marketability: 50, developmentPotential: 50,
       ...overrides,
     },
+    mood: { motivation: 50, frustration: 30, confidence: 60 },
   }
 }
 

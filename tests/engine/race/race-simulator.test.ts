@@ -5,11 +5,12 @@ import type { TireCompound, RaceStrategy } from '@/types/race'
 import { createFallbackProfile } from '@/types/calibration'
 
 function mockDrivers() {
+  const mood = { motivation: 50, frustration: 30, confidence: 60 }
   return [
-    { id: 'd1', car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 }, attributes: { pace: 85, racecraft: 80, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 } },
-    { id: 'd2', car: { downforce: 78, straightSpeed: 78, reliability: 78, tireManagement: 78, braking: 78, cornering: 78 }, attributes: { pace: 80, racecraft: 78, experience: 70, mentality: 75, marketability: 65, developmentPotential: 70 } },
-    { id: 'd3', car: { downforce: 75, straightSpeed: 82, reliability: 75, tireManagement: 75, braking: 75, cornering: 75 }, attributes: { pace: 78, racecraft: 82, experience: 80, mentality: 78, marketability: 60, developmentPotential: 40 } },
-    { id: 'd4', car: { downforce: 72, straightSpeed: 72, reliability: 85, tireManagement: 72, braking: 72, cornering: 72 }, attributes: { pace: 72, racecraft: 70, experience: 60, mentality: 70, marketability: 55, developmentPotential: 85 } },
+    { id: 'd1', car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 }, attributes: { pace: 85, racecraft: 80, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 }, mood: { ...mood } },
+    { id: 'd2', car: { downforce: 78, straightSpeed: 78, reliability: 78, tireManagement: 78, braking: 78, cornering: 78 }, attributes: { pace: 80, racecraft: 78, experience: 70, mentality: 75, marketability: 65, developmentPotential: 70 }, mood: { ...mood } },
+    { id: 'd3', car: { downforce: 75, straightSpeed: 82, reliability: 75, tireManagement: 75, braking: 75, cornering: 75 }, attributes: { pace: 78, racecraft: 82, experience: 80, mentality: 78, marketability: 60, developmentPotential: 40 }, mood: { ...mood } },
+    { id: 'd4', car: { downforce: 72, straightSpeed: 72, reliability: 85, tireManagement: 72, braking: 72, cornering: 72 }, attributes: { pace: 72, racecraft: 70, experience: 60, mentality: 70, marketability: 55, developmentPotential: 85 }, mood: { ...mood } },
   ]
 }
 
@@ -288,11 +289,13 @@ describe('race simulator', () => {
         id: 'd1',
         car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 },
         attributes: { pace: 80, racecraft: 80, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 },
+        mood: { motivation: 50, frustration: 30, confidence: 60 },
       },
       {
         id: 'd2',
         car: { downforce: 90, straightSpeed: 90, reliability: 90, tireManagement: 90, braking: 90, cornering: 90 },
         attributes: { pace: 90, racecraft: 30, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+        mood: { motivation: 50, frustration: 30, confidence: 60 },
       },
     ]
     state.positions = ['d1', 'd2']
@@ -380,6 +383,7 @@ function makeRaceEndFoldSetup(): RaceSetup {
         id: 'd1',
         car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
         attributes: { pace: 80, racecraft: 80, experience: 80, mentality: 80, marketability: 70, developmentPotential: 60 },
+        mood: { motivation: 50, frustration: 30, confidence: 60 },
       },
       {
         id: 'd2',
@@ -388,6 +392,7 @@ function makeRaceEndFoldSetup(): RaceSetup {
         car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
         // Extremely reckless: fault probability ~1.0 on every contested event.
         attributes: { pace: 82, racecraft: 5, experience: 5, mentality: 80, marketability: 70, developmentPotential: 60 },
+        mood: { motivation: 50, frustration: 30, confidence: 60 },
       },
     ],
     circuit: {

@@ -51,6 +51,7 @@ function makeDriverPool(count: number): RaceDriver[] {
         downforce: 85, straightSpeed: 82, reliability: 88,
         tireManagement: 83, braking: 84, cornering: 85,
       },
+      mood: { motivation: 50, frustration: 30, confidence: 60 },
     })
   }
   return drivers

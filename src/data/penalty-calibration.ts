@@ -18,7 +18,7 @@ export interface PenaltyCalibration {
 }
 
 export const DEFAULT_PENALTY_CALIBRATION: PenaltyCalibration = {
-  faultThreshold: 0.55,
+  faultThreshold: 0.45,
   severityBands: { minor: 0.10, serious: 0.25, major: 0.40, egregious: 1.00 },
   investigationWindow: { minLaps: 1, maxLaps: 5 },
   sanctionMatrix: {

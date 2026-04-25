@@ -1,5 +1,5 @@
 import type { CarPerformance } from '@/types/team'
-import type { DriverAttributes } from '@/types/driver'
+import type { DriverAttributes, Mood } from '@/types/driver'
 import type {
   TireCompound, TireState, LapResult, RaceStrategy,
   DriverCommand, CommentaryEntry, RaceIncident, WeatherState, AppliedPenalty,
@@ -18,6 +18,13 @@ export interface RaceDriver {
   id: string
   car: CarPerformance
   attributes: DriverAttributes
+  /**
+   * Driver mood at race start, copied from `BootstrapDriverInput.mood`.
+   * Read by `evaluateContestedEvent` to compute the frustration component
+   * of fault scores. Worker-side only — not persisted, not mutated by the
+   * race loop.
+   */
+  mood: Mood
 }
 
 export interface SimRaceState {
@@ -317,12 +324,10 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       lapDelta,
       tireDelta: state.tireStates[behindId].wear - state.tireStates[aheadId].wear,
       circuit: { overtakingDifficulty: state.circuit.overtakingDifficulty },
-      // Mood is not currently in RaceDriver; default to neutral. This is a
-      // known gap — RaceDriver.attributes does not include mood. Future:
-      // pipe driver mood through BootstrapDriverInput. For v1, evaluate on
-      // observable race state only and rely on racecraft + experience.
-      attackerMood: { frustration: 50, confidence: 60 },
-      defenderMood: { frustration: 50, confidence: 60 },
+      // Mood is piped through BootstrapDriverInput → RaceDriver, so the
+      // frustration term in the fault formula now reflects real driver state.
+      attackerMood: { frustration: behindDriver2.mood.frustration, confidence: behindDriver2.mood.confidence },
+      defenderMood: { frustration: aheadDriver.mood.frustration, confidence: aheadDriver.mood.confidence },
       calibration: DEFAULT_PENALTY_CALIBRATION,
     }, rng)
     if (evaluation.decision) {

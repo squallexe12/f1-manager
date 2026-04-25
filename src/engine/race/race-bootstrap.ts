@@ -69,6 +69,7 @@ export function bootstrapRace(input: RaceBootstrapInput): RaceBootstrapOutput {
     id: d.id,
     car: { ...d.car },
     attributes: { ...d.attributes },
+    mood: { ...d.mood },
   }))
 
   const startCompounds: Record<string, TireCompound> = {}
