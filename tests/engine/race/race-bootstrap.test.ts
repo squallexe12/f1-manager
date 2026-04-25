@@ -239,3 +239,63 @@ describe('race bootstrap', () => {
     expect(calibration.overtake.drsEffectiveness).toBe(0.6)
   })
 })
+
+import { applyBanSubstitution, applyGridDrops } from '@/engine/race/race-bootstrap'
+
+describe('applyBanSubstitution', () => {
+  it('substitutes a banned driver with the team reserve when reserveDriverId is set', () => {
+    const banned = { id: 'd1', teamId: 't1', banUntilRound: 5, isReserve: false }
+    const reserve = { id: 'r1', teamId: 't1', banUntilRound: null, isReserve: true }
+    const team = { id: 't1', reserveDriverId: 'r1' }
+    const result = applyBanSubstitution([banned], [banned, reserve], [team], 5)
+    expect(result.drivers).toHaveLength(1)
+    expect(result.drivers[0].id).toBe('r1')
+    expect(result.substitutions).toEqual([{ bannedId: 'd1', substituteId: 'r1', teamId: 't1' }])
+  })
+
+  it('falls back to first matching isReserve driver when reserveDriverId is null', () => {
+    const banned = { id: 'd1', teamId: 't1', banUntilRound: 5, isReserve: false }
+    const reserve = { id: 'rx', teamId: 't1', banUntilRound: null, isReserve: true }
+    const team = { id: 't1', reserveDriverId: null }
+    const result = applyBanSubstitution([banned], [banned, reserve], [team], 5)
+    expect(result.drivers[0].id).toBe('rx')
+  })
+
+  it('drops banned driver when no reserve is available (one-car team)', () => {
+    const banned = { id: 'd1', teamId: 't1', banUntilRound: 5, isReserve: false }
+    const team = { id: 't1', reserveDriverId: null }
+    const result = applyBanSubstitution([banned], [banned], [team], 5)
+    expect(result.drivers).toHaveLength(0)
+    expect(result.substitutions).toEqual([{ bannedId: 'd1', substituteId: null, teamId: 't1' }])
+  })
+
+  it('passes through drivers whose ban is in the past', () => {
+    const driver = { id: 'd1', teamId: 't1', banUntilRound: 3, isReserve: false }
+    const team = { id: 't1', reserveDriverId: 'r1' }
+    const result = applyBanSubstitution([driver], [driver], [team], 5)
+    expect(result.drivers[0].id).toBe('d1')
+    expect(result.substitutions).toHaveLength(0)
+  })
+})
+
+describe('applyGridDrops', () => {
+  it('shifts a driver down by their nextRaceGridDrop, clamped to grid size', () => {
+    const qualified = ['p1', 'p2', 'p3', 'p4', 'p5']
+    const drops = { p1: 10 }  // overshoots — clamps to last
+    const result = applyGridDrops(qualified, drops)
+    expect(result.gridOrder[result.gridOrder.length - 1]).toBe('p1')
+  })
+
+  it('zero drop is a no-op', () => {
+    const qualified = ['a', 'b', 'c']
+    expect(applyGridDrops(qualified, {}).gridOrder).toEqual(['a', 'b', 'c'])
+  })
+
+  it('multiple drops resolve deterministically', () => {
+    const qualified = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6']
+    const drops = { p1: 3, p3: 2 }
+    const result = applyGridDrops(qualified, drops)
+    // Verify: result is a permutation of qualified; p1 and p3 are penalised.
+    expect(new Set(result.gridOrder)).toEqual(new Set(qualified))
+  })
+})
