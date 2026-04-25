@@ -20,6 +20,7 @@ import { PreRaceSetup } from '@/components/strategy/pre-race-setup'
 import { CircuitMap } from '@/components/strategy/circuit-map'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { RaceStartScreen } from '@/components/strategy/race-start-screen'
+import { StewardsCard } from '@/components/strategy/stewards-card'
 import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
@@ -341,6 +342,12 @@ export default function StrategyPage() {
     }
 
     // Live Race View — Redesigned engaging layout
+    // Build a quick id→shortName lookup for the Stewards card.
+    const driverShortNames: Record<string, string> = {}
+    for (const d of drivers) {
+      if (d.shortName) driverShortNames[d.id] = d.shortName
+    }
+
     const playerTireDrivers = playerDrivers.map(d => ({
       driverId: d.id,
       driverName: d.shortName,
@@ -445,6 +452,11 @@ export default function StrategyPage() {
             {raceSim.battles.length > 0 && (
               <BattleForecast battles={raceSim.battles} />
             )}
+            <StewardsCard
+              incidents={raceSim.incidents}
+              currentLap={raceSim.currentLap}
+              driverNames={driverShortNames}
+            />
             <CommentaryFeed entries={raceSim.commentary} />
           </div>
         </div>
