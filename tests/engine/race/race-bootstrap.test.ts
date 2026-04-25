@@ -299,3 +299,120 @@ describe('applyGridDrops', () => {
     expect(new Set(result.gridOrder)).toEqual(new Set(qualified))
   })
 })
+
+// ---------------------------------------------------------------------------
+// Integration: ban substitution → grid-drop pipeline
+// These tests mirror the sequence handleStartRace() in strategy/page.tsx uses:
+//   1. applyBanSubstitution → substituted lineup
+//   2. applyGridDrops → resolved grid order
+// ---------------------------------------------------------------------------
+
+describe('ban substitution + grid drop pipeline (handleStartRace integration)', () => {
+  /**
+   * Minimal driver shape that satisfies BanSubstitutionInput and also carries
+   * the fields the strategy page reads after substitution (nextRaceGridDrop).
+   */
+  function makeDriver(
+    id: string,
+    teamId: string,
+    opts: { banUntilRound?: number | null; isReserve?: boolean; nextRaceGridDrop?: number } = {},
+  ) {
+    return {
+      id,
+      teamId,
+      banUntilRound: opts.banUntilRound ?? null,
+      isReserve: opts.isReserve ?? false,
+      nextRaceGridDrop: opts.nextRaceGridDrop ?? 0,
+    }
+  }
+
+  it('banned driver is replaced by the team reserve in the resulting lineup', () => {
+    const d1 = makeDriver('d1', 't1', { banUntilRound: 3 })
+    const reserve = makeDriver('r1', 't1', { isReserve: true })
+    const d2 = makeDriver('d2', 't2')
+    const teams = [
+      { id: 't1', reserveDriverId: 'r1' },
+      { id: 't2', reserveDriverId: null },
+    ]
+    const lineup = [d1, d2]
+    const roster = [d1, d2, reserve]
+
+    const { drivers: substituted } = applyBanSubstitution(lineup, roster, teams, 3)
+
+    expect(substituted.map((d) => d.id)).not.toContain('d1')
+    expect(substituted.map((d) => d.id)).toContain('r1')
+    expect(substituted.map((d) => d.id)).toContain('d2')
+    expect(substituted).toHaveLength(2)
+  })
+
+  it('driver with nextRaceGridDrop > 0 ends up behind their qualifying position', () => {
+    // d1 qualified P1 but has a 3-place grid drop → should start P4 or later
+    const d1 = makeDriver('d1', 't1', { nextRaceGridDrop: 3 })
+    const d2 = makeDriver('d2', 't2')
+    const d3 = makeDriver('d3', 't3')
+    const d4 = makeDriver('d4', 't4')
+    const teams = [
+      { id: 't1', reserveDriverId: null },
+      { id: 't2', reserveDriverId: null },
+      { id: 't3', reserveDriverId: null },
+      { id: 't4', reserveDriverId: null },
+    ]
+    const lineup = [d1, d2, d3, d4] // qualifying order: d1 in P1
+    const roster = lineup
+
+    const { drivers: substituted } = applyBanSubstitution(lineup, roster, teams, 1)
+    const qualifyingOrder = substituted.map((d) => d.id)
+    const drops: Record<string, number> = {}
+    for (const d of substituted) {
+      if (d.nextRaceGridDrop > 0) drops[d.id] = d.nextRaceGridDrop
+    }
+    const { gridOrder } = applyGridDrops(qualifyingOrder, drops)
+
+    const d1GridPos = gridOrder.indexOf('d1')
+    expect(d1GridPos).toBeGreaterThanOrEqual(3) // dropped at least 3 places from P1 (0-indexed pos 0)
+  })
+
+  it('penalised driver IDs are collected for consumeGridDrops', () => {
+    // Simulate the exact pattern in handleStartRace: collect penalised IDs
+    const d1 = makeDriver('d1', 't1', { nextRaceGridDrop: 5 })
+    const d2 = makeDriver('d2', 't2', { nextRaceGridDrop: 0 })
+    const lineup = [d1, d2]
+
+    // Reproduce the gridDrops collection logic from handleStartRace
+    const gridDrops: Record<string, number> = {}
+    for (const d of lineup) {
+      if (d.nextRaceGridDrop > 0) gridDrops[d.id] = d.nextRaceGridDrop
+    }
+    const penalisedIds = Object.keys(gridDrops)
+
+    expect(penalisedIds).toContain('d1')
+    expect(penalisedIds).not.toContain('d2')
+    expect(penalisedIds).toHaveLength(1)
+  })
+
+  it('ban substitution then grid drop: no banned driver appears in the final grid order', () => {
+    const banned = makeDriver('banned', 't1', { banUntilRound: 5 })
+    const reserve = makeDriver('reserve', 't1', { isReserve: true, nextRaceGridDrop: 2 })
+    const d2 = makeDriver('d2', 't2')
+    const d3 = makeDriver('d3', 't3')
+    const teams = [
+      { id: 't1', reserveDriverId: 'reserve' },
+      { id: 't2', reserveDriverId: null },
+      { id: 't3', reserveDriverId: null },
+    ]
+    const lineup = [banned, d2, d3]
+    const roster = [banned, reserve, d2, d3]
+
+    const { drivers: substituted } = applyBanSubstitution(lineup, roster, teams, 5)
+    const qualifyingOrder = substituted.map((d) => d.id)
+    const drops: Record<string, number> = {}
+    for (const d of substituted) {
+      if (d.nextRaceGridDrop > 0) drops[d.id] = d.nextRaceGridDrop
+    }
+    const { gridOrder } = applyGridDrops(qualifyingOrder, drops)
+
+    expect(gridOrder).not.toContain('banned')
+    expect(gridOrder).toContain('reserve')
+    expect(new Set(gridOrder)).toEqual(new Set(substituted.map((d) => d.id)))
+  })
+})

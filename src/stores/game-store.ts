@@ -53,6 +53,13 @@ interface GameStore {
   resolveEvent: (eventId: string, optionId: string, consequences: EventConsequence[]) => void
   applyRecommendation: (recommendationId: string) => void
   dismissRecommendation: (recommendationId: string) => void
+  /**
+   * Consumes the one-shot nextRaceGridDrop on the listed drivers (sets it to 0).
+   * Called immediately before the race worker is started, after applyGridDrops
+   * has already baked the drops into the starting grid order. Each drop fires
+   * exactly once per race-start so the penalty is not double-applied on retry.
+   */
+  consumeGridDrops: (driverIds: string[]) => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -252,6 +259,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ),
       },
     })
+  },
+
+  consumeGridDrops: (driverIds) => {
+    const { world } = get()
+    if (!world || driverIds.length === 0) return
+    const idSet = new Set(driverIds)
+    const drivers = world.drivers.map((d) =>
+      idSet.has(d.id) && d.nextRaceGridDrop > 0
+        ? { ...d, nextRaceGridDrop: 0 }
+        : d,
+    )
+    set({ world: { ...world, drivers } })
   },
 
   applyRaceWorkerEvent: (event) => {

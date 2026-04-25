@@ -23,6 +23,7 @@ import { RaceStartScreen } from '@/components/strategy/race-start-screen'
 import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
+import { applyBanSubstitution, applyGridDrops } from '@/engine/race/race-bootstrap'
 
 // ─── GapChartRow ─────────────────────────────────────────────────────────────
 // Inline helper component — collapsible secondary row below the live race grid.
@@ -66,6 +67,7 @@ export default function StrategyPage() {
   const advancePhase = useGameStore((s) => s.advancePhase)
   const submitRaceResults = useGameStore((s) => s.submitRaceResults)
   const applyRecommendation = useGameStore((s) => s.applyRecommendation)
+  const consumeGridDrops = useGameStore((s) => s.consumeGridDrops)
   const [driverStrategies, setDriverStrategies] = useState<DriverStrategies>({})
   const [showGapChart, setShowGapChart] = useState(false)
 
@@ -172,14 +174,48 @@ export default function StrategyPage() {
   function handleStartRace() {
     if (!currentRace) return
 
-    const allDrivers = drivers.filter((d) => d.teamId && !d.isReserve && !d.isF2)
+    // All non-reserve, non-F2 drivers — the candidate lineup before substitutions.
+    const candidateDrivers = drivers.filter((d) => d.teamId && !d.isReserve && !d.isF2)
+
+    // Step 1: Substitute banned drivers with team reserves (§5.6 ban substitution).
+    // roster includes reserves so applyBanSubstitution can look them up.
+    // BanSubstitutionInput requires teamId: string. Both candidateDrivers and
+    // roster are filtered to truthy teamId, so the narrowing cast is safe at
+    // runtime. We preserve the full Driver shape through the generic so the
+    // returned drivers array carries Driver fields (attributes, nextRaceGridDrop,
+    // etc.) that we need in the steps below.
+    type DriverWithTeam = typeof candidateDrivers[number] & { teamId: string }
+    const roster = drivers.filter((d) => Boolean(d.teamId)) as DriverWithTeam[]
+    const { drivers: substitutedDrivers } = applyBanSubstitution(
+      candidateDrivers as DriverWithTeam[],
+      roster,
+      teams,
+      state.currentRound,
+    )
+
+    // Step 2: Apply grid-position drops — reorder the driver array so the
+    // worker's positions array (built from strategies order) reflects penalties.
+    const qualifyingOrder = substitutedDrivers.map((d) => d.id)
+    const gridDrops: Record<string, number> = {}
+    for (const d of substitutedDrivers) {
+      if (d.nextRaceGridDrop > 0) gridDrops[d.id] = d.nextRaceGridDrop
+    }
+    const { gridOrder } = applyGridDrops(qualifyingOrder, gridDrops)
+
+    // Reorder substitutedDrivers to match the resolved grid order.
+    const driverById = new Map(substitutedDrivers.map((d) => [d.id, d]))
+    const orderedDrivers = gridOrder.map((id) => driverById.get(id)!).filter(Boolean)
+
+    // Step 3: Consume nextRaceGridDrop on penalised drivers (one-shot, persisted).
+    const penalisedIds = Object.keys(gridDrops)
+    if (penalisedIds.length > 0) consumeGridDrops(penalisedIds)
 
     const payload: RaceWorkerStartPayload = {
       seed: state.seed,
       round: state.currentRound,
       circuit: currentRace.circuit,
       isSprint: currentRace.isSprint,
-      drivers: allDrivers.map((d) => {
+      drivers: orderedDrivers.map((d) => {
         const dTeam = teams.find((t) => t.id === d.teamId)!
         return {
           id: d.id,
@@ -188,7 +224,7 @@ export default function StrategyPage() {
           car: dTeam.car,
         }
       }),
-      strategies: allDrivers
+      strategies: orderedDrivers
         .filter((d) => driverStrategies[d.id] !== undefined)
         .map((d) => {
           const plan = driverStrategies[d.id]
