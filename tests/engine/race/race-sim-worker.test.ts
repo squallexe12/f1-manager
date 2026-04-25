@@ -286,3 +286,31 @@ describe('worker protocol — serialization round-trip (worker-safe payloads)', 
     }
   })
 })
+
+describe('raceEnd event JSON round-trip', () => {
+  it('a raceEnd event with appliedPenaltiesByDriver round-trips losslessly', () => {
+    const event = {
+      type: 'raceEnd' as const,
+      finalResults: [{
+        lap: 50, driverId: 'd1', lapTime: 90.5,
+        sector1: 30, sector2: 30, sector3: 30.5,
+        position: 1, gapToLeader: 0, gapToAhead: 0,
+        tire: { compound: 'C2' as const, label: 'medium' as const, wear: 50, lapsFitted: 25 },
+        pitted: false,
+      }],
+      fastestLap: { driverId: 'd1', time: 89.5 },
+      appliedPenaltiesByDriver: {
+        d1: [{
+          offenceType: 'collision-minor' as const,
+          sanction: '5s' as const,
+          timePenaltySeconds: 5,
+          penaltyPointsIssued: 1,
+          warningCounted: true,
+          raceLap: 12,
+        }],
+      },
+    }
+    const cloned = roundTrip(event)
+    expect(cloned).toEqual(event)
+  })
+})
