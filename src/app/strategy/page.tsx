@@ -21,6 +21,7 @@ import { CircuitMap } from '@/components/strategy/circuit-map'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { RaceStartScreen } from '@/components/strategy/race-start-screen'
 import { StewardsCard } from '@/components/strategy/stewards-card'
+import { StewardsDecisionsPanel } from '@/components/strategy/stewards-decisions-panel'
 import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
@@ -291,14 +292,28 @@ export default function StrategyPage() {
         })
       : []
 
+    // Build short-name lookup for the Stewards panel
+    const postRaceShortNames: Record<string, string> = {}
+    for (const d of drivers) {
+      if (d.shortName) postRaceShortNames[d.id] = d.shortName
+    }
+
     return (
       <PageShell theme="broadcast">
-        <PostRaceResults
-          results={results}
-          fastestLap={raceSim.fastestLap}
-          raceName={currentRace?.name ?? ''}
-          onContinue={handleReturnToPaddock}
-        />
+        <div className="flex flex-col gap-6">
+          <PostRaceResults
+            results={results}
+            fastestLap={raceSim.fastestLap}
+            raceName={currentRace?.name ?? ''}
+            onContinue={handleReturnToPaddock}
+          />
+          <StewardsDecisionsPanel
+            appliedByDriver={raceSim.appliedPenaltiesByDriver}
+            drivers={drivers}
+            driverShortNames={postRaceShortNames}
+            currentRound={state.currentRound}
+          />
+        </div>
       </PageShell>
     )
   }

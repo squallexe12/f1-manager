@@ -65,6 +65,7 @@ export interface RaceSimState {
   simSpeed: SimSpeed
   finalResults: LapResult[] | null
   fastestLap: { driverId: string; time: number } | null
+  appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>
   driverCommands: Record<string, DriverCommand>
   wearHistory: Record<string, number[]>
   compoundHistory: Record<string, TireCompound[]>
@@ -371,6 +372,7 @@ export function useRaceSimulation({
       simSpeed: runtime.simSpeed,
       finalResults: runtime.finalResults,
       fastestLap: runtime.fastestLap,
+      appliedPenaltiesByDriver: runtime.appliedPenaltiesByDriver,
       driverCommands: runtime.driverCommands,
       wearHistory: runtime.wearHistory,
       compoundHistory: runtime.compoundHistory,
