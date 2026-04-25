@@ -124,7 +124,7 @@ describe('evaluateContestedEvent', () => {
   })
 })
 
-import { openInvestigation, resolveInvestigations, type PendingInvestigation } from '@/engine/race/penalty-engine'
+import { openInvestigation, resolveInvestigations, type PendingInvestigation, selectSanction } from '@/engine/race/penalty-engine'
 
 describe('openInvestigation', () => {
   it('decideOnLap is currentLap + a value within [minLaps, maxLaps]', () => {
@@ -183,5 +183,31 @@ describe('resolveInvestigations', () => {
     const r = resolveInvestigations([], 10)
     expect(r.resolved).toHaveLength(0)
     expect(r.stillPending).toHaveLength(0)
+  })
+})
+
+describe('selectSanction', () => {
+  it('every (offence, severity) cell returns the matrix entry verbatim', () => {
+    const rng = createPRNG(1)
+    const offences = ['collision-minor', 'collision-serious', 'forcing-off', 'illegal-defending'] as const
+    const severities = ['minor', 'serious', 'major', 'egregious'] as const
+    for (const o of offences) {
+      for (const s of severities) {
+        const expected = DEFAULT_PENALTY_CALIBRATION.sanctionMatrix[o][s]
+        const result = selectSanction(s, o, DEFAULT_PENALTY_CALIBRATION, rng)
+        expect(result.sanction).toBe(expected.sanction)
+        expect(result.timePenaltySeconds).toBe(expected.timePenaltySeconds)
+        expect(result.penaltyPoints).toBe(expected.penaltyPoints)
+        expect(result.warningCounted).toBe(expected.warningCounted)
+      }
+    }
+  })
+
+  it('reprimand cell has zero seconds and zero points', () => {
+    const rng = createPRNG(1)
+    const r = selectSanction('minor', 'illegal-defending', DEFAULT_PENALTY_CALIBRATION, rng)
+    expect(r.sanction).toBe('reprimand')
+    expect(r.timePenaltySeconds).toBe(0)
+    expect(r.penaltyPoints).toBe(0)
   })
 })

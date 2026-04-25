@@ -1,4 +1,4 @@
-import type { OffenceType, SeverityTier, DriverCommand } from '@/types/race'
+import type { OffenceType, SeverityTier, DriverCommand, SanctionType } from '@/types/race'
 import type { PRNG } from '@/engine/core/prng'
 import type { RaceDriver } from './race-simulator'
 import type { PenaltyCalibration } from '@/data/penalty-calibration'
@@ -146,4 +146,24 @@ export function resolveInvestigations(
     else stillPending.push(inv)
   }
   return { resolved, stillPending }
+}
+
+export function selectSanction(
+  severity: SeverityTier,
+  offenceType: OffenceType,
+  calibration: PenaltyCalibration,
+  _rng: PRNG,
+): {
+  sanction: SanctionType
+  timePenaltySeconds: number
+  penaltyPoints: number
+  warningCounted: boolean
+} {
+  const cell = calibration.sanctionMatrix[offenceType][severity]
+  return {
+    sanction: cell.sanction,
+    timePenaltySeconds: cell.timePenaltySeconds,
+    penaltyPoints: cell.penaltyPoints,
+    warningCounted: cell.warningCounted,
+  }
 }
