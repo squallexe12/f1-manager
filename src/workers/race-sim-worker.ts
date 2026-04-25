@@ -47,19 +47,43 @@ function simulateNextLap(): void {
   if (!raceState || !rng || !weatherEngine || isPaused) return
 
   if (raceState.currentLap >= raceState.totalLaps) {
-    const lastResults = raceState.results[raceState.results.length - 1] ?? []
+    // Race-end fold: residual pendingTimePenalties → cumulativeTimes,
+    // re-sort positions, rewrite final-lap LapResult.position values.
+    // Capture into a const so TypeScript narrows through the sort callback.
+    const state = raceState
+    for (const driverId of Object.keys(state.pendingTimePenalties)) {
+      const seconds = state.pendingTimePenalties[driverId]
+      if (seconds > 0) {
+        state.cumulativeTimes[driverId] = (state.cumulativeTimes[driverId] ?? 0) + seconds
+        state.pendingTimePenalties[driverId] = 0
+      }
+    }
+    const newPositions = [...state.positions].sort(
+      (a, b) => (state.cumulativeTimes[a] ?? 0) - (state.cumulativeTimes[b] ?? 0),
+    )
+    state.positions = newPositions
+
+    const lastResults = state.results[state.results.length - 1] ?? []
+    for (let i = 0; i < newPositions.length; i++) {
+      const driverId = newPositions[i]
+      const lr = lastResults.find((r) => r.driverId === driverId)
+      if (lr) lr.position = i + 1
+    }
+
     let fastestLap = { driverId: '', time: Infinity }
-    for (const lapResults of raceState.results) {
+    for (const lapResults of state.results) {
       for (const result of lapResults) {
         if (result.lapTime < fastestLap.time) {
           fastestLap = { driverId: result.driverId, time: result.lapTime }
         }
       }
     }
+
     postEvent({
       type: 'raceEnd',
       finalResults: lastResults,
       fastestLap,
+      appliedPenaltiesByDriver: { ...state.appliedPenaltiesByDriver },
     })
     return
   }
