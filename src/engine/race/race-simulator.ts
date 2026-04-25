@@ -206,6 +206,12 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         scatter = z * pitLoss.stddevSeconds
       }
       lapTime += pitLoss.meanLossSeconds + scatter
+      // Apply any pending time penalty: served at this pit stop.
+      const pending = state.pendingTimePenalties[driverId] ?? 0
+      if (pending > 0) {
+        lapTime += pending
+        state.pendingTimePenalties[driverId] = 0
+      }
       pitted = true
       // Reset command back to standard after pitting
       strategy.currentCommand = 'standard'

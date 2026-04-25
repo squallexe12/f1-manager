@@ -229,6 +229,46 @@ describe('race simulator', () => {
     expect(state.cumulativeTimes.d2).toBeGreaterThan(state.cumulativeTimes.d1)
   })
 
+  it('pit branch consumes pendingTimePenalties and zeros the entry', () => {
+    const SEED = 42
+    const buildPitState = (): SimRaceState => {
+      const state = mockRaceState()
+      state.circuit.compounds = ['C2', 'C3', 'C4']
+      state.currentLap = 25
+      // d1 will pit this lap
+      state.strategies[0].plannedStops = [{ lap: 25, compound: 'C3' }]
+      state.strategies[0].currentCommand = 'standard'
+      // Use zero stddev so scatter is 0 and lap time differences are exact
+      state.calibration = {
+        ...state.calibration,
+        pitLoss: { meanLossSeconds: 22, stddevSeconds: 0, sampleCount: 1 },
+      }
+      return state
+    }
+
+    // Baseline: no pending penalty
+    const baseState = buildPitState()
+    baseState.pendingTimePenalties = {}
+    const baseResult = simulateLap(baseState, createPRNG(SEED))
+    const baseD1 = baseResult.lapResults.find(r => r.driverId === 'd1')!
+
+    // Penalty run: 5s pending for d1
+    const penState = buildPitState()
+    penState.pendingTimePenalties = { d1: 5 }
+    const penResult = simulateLap(penState, createPRNG(SEED))
+    const penD1 = penResult.lapResults.find(r => r.driverId === 'd1')!
+
+    // Both must have pitted
+    expect(baseD1.pitted).toBe(true)
+    expect(penD1.pitted).toBe(true)
+
+    // Penalty lap time must be exactly 5s more than baseline
+    expect(penD1.lapTime - baseD1.lapTime).toBeCloseTo(5, 4)
+
+    // Penalty entry must be zeroed after consumption
+    expect(penState.pendingTimePenalties['d1']).toBe(0)
+  })
+
   it('pit loss persists in gap-to-leader on subsequent non-pit laps', () => {
     // A pit stop on lap N must remain visible as accumulated time loss on
     // lap N+1, N+2, ... — otherwise the driver "continues as usual".
