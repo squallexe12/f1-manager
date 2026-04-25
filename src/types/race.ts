@@ -7,6 +7,32 @@ export type TireLabel = 'hard' | 'medium' | 'soft'
 export type WeatherState = 'dry' | 'damp' | 'wet'
 export type DriverCommand = 'push' | 'standard' | 'conserve' | 'overtake' | 'defend' | 'pit'
 
+export type OffenceType =
+  | 'collision-minor'
+  | 'collision-serious'
+  | 'forcing-off'
+  | 'illegal-defending'
+
+export type SanctionType =
+  | 'reprimand'
+  | 'fine'
+  | '5s'
+  | '10s'
+  | 'drive-through'
+  | 'stop-go'
+  | 'grid-drop'
+
+export type SeverityTier = 'minor' | 'serious' | 'major' | 'egregious'
+
+export interface AppliedPenalty {
+  offenceType: OffenceType
+  sanction: SanctionType
+  timePenaltySeconds: number
+  penaltyPointsIssued: number
+  warningCounted: boolean
+  raceLap: number
+}
+
 export interface Circuit {
   id: string
   name: string
@@ -97,9 +123,22 @@ export interface RaceState {
 
 export interface RaceIncident {
   lap: number
-  type: 'crash' | 'mechanical' | 'penalty' | 'safety-car' | 'weather-change'
+  type:
+    | 'crash'
+    | 'mechanical'
+    | 'safety-car'
+    | 'weather-change'
+    | 'investigation-opened'
+    | 'penalty-issued'
+    | 'investigation-closed'
   driverIds: string[]
   description: string
+  // optional payload for the new sub-types
+  investigationId?: string
+  sanction?: SanctionType
+  penaltyPointsIssued?: number
+  offenceType?: OffenceType
+  decideOnLap?: number
 }
 
 export interface CommentaryEntry {
@@ -221,7 +260,12 @@ export type WorkerOutEvent =
     }
   | { type: 'commentary'; entries: CommentaryEntry[] }
   | { type: 'incident'; incident: RaceIncident }
-  | { type: 'raceEnd'; finalResults: LapResult[]; fastestLap: { driverId: string; time: number } }
+  | {
+      type: 'raceEnd'
+      finalResults: LapResult[]
+      fastestLap: { driverId: string; time: number }
+      appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>
+    }
   | {
       type: 'error'
       code: WorkerErrorCode
