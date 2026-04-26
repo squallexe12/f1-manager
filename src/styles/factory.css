@@ -527,6 +527,73 @@
 }
 .pu-foot-cell .v.danger { color: var(--sig-red); }
 
+/* ─── Component Strategy sub-section (Phase 2 Task 12) ─── */
+.pu-strategy {
+  border-top: 1px solid var(--line-hair);
+  padding: 0 18px 14px;
+}
+.pu-strategy .fac-phead.flush {
+  padding-left: 0;
+  padding-right: 0;
+}
+.pu-strategy-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pu-swap-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-sub);
+  background: var(--bg-paper);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-hi);
+  text-transform: uppercase;
+  text-align: left;
+  transition: background 120ms, opacity 120ms, border-color 120ms;
+}
+.pu-swap-row .pk {
+  color: var(--ink-body);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.pu-swap-row .pv {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--ink-hi);
+  white-space: nowrap;
+}
+.pu-swap-row.warning {
+  border-color: var(--sig-amber);
+}
+.pu-swap-row.warning .pv {
+  color: var(--sig-amber);
+}
+.pu-swap-row.danger {
+  border-color: var(--sig-red);
+}
+.pu-swap-row.danger .pv {
+  color: var(--sig-red);
+}
+.pu-swap-row:hover:not(.elected):not(:disabled) {
+  background: var(--bg-raised);
+}
+.pu-swap-row.elected {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pu-swap-row.elected .pv {
+  color: var(--sig-green);
+}
+
 /* ─── Aero card ────────────────────────────────────────── */
 .aero-card { display: flex; flex-direction: column; position: relative; overflow: hidden; }
 .aero-hero-strip {

@@ -1,4 +1,5 @@
 import type { ComponentAllocation } from '@/types/team'
+import type { SwapRow } from '@/engine/engineering/component-strategy'
 
 interface PowerUnitCardProps {
   components: ComponentAllocation[]
@@ -6,12 +7,16 @@ interface PowerUnitCardProps {
   nextChangeRound?: number
   /** Element whose next change will happen soonest — TODO(Phase B) */
   nextChangeElement?: string
-  /** Penalties already taken this season — TODO(Phase B) */
+  /** Penalties already taken this season */
   penaltiesTaken: number
-  /** Projected grid-position loss if limits are exceeded — TODO(Phase B) */
+  /** Projected grid-position loss if limits are exceeded */
   projectedGridLoss: number
   /** Total races in the season, for header label */
   totalRaces: number
+  /** Phase 2 — render-ready rows for the Component Strategy sub-section. */
+  swapRows: SwapRow[]
+  /** Phase 2 — store action wired by the page. */
+  onElectSwap: (driverId: string, element: ComponentAllocation['element']) => void
 }
 
 const ELEMENT_LABELS: Record<string, string> = {
@@ -59,6 +64,8 @@ export function PowerUnitCard({
   penaltiesTaken,
   projectedGridLoss,
   totalRaces,
+  swapRows,
+  onElectSwap,
 }: PowerUnitCardProps) {
   const totalRemaining = components.reduce((acc, c) => acc + Math.max(0, c.limit - c.used), 0)
   const hasDanger = components.some((c) => c.used >= c.limit)
@@ -95,6 +102,36 @@ export function PowerUnitCard({
           <PuRow key={c.element} {...c} />
         ))}
       </div>
+      {swapRows.length > 0 && (
+        <div className="pu-strategy">
+          <div className="fac-phead flush">
+            <div className="t">Component Strategy</div>
+            <div className="s">PRE-WEEKEND ELECTIONS</div>
+          </div>
+          <div className="pu-strategy-rows">
+            {swapRows.map((row) => (
+              <button
+                key={`${row.driverId}-${row.element}`}
+                type="button"
+                className={`pu-swap-row ${row.band}${row.elected ? ' elected' : ''}`}
+                onClick={() => onElectSwap(row.driverId, row.element)}
+                disabled={row.elected}
+              >
+                <span className="pk">
+                  {row.driverShortName} · {(ELEMENT_LABELS[row.element] ?? row.element.toUpperCase())} · {row.used}/{row.limit} USED
+                </span>
+                <span className="pv">
+                  {row.elected
+                    ? 'ELECTED'
+                    : row.band === 'danger'
+                      ? `INTRODUCE NEW · −${row.projectedPenalty} PL`
+                      : 'INTRODUCE NEW · FREE'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="pu-foot">
         <div className="pu-foot-cell">
           <span className="k">Penalties Taken</span>
