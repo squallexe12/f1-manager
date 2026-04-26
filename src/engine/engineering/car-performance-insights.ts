@@ -48,6 +48,12 @@ export function deltaVsLeaderFromHistory(teams: Team[], playerTeamId: string): n
 }
 
 const MIN_FAILURE_EVENTS = 2
+// Cross-round gap proxy: when adjacent failures span different rounds, we
+// don't yet know how many laps elapsed in between. 50 laps is a reasonable
+// approximation for an average GP. This becomes load-bearing once a future
+// phase wires `checkMechanicalFailure` into the simulator — at that point
+// consider deriving the proxy from `circuit.totalLaps` (already in
+// calibration data) instead of the constant below.
 const CROSS_ROUND_GAP_PROXY_LAPS = 50
 
 /**
