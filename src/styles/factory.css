@@ -593,6 +593,12 @@
 .pu-swap-row.elected .pv {
   color: var(--sig-green);
 }
+.pu-swap-row:focus-visible {
+  outline: 1px solid var(--sig-cyan);
+  outline-offset: 2px;
+}
+.pu-swap-row.warning:focus-visible { outline-color: var(--sig-amber); }
+.pu-swap-row.danger:focus-visible  { outline-color: var(--sig-red); }
 
 /* ─── Aero card ────────────────────────────────────────── */
 .aero-card { display: flex; flex-direction: column; position: relative; overflow: hidden; }
