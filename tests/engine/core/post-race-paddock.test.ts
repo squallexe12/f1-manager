@@ -20,7 +20,7 @@ describe('processPostRace — idempotency guard', () => {
 
     const firstPass = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false, 1,
+      [], {}, results, null, false, 1,
       world.gameState.season,
       'mclaren', createPRNG(5),
     )
@@ -29,7 +29,7 @@ describe('processPostRace — idempotency guard', () => {
     const secondPass = processPostRace(
       firstPass.teams, firstPass.drivers, firstPass.finance,
       firstPass.narrativeEvents, firstPass.eventCooldowns,
-      results, false, 1,
+      results, null, false, 1,
       world.gameState.season,
       'mclaren', createPRNG(5),
     )
@@ -63,7 +63,7 @@ describe('processPostRace — Paddock hero fields', () => {
 
     const update = processPostRace(
       preTeams, world.drivers, world.finance,
-      [], {}, results, false, 2,
+      [], {}, results, null, false, 2,
       world.gameState.season,
       'mclaren',
       createPRNG(7),
@@ -84,7 +84,7 @@ describe('processPostRace — Paddock hero fields', () => {
 
     const update = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false, 1,
+      [], {}, results, null, false, 1,
       world.gameState.season,
       'mclaren',
       createPRNG(1),
@@ -112,7 +112,7 @@ describe('processPostRace — Paddock hero fields', () => {
 
     const update = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false, 1,
+      [], {}, results, null, false, 1,
       world.gameState.season,
       'mclaren',
       createPRNG(3),
@@ -144,7 +144,7 @@ describe('processPostRace — Paddock hero fields', () => {
     for (let round = 1; round <= FORM_WINDOW + 3; round++) {
       const results: RaceResult[] = activeIds.map((id, i) => dummyResult(id, i + 1))
       const out = processPostRace(
-        teams, drivers, finance, [], {}, results, false, round,
+        teams, drivers, finance, [], {}, results, null, false, round,
         world.gameState.season,
         'mclaren', createPRNG(round),
       )
@@ -170,7 +170,7 @@ describe('processPostRace — Factory OVR history', () => {
 
     const update = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false, 1,
+      [], {}, results, null, false, 1,
       world.gameState.season,
       'mclaren',
       createPRNG(3),
@@ -190,11 +190,11 @@ describe('processPostRace — Factory OVR history', () => {
 
     const first = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false, 1, world.gameState.season, 'mclaren', createPRNG(3),
+      [], {}, results, null, false, 1, world.gameState.season, 'mclaren', createPRNG(3),
     )
     const second = processPostRace(
       first.teams, first.drivers, first.finance,
-      first.narrativeEvents, first.eventCooldowns, results, false, 1, world.gameState.season, 'mclaren', createPRNG(3),
+      first.narrativeEvents, first.eventCooldowns, results, null, false, 1, world.gameState.season, 'mclaren', createPRNG(3),
     )
 
     const firstTeam = first.teams.find(t => t.id === 'mclaren')!
@@ -217,7 +217,7 @@ describe('processPostRace — Factory OVR history', () => {
     for (let round = 1; round <= OVR_HISTORY_WINDOW + 3; round++) {
       const out = processPostRace(
         teams, drivers, finance,
-        [], {}, baseResults, false, round, world2.gameState.season, 'mclaren', createPRNG(round),
+        [], {}, baseResults, null, false, round, world2.gameState.season, 'mclaren', createPRNG(round),
       )
       teams = out.teams
       drivers = out.drivers

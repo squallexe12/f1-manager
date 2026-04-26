@@ -58,12 +58,17 @@ export function processPostRace(
   narrativeEvents: NarrativeEvent[],
   eventCooldowns: Record<string, number>,
   results: RaceResult[],
+  fastestLap: { driverId: string; time: number } | null,
   isSprint: boolean,
   currentRound: number,
   currentSeason: number,
   playerTeamId: string,
   rng: PRNG,
 ): PostRaceUpdate {
+  // `fastestLap` is the absolute race-wide fastest lap from the worker
+  // (`runtime.fastestLap`). Plumbed in for Box 1 fastestLapHistory append in
+  // Task 7. Phase 1 Task 6 — mechanical plumbing only, no behavior change.
+  void fastestLap
   const pointsTable = isSprint ? SPRINT_POINTS : RACE_POINTS
 
   // Clear any ban whose suspended round equals currentRound — that race has

@@ -43,7 +43,11 @@ interface GameStore {
   // Actions — world
   initGame: (teamId: string, scenario: ScenarioType, seed?: number) => void
   advancePhase: () => void
-  submitRaceResults: (results: RaceResult[], isSprint: boolean) => void
+  submitRaceResults: (
+    results: RaceResult[],
+    fastestLap: { driverId: string; time: number } | null,
+    isSprint: boolean,
+  ) => void
   processSeasonEnd: () => void
   allocateRnD: (upgradeId: string) => void
   pauseRnD: (upgradeId: string) => void
@@ -162,10 +166,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  submitRaceResults: (results, isSprint) => {
+  submitRaceResults: (results, fastestLap, isSprint) => {
     const { world, eventCooldowns } = get()
     if (!world) return
-    const update = processPostRacePhase(world, eventCooldowns, results, isSprint)
+    const update = processPostRacePhase(world, eventCooldowns, results, fastestLap, isSprint)
     set({ world: update.world, eventCooldowns: update.eventCooldowns, lastRaceResults: results })
   },
 
