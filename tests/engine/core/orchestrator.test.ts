@@ -296,3 +296,78 @@ describe('orchestrator — Factory lastUpgradeRound stamping', () => {
     expect(ferrari.lastUpgradeRound).toBe(7)
   })
 })
+
+describe('orchestrator — management → practice (Phase 2 swap drain)', () => {
+  it('drains pendingComponentSwaps and folds penalties into driver.nextRaceGridDrop', () => {
+    let world = initializeGame('mclaren', 'golden-era', 42)
+    // Place ICE at limit (4/4) so the next swap incurs a penalty.
+    world = {
+      ...world,
+      teams: world.teams.map((t) => t.id === 'mclaren' ? {
+        ...t,
+        components: t.components.map((c) =>
+          c.element === 'ice' ? { ...c, used: 4 } : c,
+        ),
+        pendingComponentSwaps: [
+          { driverId: 'norris', element: 'ice' as const, electedRound: 1 },
+        ],
+      } : t),
+    }
+
+    const next = advanceGamePhase(world) // management → practice
+    expect(next.gameState.phase).toBe('practice')
+
+    // Pending swap drained
+    const mcl = next.teams.find((t) => t.id === 'mclaren')!
+    expect(mcl.pendingComponentSwaps).toEqual([])
+    // Counter incremented
+    expect(mcl.penaltiesTaken).toBe(1)
+    // ICE used: 4 → 5
+    expect(mcl.components.find((c) => c.element === 'ice')!.used).toBe(5)
+    // Driver got the grid drop
+    const norris = next.drivers.find((d) => d.id === 'norris')!
+    expect(norris.nextRaceGridDrop).toBe(10)
+  })
+
+  it('does NOT increment penaltiesTaken when swap stays under limit', () => {
+    let world = initializeGame('mclaren', 'golden-era', 42)
+    // ICE at 2/4 — one swap → 3/4 (under limit, no penalty).
+    world = {
+      ...world,
+      teams: world.teams.map((t) => t.id === 'mclaren' ? {
+        ...t,
+        pendingComponentSwaps: [
+          { driverId: 'norris', element: 'ice' as const, electedRound: 1 },
+        ],
+      } : t),
+    }
+    const next = advanceGamePhase(world)
+    const mcl = next.teams.find((t) => t.id === 'mclaren')!
+    expect(mcl.penaltiesTaken).toBe(0)
+    const norris = next.drivers.find((d) => d.id === 'norris')!
+    expect(norris.nextRaceGridDrop).toBe(0)
+  })
+
+  it('only fires on management → practice (not on other transitions)', () => {
+    let world = initializeGame('mclaren', 'golden-era', 42)
+    world = {
+      ...world,
+      gameState: { ...world.gameState, phase: 'practice' },
+      teams: world.teams.map((t) => t.id === 'mclaren' ? {
+        ...t,
+        components: t.components.map((c) =>
+          c.element === 'ice' ? { ...c, used: 4 } : c,
+        ),
+        pendingComponentSwaps: [
+          { driverId: 'norris', element: 'ice' as const, electedRound: 1 },
+        ],
+      } : t),
+    }
+
+    const next = advanceGamePhase(world) // practice → qualifying
+    const mcl = next.teams.find((t) => t.id === 'mclaren')!
+    // Queue must NOT be drained on this transition.
+    expect(mcl.pendingComponentSwaps).toHaveLength(1)
+    expect(mcl.penaltiesTaken).toBe(0)
+  })
+})

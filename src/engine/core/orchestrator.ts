@@ -7,6 +7,7 @@ import { processPostRace, type RaceResult } from './post-race-processor'
 import { processSeasonEnd } from './season-end-processor'
 import { applyTechnicalDirective, getTechnicalDirectives } from '@/engine/regulations/regulation-engine'
 import { generateRecommendations } from '@/engine/delegation/department-ai'
+import { applyPendingSwaps } from '@/engine/engineering/component-strategy'
 
 /**
  * Process management-phase entry: R&D cycles, technical directives, AI teams.
@@ -94,7 +95,35 @@ export function advanceGamePhase(world: FullGameState): FullGameState {
     next = processManagementEntry(next)
   }
 
+  // Phase 2 (Box 2): drain elected component swaps at the management →
+  // practice boundary. Folds per-driver grid penalties into the existing
+  // Tier A `driver.nextRaceGridDrop` channel that the strategy page
+  // already consumes via `applyGridDrops` after qualifying.
+  if (prevPhase === 'management' && next.gameState.phase === 'practice') {
+    next = drainPendingSwaps(next)
+  }
+
   return next
+}
+
+/**
+ * Drain every team's `pendingComponentSwaps`, increment shared element
+ * counters, and add per-driver grid penalties to each affected driver's
+ * `nextRaceGridDrop`. Pure — returns a new world.
+ */
+function drainPendingSwaps(world: FullGameState): FullGameState {
+  let updatedTeams = world.teams
+  let updatedDrivers = world.drivers
+  for (const team of world.teams) {
+    if (team.pendingComponentSwaps.length === 0) continue
+    const result = applyPendingSwaps(team, updatedDrivers, world.gameState.currentRound)
+    updatedTeams = updatedTeams.map((t) => t.id === team.id ? result.team : t)
+    updatedDrivers = updatedDrivers.map((d) => {
+      const penalty = result.gridPenaltyByDriver[d.id]
+      return penalty ? { ...d, nextRaceGridDrop: d.nextRaceGridDrop + penalty } : d
+    })
+  }
+  return { ...world, teams: updatedTeams, drivers: updatedDrivers }
 }
 
 export interface PostRaceOrchestratorResult {
