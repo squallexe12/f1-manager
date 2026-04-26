@@ -116,3 +116,90 @@ export function tickComponentWear(team: Team): Team {
     components: team.components.map((c) => ({ ...c, used: c.used + 1 })),
   }
 }
+
+/**
+ * Project the total grid penalty the named driver would incur if their
+ * currently-queued swaps were applied immediately. Uses the same
+ * arithmetic as `applyPendingSwaps` — guarantees the UI projection
+ * matches the actual penalty when the swap drains. Returns 0 when no
+ * swaps are queued for the driver.
+ *
+ * Penalty calculation is PRE-INCREMENT (matches `applyPendingSwaps` and
+ * `factory-insights.ts:103` precedent): `getGridPenalty` is called on
+ * the un-incremented allocation, guarded by `preIncrement.used >= limit`.
+ */
+export function projectedGridLossIfElectedNow(team: Team, driverId: string): number {
+  const driverSwaps = team.pendingComponentSwaps.filter((s) => s.driverId === driverId)
+  if (driverSwaps.length === 0) return 0
+  let workingComponents = team.components.map((c) => ({ ...c }))
+  let total = 0
+  for (const swap of driverSwaps) {
+    const idx = workingComponents.findIndex((c) => c.element === swap.element)
+    if (idx < 0) continue
+    const preIncrement = workingComponents[idx]
+    // PRE-INCREMENT calculation — same semantics as `applyPendingSwaps`.
+    if (preIncrement.used >= preIncrement.limit) {
+      total += getGridPenalty(preIncrement)
+    }
+    workingComponents = [
+      ...workingComponents.slice(0, idx),
+      { ...preIncrement, used: preIncrement.used + 1 },
+      ...workingComponents.slice(idx + 1),
+    ]
+  }
+  return total
+}
+
+export interface SwapRow {
+  driverId: string
+  driverShortName: string
+  element: ComponentElement
+  used: number
+  limit: number
+  band: 'warning' | 'danger'
+  projectedPenalty: number
+  elected: boolean
+}
+
+/**
+ * Render-ready rows for the Component Strategy sub-section in the
+ * Factory Power Unit card. One row per (driver × element) where the
+ * next introduction would hit or exceed the season limit. The UI
+ * decides which to show; the engine just tells it the band, the
+ * numbers, and whether a swap is already elected for that pair.
+ *
+ * Visual bands (locked from spec §4.2):
+ * - `warning`: `used + 1 == limit` → last "free" introduction available.
+ * - `danger`:  `used + 1 >  limit` → next introduction will incur a penalty.
+ */
+export function componentSwapRows(
+  team: Team,
+  playerDrivers: ReadonlyArray<{ id: string; shortName: string }>,
+): SwapRow[] {
+  const rows: SwapRow[] = []
+  for (const c of team.components) {
+    const projection = c.used + 1
+    if (projection < c.limit) continue
+    const band: SwapRow['band'] = projection === c.limit ? 'warning' : 'danger'
+    // PRE-INCREMENT penalty calculation, guarded by `c.used >= c.limit` so
+    // warning-band rows (`c.used == c.limit - 1`) report `projectedPenalty: 0`
+    // (their swap is the last free introduction and incurs no penalty).
+    const penalty = c.used >= c.limit ? getGridPenalty(c) : 0
+    for (const drv of playerDrivers) {
+      const elected = team.pendingComponentSwaps.some(
+        (s) => s.driverId === drv.id && s.element === c.element,
+      )
+      rows.push({
+        driverId: drv.id,
+        driverShortName: drv.shortName,
+        element: c.element,
+        used: c.used,
+        limit: c.limit,
+        band,
+        projectedPenalty: penalty,
+        elected,
+      })
+    }
+  }
+  return rows
+}

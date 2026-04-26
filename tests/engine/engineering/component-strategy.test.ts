@@ -4,6 +4,8 @@ import {
   electComponentSwap,
   applyPendingSwaps,
   tickComponentWear,
+  projectedGridLossIfElectedNow,
+  componentSwapRows,
 } from '@/engine/engineering/component-strategy'
 import type { Driver } from '@/types/driver'
 
@@ -255,5 +257,93 @@ describe('tickComponentWear', () => {
     expect(next.car).toEqual(team.car)
     expect(next.constructorPoints).toBe(team.constructorPoints)
     expect(next.fastestLapHistory).toBe(team.fastestLapHistory)
+  })
+})
+
+describe('projectedGridLossIfElectedNow', () => {
+  it('returns 0 when no swap is queued for the driver', () => {
+    const team = makeTeam()
+    expect(projectedGridLossIfElectedNow(team, 'norris')).toBe(0)
+  })
+
+  it('returns the penalty that would apply if the driver elected the next over-limit element', () => {
+    const team = makeTeam({
+      components: [
+        { element: 'ice', used: 4, limit: 4, failureProbability: 0.02 },
+        { element: 'turbo', used: 1, limit: 4, failureProbability: 0.02 },
+        { element: 'mgu-k', used: 1, limit: 4, failureProbability: 0.02 },
+        { element: 'ers-battery', used: 1, limit: 3, failureProbability: 0.01 },
+        { element: 'gearbox', used: 2, limit: 4, failureProbability: 0.02 },
+      ],
+      pendingComponentSwaps: [{ driverId: 'norris', element: 'ice', electedRound: 5 }],
+    })
+    expect(projectedGridLossIfElectedNow(team, 'norris')).toBe(10)
+  })
+
+  it('aggregates across multiple queued swaps for the same driver', () => {
+    const team = makeTeam({
+      components: [
+        { element: 'ice', used: 4, limit: 4, failureProbability: 0.02 },
+        { element: 'turbo', used: 4, limit: 4, failureProbability: 0.02 },
+        { element: 'mgu-k', used: 1, limit: 4, failureProbability: 0.02 },
+        { element: 'ers-battery', used: 1, limit: 3, failureProbability: 0.01 },
+        { element: 'gearbox', used: 2, limit: 4, failureProbability: 0.02 },
+      ],
+      pendingComponentSwaps: [
+        { driverId: 'norris', element: 'ice', electedRound: 5 },
+        { driverId: 'norris', element: 'turbo', electedRound: 5 },
+      ],
+    })
+    expect(projectedGridLossIfElectedNow(team, 'norris')).toBe(20)
+  })
+})
+
+describe('componentSwapRows', () => {
+  const playerDrivers = [
+    { id: 'norris', shortName: 'NOR' },
+    { id: 'piastri', shortName: 'PIA' },
+  ]
+
+  it('returns one row per (driver × element) where used + 1 >= limit', () => {
+    const team = makeTeam({
+      components: [
+        { element: 'ice', used: 3, limit: 4, failureProbability: 0.02 }, // 3+1=4 >= 4 → row, warning
+        { element: 'turbo', used: 1, limit: 4, failureProbability: 0.02 }, // 1+1=2 < 4 → no row
+        { element: 'mgu-k', used: 4, limit: 4, failureProbability: 0.02 }, // 4+1=5 > 4 → row, danger
+        { element: 'ers-battery', used: 1, limit: 3, failureProbability: 0.01 },
+        { element: 'gearbox', used: 2, limit: 4, failureProbability: 0.02 },
+      ],
+    })
+    const rows = componentSwapRows(team, playerDrivers)
+    // 2 elements at risk × 2 drivers = 4 rows
+    expect(rows).toHaveLength(4)
+    const iceRows = rows.filter((r) => r.element === 'ice')
+    expect(iceRows).toHaveLength(2)
+    expect(iceRows[0].band).toBe('warning') // last free intro
+    const mgukRows = rows.filter((r) => r.element === 'mgu-k')
+    expect(mgukRows[0].band).toBe('danger') // would incur penalty
+  })
+
+  it('marks rows ELECTED when a swap is already queued for that driver+element', () => {
+    const team = makeTeam({
+      components: [
+        { element: 'ice', used: 4, limit: 4, failureProbability: 0.02 },
+        { element: 'turbo', used: 1, limit: 4, failureProbability: 0.02 },
+        { element: 'mgu-k', used: 1, limit: 4, failureProbability: 0.02 },
+        { element: 'ers-battery', used: 1, limit: 3, failureProbability: 0.01 },
+        { element: 'gearbox', used: 2, limit: 4, failureProbability: 0.02 },
+      ],
+      pendingComponentSwaps: [{ driverId: 'norris', element: 'ice', electedRound: 5 }],
+    })
+    const rows = componentSwapRows(team, playerDrivers)
+    const norrisIce = rows.find((r) => r.driverId === 'norris' && r.element === 'ice')!
+    const piastriIce = rows.find((r) => r.driverId === 'piastri' && r.element === 'ice')!
+    expect(norrisIce.elected).toBe(true)
+    expect(piastriIce.elected).toBe(false)
+  })
+
+  it('returns empty array when no element is at or near limit', () => {
+    const team = makeTeam() // default fixture has plenty of headroom
+    expect(componentSwapRows(team, playerDrivers)).toEqual([])
   })
 })
