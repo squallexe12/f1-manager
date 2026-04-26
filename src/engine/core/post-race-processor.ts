@@ -5,7 +5,7 @@ import type { NarrativeEvent, EventConsequence } from '@/types/narrative'
 import type { PRNG } from '@/engine/core/prng'
 import type { AppliedPenalty } from '@/types/race'
 import { updateMood, type MoodEvent } from '@/engine/drivers/mood-system'
-import { pushForm, pushOvrSample, FORM_DNF } from '@/engine/drivers/form-history'
+import { pushForm, pushOvrSample, pushFastestLap, FORM_DNF } from '@/engine/drivers/form-history'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
 import { recordSpend } from '@/engine/finance/budget-engine'
 import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige'
@@ -65,10 +65,6 @@ export function processPostRace(
   playerTeamId: string,
   rng: PRNG,
 ): PostRaceUpdate {
-  // `fastestLap` is the absolute race-wide fastest lap from the worker
-  // (`runtime.fastestLap`). Plumbed in for Box 1 fastestLapHistory append in
-  // Task 7. Phase 1 Task 6 — mechanical plumbing only, no behavior change.
-  void fastestLap
   const pointsTable = isSprint ? SPRINT_POINTS : RACE_POINTS
 
   // Clear any ban whose suspended round equals currentRound — that race has
@@ -217,11 +213,21 @@ export function processPostRace(
     // Snapshot OVR alongside constructor position — same idempotency guard
     // keeps the sparkline free of duplicate entries on re-runs.
     const currentOvr = calculateOverallRating(team.car)
+    // Box 1 (Phase 1): append a fastestLapHistory entry to the team whose
+    // driver held the absolute race-wide fastest lap. Other teams retain
+    // their existing buffer untouched. `team.driverIds` is `[string, string]`;
+    // `.includes(string)` works without a cast.
+    const teamHadFastestLap =
+      fastestLap !== null && team.driverIds.includes(fastestLap.driverId)
+    const nextFastestLapHistory = teamHadFastestLap
+      ? pushFastestLap(team.fastestLapHistory, { round: currentRound, lapMs: fastestLap!.time })
+      : team.fastestLapHistory
     return {
       ...team,
       constructorPosition: pos,
       seasonForm: pushForm(team.seasonForm, pos),
       ovrHistory: pushOvrSample(team.ovrHistory, currentOvr),
+      fastestLapHistory: nextFastestLapHistory,
       lastProcessedRound: currentRound,
     }
   })
