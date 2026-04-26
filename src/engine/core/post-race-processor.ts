@@ -7,6 +7,7 @@ import type { AppliedPenalty } from '@/types/race'
 import { updateMood, type MoodEvent } from '@/engine/drivers/mood-system'
 import { pushForm, pushOvrSample, pushFastestLap, FORM_DNF } from '@/engine/drivers/form-history'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
+import { tickComponentWear } from '@/engine/engineering/component-strategy'
 import { recordSpend } from '@/engine/finance/budget-engine'
 import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige'
 import { generateEvents, resolveExpiredEvents, type GameContext } from '@/engine/narrative/event-generator'
@@ -222,12 +223,14 @@ export function processPostRace(
     const nextFastestLapHistory = teamHadFastestLap
       ? pushFastestLap(team.fastestLapHistory, { round: currentRound, lapMs: fastestLap!.time })
       : team.fastestLapHistory
+    const worn = tickComponentWear(team)
     return {
       ...team,
       constructorPosition: pos,
       seasonForm: pushForm(team.seasonForm, pos),
       ovrHistory: pushOvrSample(team.ovrHistory, currentOvr),
       fastestLapHistory: nextFastestLapHistory,
+      components: worn.components,
       lastProcessedRound: currentRound,
     }
   })
