@@ -9,8 +9,10 @@ import type {
   WorkerOutEvent,
 } from '@/types/race'
 import type { EventConsequence } from '@/types/narrative'
+import type { ComponentElement } from '@/types/team'
 import { initializeGame, type FullGameState } from '@/engine/core/state-manager'
 import { startUpgrade, pauseUpgrade } from '@/engine/engineering/rnd-engine'
+import { electComponentSwap as electComponentSwapEngine } from '@/engine/engineering/component-strategy'
 import { type RaceResult } from '@/engine/core/post-race-processor'
 import { type SeasonEndResult } from '@/engine/core/season-end-processor'
 import { advanceGamePhase, processPostRacePhase, processSeasonEndPhase } from '@/engine/core/orchestrator'
@@ -51,6 +53,7 @@ interface GameStore {
   processSeasonEnd: () => void
   allocateRnD: (upgradeId: string) => void
   pauseRnD: (upgradeId: string) => void
+  electComponentSwap: (driverId: string, element: ComponentElement) => void
   setDriverCommand: (driverId: string, command: DriverCommand) => RaceCommandEnvelope
   requestPit: (driverId: string, compound: TireCompound) => RaceCommandEnvelope
   changeDriverStrategy: (driverId: string, strategy: RaceStrategy) => RaceCommandEnvelope
@@ -197,6 +200,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (t.id !== world.gameState.playerTeamId) return t
       return { ...t, rndUpgrades: pauseUpgrade(t.rndUpgrades, upgradeId) }
     })
+    set({ world: { ...world, teams } })
+  },
+
+  electComponentSwap: (driverId, element) => {
+    const { world } = get()
+    if (!world) return
+    const playerTeamId = world.gameState.playerTeamId
+    const currentRound = world.gameState.currentRound
+    const teams = world.teams.map((t) =>
+      t.id !== playerTeamId
+        ? t
+        : electComponentSwapEngine(t, driverId, element, currentRound),
+    )
     set({ world: { ...world, teams } })
   },
 

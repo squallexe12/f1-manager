@@ -56,6 +56,8 @@ function makeTeam(
     lastUpgradeRound: 0,
     fastestLapHistory,
     failureEvents: [],
+    penaltiesTaken: 0,
+    pendingComponentSwaps: [],
     ...overrides,
   }
 }

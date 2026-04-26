@@ -15,13 +15,16 @@ import {
   peerAveragedAxes,
   peerRank,
   projectNextChange,
-  projectedGridLoss,
   atrCoefficientForPosition,
   correlationDelta,
   nextDeliveryRound,
   windowResetsIn,
   deterministicAeroHistory,
 } from '@/engine/engineering/factory-insights'
+import {
+  componentSwapRows,
+  projectedGridLossIfElectedNow,
+} from '@/engine/engineering/component-strategy'
 import {
   deltaVsLeaderFromHistory,
   mtbfFromFailureLog,
@@ -31,9 +34,11 @@ export default function FactoryPage() {
   useRequireGame()
   const allocateRnD = useGameStore((s) => s.allocateRnD)
   const pauseRnD = useGameStore((s) => s.pauseRnD)
+  const electComponentSwap = useGameStore((s) => s.electComponentSwap)
 
   const slice = useGameSlice((w) => ({
     teams: w.teams,
+    drivers: w.drivers,
     gameState: w.gameState,
     finance: w.finance,
     recommendations: w.recommendations,
@@ -41,7 +46,7 @@ export default function FactoryPage() {
 
   if (!slice) return null
 
-  const { teams, gameState, finance, recommendations } = slice
+  const { teams, drivers, gameState, finance, recommendations } = slice
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
   const playerFinance = finance[playerTeam.id]
   const overallRating = calculateOverallRating(playerTeam.car)
@@ -61,7 +66,13 @@ export default function FactoryPage() {
   const rank = peerRank(teams, playerTeam.id)
   const leaderDelta = deltaVsLeaderFromHistory(teams, playerTeam.id)
   const nextChange = projectNextChange(playerTeam.components, gameState.currentRound, gameState.totalRaces)
-  const gridLoss = projectedGridLoss(playerTeam.components)
+  const playerDriverEntries = drivers.filter((d) => d.teamId === playerTeam.id && !d.isReserve)
+  const playerDriversForRows = playerDriverEntries.map((d) => ({ id: d.id, shortName: d.shortName }))
+  const swapRows = componentSwapRows(playerTeam, playerDriversForRows)
+  const gridLoss = playerDriverEntries.reduce(
+    (sum, d) => sum + projectedGridLossIfElectedNow(playerTeam, d.id),
+    0,
+  )
   const atr = atrCoefficientForPosition(playerTeam.constructorPosition)
   const corr = correlationDelta(playerTeam.id, gameState.currentRound)
   const nextDelivery = nextDeliveryRound(playerTeam.rndUpgrades, gameState.currentRound)
@@ -113,9 +124,11 @@ export default function FactoryPage() {
             components={playerTeam.components}
             nextChangeRound={nextChange?.round}
             nextChangeElement={nextChange?.element}
-            penaltiesTaken={0}
+            penaltiesTaken={playerTeam.penaltiesTaken}
             projectedGridLoss={gridLoss}
             totalRaces={gameState.totalRaces}
+            swapRows={swapRows}
+            onElectSwap={electComponentSwap}
           />
           <AeroCard
             windTunnelUsed={playerTeam.windTunnelHoursUsed}

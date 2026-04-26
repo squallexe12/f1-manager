@@ -698,6 +698,69 @@ describe('v8 → v9 migration (Factory Box 1 — Car Performance buffers)', () =
   })
 })
 
+describe('v9 → v10 migration (Factory Box 2 — Power Unit strategy)', () => {
+  it('back-fills penaltiesTaken and pendingComponentSwaps with defaults', () => {
+    const v9State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 9 },
+      teams: [
+        { id: 'mclaren', name: 'McLaren', constructorPoints: 0 },
+        { id: 'red-bull', name: 'Red Bull', constructorPoints: 0 },
+      ],
+      drivers: [],
+    }
+    const { data, migrated } = migrateToCurrent(v9State as unknown as FullGameState, 9)
+    expect(migrated).toBe(true)
+    for (const team of data.teams) {
+      expect(team.penaltiesTaken).toBe(0)
+      expect(team.pendingComponentSwaps).toEqual([])
+    }
+  })
+
+  it('preserves existing values verbatim if already populated', () => {
+    const v9State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 9 },
+      teams: [{
+        id: 'mclaren', name: 'McLaren',
+        penaltiesTaken: 3,
+        pendingComponentSwaps: [
+          { driverId: 'norris', element: 'ice', electedRound: 5 },
+        ],
+      }],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v9State as unknown as FullGameState, 9)
+    expect(data.teams[0].penaltiesTaken).toBe(3)
+    expect(data.teams[0].pendingComponentSwaps).toHaveLength(1)
+    expect(data.teams[0].pendingComponentSwaps[0].driverId).toBe('norris')
+  })
+
+  it('is idempotent — running twice yields the same result', () => {
+    const v9State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 9 },
+      teams: [{ id: 'mclaren', name: 'McLaren' }],
+      drivers: [],
+    }
+    const once = migrateToCurrent(v9State as unknown as FullGameState, 9).data
+    const twice = migrateToCurrent(once, SCHEMA_VERSION).data
+    expect(twice).toEqual(once)
+  })
+
+  it('preserves Phase 1 buffers (fastestLapHistory, failureEvents) untouched', () => {
+    const v9State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 9 },
+      teams: [{
+        id: 'mclaren', name: 'McLaren',
+        fastestLapHistory: [{ round: 3, lapMs: 78_421 }],
+        failureEvents: [],
+      }],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v9State as unknown as FullGameState, 9)
+    expect(data.teams[0].fastestLapHistory).toEqual([{ round: 3, lapMs: 78_421 }])
+    expect(data.teams[0].failureEvents).toEqual([])
+  })
+})
+
 describe('SaveSystem auto-rewrite on migration', () => {
   it('rewrites a migrated save back at the current schema version', async () => {
     // Stub a migration from a hypothetical older version (0 → 1) by temporarily

@@ -137,6 +137,11 @@ export function processSeasonEnd(
     // the new championship; failure-event log is per-season.
     fastestLapHistory: [],
     failureEvents: [],
+    // Phase 2 (Box 2) buffers also reset per season: penalty counter starts
+    // at zero, queued swaps are dropped (a season boundary discards any
+    // unresolved election from the prior championship).
+    penaltiesTaken: 0,
+    pendingComponentSwaps: [],
   }))
 
   // 5. Apply next season's regulation changes
