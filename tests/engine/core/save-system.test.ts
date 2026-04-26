@@ -634,6 +634,70 @@ describe('v7 → v8 migration (Penalty System Tier A)', () => {
   })
 })
 
+describe('v8 → v9 migration (Factory Box 1 — Car Performance buffers)', () => {
+  it('back-fills fastestLapHistory and failureEvents with [] on every team', () => {
+    const v8State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 8 },
+      teams: [
+        { id: 'mclaren', name: 'McLaren', constructorPoints: 0 },
+        { id: 'red-bull', name: 'Red Bull', constructorPoints: 0 },
+      ],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v8State as any, 8)
+    for (const team of data.teams) {
+      expect(team.fastestLapHistory).toEqual([])
+      expect(team.failureEvents).toEqual([])
+    }
+  })
+
+  it('preserves existing buffers verbatim if already populated', () => {
+    const v8State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 8 },
+      teams: [{
+        id: 'mclaren',
+        name: 'McLaren',
+        fastestLapHistory: [{ round: 3, lapMs: 78_421 }],
+        failureEvents: [
+          { round: 2, lap: 14, element: 'ice', driverId: 'norris' },
+        ],
+      }],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v8State as any, 8)
+    expect(data.teams[0].fastestLapHistory).toEqual([{ round: 3, lapMs: 78_421 }])
+    expect(data.teams[0].failureEvents).toHaveLength(1)
+    expect(data.teams[0].failureEvents[0].element).toBe('ice')
+  })
+
+  it('is idempotent — running twice yields the same result', () => {
+    const v8State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 8 },
+      teams: [{ id: 'mclaren', name: 'McLaren' }],
+      drivers: [],
+    }
+    const once = migrateToCurrent(v8State as any, 8).data
+    const twice = migrateToCurrent(once, SCHEMA_VERSION).data
+    expect(twice).toEqual(once)
+  })
+
+  it('preserves existing team fields untouched', () => {
+    const v8State = {
+      gameState: { season: 2, currentRound: 10, schemaVersion: 8 },
+      teams: [{
+        id: 'mclaren', name: 'McLaren', constructorPoints: 47,
+        constructorPosition: 3, ovrHistory: [82, 83, 84], lastUpgradeRound: 5,
+      }],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v8State as any, 8)
+    expect(data.teams[0].constructorPoints).toBe(47)
+    expect(data.teams[0].constructorPosition).toBe(3)
+    expect(data.teams[0].ovrHistory).toEqual([82, 83, 84])
+    expect(data.teams[0].lastUpgradeRound).toBe(5)
+  })
+})
+
 describe('SaveSystem auto-rewrite on migration', () => {
   it('rewrites a migrated save back at the current schema version', async () => {
     // Stub a migration from a hypothetical older version (0 → 1) by temporarily
