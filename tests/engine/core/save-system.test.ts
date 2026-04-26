@@ -644,7 +644,7 @@ describe('v8 → v9 migration (Factory Box 1 — Car Performance buffers)', () =
       ],
       drivers: [],
     }
-    const { data } = migrateToCurrent(v8State as any, 8)
+    const { data } = migrateToCurrent(v8State as unknown as FullGameState, 8)
     for (const team of data.teams) {
       expect(team.fastestLapHistory).toEqual([])
       expect(team.failureEvents).toEqual([])
@@ -664,7 +664,7 @@ describe('v8 → v9 migration (Factory Box 1 — Car Performance buffers)', () =
       }],
       drivers: [],
     }
-    const { data } = migrateToCurrent(v8State as any, 8)
+    const { data } = migrateToCurrent(v8State as unknown as FullGameState, 8)
     expect(data.teams[0].fastestLapHistory).toEqual([{ round: 3, lapMs: 78_421 }])
     expect(data.teams[0].failureEvents).toHaveLength(1)
     expect(data.teams[0].failureEvents[0].element).toBe('ice')
@@ -676,7 +676,7 @@ describe('v8 → v9 migration (Factory Box 1 — Car Performance buffers)', () =
       teams: [{ id: 'mclaren', name: 'McLaren' }],
       drivers: [],
     }
-    const once = migrateToCurrent(v8State as any, 8).data
+    const once = migrateToCurrent(v8State as unknown as FullGameState, 8).data
     const twice = migrateToCurrent(once, SCHEMA_VERSION).data
     expect(twice).toEqual(once)
   })
@@ -690,7 +690,7 @@ describe('v8 → v9 migration (Factory Box 1 — Car Performance buffers)', () =
       }],
       drivers: [],
     }
-    const { data } = migrateToCurrent(v8State as any, 8)
+    const { data } = migrateToCurrent(v8State as unknown as FullGameState, 8)
     expect(data.teams[0].constructorPoints).toBe(47)
     expect(data.teams[0].constructorPosition).toBe(3)
     expect(data.teams[0].ovrHistory).toEqual([82, 83, 84])
