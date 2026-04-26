@@ -1,4 +1,4 @@
-import type { Team } from '@/types/team'
+import type { Team, ComponentAllocation } from '@/types/team'
 import { deltaVsLeaderSeconds } from './factory-insights'
 
 /**
@@ -45,4 +45,63 @@ export function deltaVsLeaderFromHistory(teams: Team[], playerTeamId: string): n
   // Convert to seconds with two decimals — matches the existing readout
   // format on the Factory card.
   return Number((deltaMs / 1000).toFixed(2))
+}
+
+const MIN_FAILURE_EVENTS = 2
+const CROSS_ROUND_GAP_PROXY_LAPS = 50
+
+/**
+ * Mean time between failures (laps). When 2+ failure events are recorded
+ * in `team.failureEvents`, returns the average gap between adjacent events
+ * (chronologically by round, then lap). Otherwise falls back to a heuristic
+ * grounded in `car.reliability` and the team's *worst* per-element wear
+ * ratio — a single nearly-dead component drags MTBF down even if the rest
+ * of the fleet is fresh.
+ *
+ * Note: in Phase 1 the failure-event log stays empty (`checkMechanicalFailure`
+ * is defined but not yet wired into the simulator), so this function
+ * effectively always returns the heuristic. The infrastructure ships now so
+ * MTBF can graduate to real-data without a follow-up schema change.
+ */
+export function mtbfFromFailureLog(team: Team): number {
+  if (team.failureEvents.length >= MIN_FAILURE_EVENTS) {
+    return mtbfFromEvents(team.failureEvents)
+  }
+  return mtbfHeuristicWorstWear(team.car.reliability, team.components)
+}
+
+function mtbfFromEvents(
+  events: ReadonlyArray<{ round: number; lap: number }>,
+): number {
+  // Sort chronologically: round asc, then lap asc.
+  const sorted = [...events].sort((a, b) =>
+    a.round === b.round ? a.lap - b.lap : a.round - b.round,
+  )
+  let totalGap = 0
+  for (let i = 1; i < sorted.length; i++) {
+    const a = sorted[i - 1]
+    const b = sorted[i]
+    totalGap += a.round === b.round
+      ? Math.max(1, b.lap - a.lap)
+      : CROSS_ROUND_GAP_PROXY_LAPS
+  }
+  const gaps = sorted.length - 1
+  return Number(Math.max(1, totalGap / gaps).toFixed(1))
+}
+
+function mtbfHeuristicWorstWear(
+  reliability: number,
+  components: ComponentAllocation[],
+): number {
+  const rel = Math.max(0, Math.min(100, reliability)) / 100
+  if (components.length === 0) {
+    return Number((6 + rel * 24).toFixed(1))
+  }
+  const worstWear = components.reduce(
+    (acc, c) => Math.max(acc, c.used / Math.max(1, c.limit)),
+    0,
+  )
+  const base = 6 + rel * 24 // 6 → 30 over reliability range
+  const wearPenalty = 1 - worstWear * 0.5 // 1.0 → 0.5
+  return Number(Math.max(1, base * wearPenalty).toFixed(1))
 }
