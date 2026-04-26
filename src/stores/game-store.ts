@@ -9,6 +9,7 @@ import type {
   WorkerOutEvent,
 } from '@/types/race'
 import type { EventConsequence } from '@/types/narrative'
+import type { ComponentElement } from '@/types/team'
 import { initializeGame, type FullGameState } from '@/engine/core/state-manager'
 import { startUpgrade, pauseUpgrade } from '@/engine/engineering/rnd-engine'
 import { electComponentSwap as electComponentSwapEngine } from '@/engine/engineering/component-strategy'
@@ -52,7 +53,7 @@ interface GameStore {
   processSeasonEnd: () => void
   allocateRnD: (upgradeId: string) => void
   pauseRnD: (upgradeId: string) => void
-  electComponentSwap: (driverId: string, element: import('@/types/team').ComponentElement) => void
+  electComponentSwap: (driverId: string, element: ComponentElement) => void
   setDriverCommand: (driverId: string, command: DriverCommand) => RaceCommandEnvelope
   requestPit: (driverId: string, compound: TireCompound) => RaceCommandEnvelope
   changeDriverStrategy: (driverId: string, strategy: RaceStrategy) => RaceCommandEnvelope
