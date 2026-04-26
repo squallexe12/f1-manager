@@ -37,6 +37,36 @@ export interface ComponentAllocation {
   failureProbability: number
 }
 
+/**
+ * Named alias for the PU element union. `ComponentAllocation` remains the
+ * single source of truth; this alias gives consumers (FailureEvent,
+ * Phase 2's PendingComponentSwap, future imports) a clean named type.
+ */
+export type ComponentElement = ComponentAllocation['element']
+
+/**
+ * One entry in the rolling fastest-lap log used by the Factory car-performance
+ * card to compute Δ vs Leader. Captures only the absolute race-wide fastest
+ * lap when one of this team's drivers held it that round.
+ */
+export interface FastestLapEntry {
+  round: number
+  lapMs: number
+}
+
+/**
+ * One mechanical-failure event recorded against a team during a race. The
+ * trigger (`checkMechanicalFailure`) is currently defined but not yet wired
+ * into the simulator — Phase 1 ships the buffer + read path so the MTBF
+ * derivation can graduate to real data without a follow-up schema change.
+ */
+export interface FailureEvent {
+  round: number
+  lap: number
+  element: ComponentElement
+  driverId: string
+}
+
 export interface AiPersonality {
   aggressiveness: number  // 0-1
   financialDiscipline: number // 0-1
@@ -104,4 +134,17 @@ export interface Team {
    * `processRnDCycle` flips any upgrade from `in-progress` to `complete`.
    */
   lastUpgradeRound: number
+  /**
+   * Rolling log of race-wide fastest laps held by this team's drivers,
+   * ordered oldest → newest. Capped at 6 entries (FIFO trim on append).
+   * Cleared at season end. Drives the Factory Δ-vs-Leader readout.
+   */
+  fastestLapHistory: FastestLapEntry[]
+  /**
+   * Rolling log of mechanical-failure events this season, ordered
+   * oldest → newest. Capped at 10 entries (FIFO trim on append). Cleared
+   * at season end. Currently unwritten (trigger lands in a later phase);
+   * the read path falls back to a per-element-wear heuristic when empty.
+   */
+  failureEvents: FailureEvent[]
 }

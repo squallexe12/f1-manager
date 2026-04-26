@@ -7,7 +7,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 8
+export const SCHEMA_VERSION = 9
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -64,6 +64,13 @@ export interface SlotInfo {
  * dropped (MGU-H was removed for the 2026 regulation — see CLAUDE.md §7).
  * Existing rows in the canonical set are preserved verbatim; a save
  * that already carries all five rows is a no-op.
+ *
+ * v8 → v9 (Factory Box 1 — Car Performance real data): Adds
+ * `team.fastestLapHistory: []` and `team.failureEvents: []`. Both start
+ * empty; post-race processing appends to `fastestLapHistory` for the team
+ * whose driver held the absolute race-wide fastest lap. `failureEvents`
+ * trigger lands in a later phase. Both buffers are FIFO-capped (6 / 10
+ * respectively) and cleared at season end.
  */
 /**
  * Back-fill map for `team.headquarters` when migrating a save from v4 → v5.
@@ -222,6 +229,23 @@ export const MIGRATIONS: Record<number, Migration> = {
       warningsThisSeason: d.warningsThisSeason ?? 0,
       nextRaceGridDrop: d.nextRaceGridDrop ?? 0,
       banUntilRound: d.banUntilRound ?? null,
+    })),
+  }),
+  /**
+   * v8 → v9 (Factory Box 1 — Car Performance real data): Adds two rolling
+   * buffers to every team. `fastestLapHistory` (capped at 6) drives the
+   * Δ-vs-Leader readout once a team has held a race-wide fastest lap;
+   * `failureEvents` (capped at 10) is reserved for a future phase that
+   * wires `checkMechanicalFailure` into the simulator. Both buffers are
+   * cleared at season end. Defaults are `[]` so legacy saves render with
+   * the heuristic fallback until enough rounds populate the lap log.
+   */
+  8: (data) => ({
+    ...data,
+    teams: data.teams.map((team) => ({
+      ...team,
+      fastestLapHistory: team.fastestLapHistory ?? [],
+      failureEvents: team.failureEvents ?? [],
     })),
   }),
   3: (data) => {
