@@ -82,6 +82,8 @@ function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARI
     lastProcessedRound: 0,
     ovrHistory: [],
     lastUpgradeRound: 0,
+    fastestLapHistory: [],
+    failureEvents: [],
   }
 }
 
@@ -102,6 +104,8 @@ function buildTeam(teamData: TeamData, startingSeason: number): Team {
     lastProcessedRound: 0,
     ovrHistory: [],
     lastUpgradeRound: 0,
+    fastestLapHistory: [],
+    failureEvents: [],
   }
 }
 

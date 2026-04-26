@@ -14,16 +14,18 @@ import { calculateOverallRating } from '@/engine/engineering/car-performance'
 import {
   peerAveragedAxes,
   peerRank,
-  deltaVsLeaderSeconds,
   projectNextChange,
   projectedGridLoss,
   atrCoefficientForPosition,
   correlationDelta,
   nextDeliveryRound,
   windowResetsIn,
-  reliabilityMtbf,
   deterministicAeroHistory,
 } from '@/engine/engineering/factory-insights'
+import {
+  deltaVsLeaderFromHistory,
+  mtbfFromFailureLog,
+} from '@/engine/engineering/car-performance-insights'
 
 export default function FactoryPage() {
   useRequireGame()
@@ -57,7 +59,7 @@ export default function FactoryPage() {
   // Wave 1 derivations (pure engine helpers — no schema changes).
   const peerAxes = peerAveragedAxes(teams, playerTeam.id)
   const rank = peerRank(teams, playerTeam.id)
-  const leaderDelta = deltaVsLeaderSeconds(teams, playerTeam.id)
+  const leaderDelta = deltaVsLeaderFromHistory(teams, playerTeam.id)
   const nextChange = projectNextChange(playerTeam.components, gameState.currentRound, gameState.totalRaces)
   const gridLoss = projectedGridLoss(playerTeam.components)
   const atr = atrCoefficientForPosition(playerTeam.constructorPosition)
@@ -83,7 +85,7 @@ export default function FactoryPage() {
     gameState.currentRound + 100, // offset so wt/cfd bars don't mirror each other
     cfdRatio,
   )
-  const mtbf = reliabilityMtbf(playerTeam.car, playerTeam.components)
+  const mtbf = mtbfFromFailureLog(playerTeam)
 
   return (
     <PageShell theme="broadcast">

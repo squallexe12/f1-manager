@@ -55,6 +55,8 @@ function team(id: string, pos: number, perf: Partial<CarPerformance> = {}): Team
     lastProcessedRound: 0,
     ovrHistory: [],
     lastUpgradeRound: 0,
+    fastestLapHistory: [],
+    failureEvents: [],
   }
 }
 

@@ -145,7 +145,7 @@ describe('orchestrator — processPostRacePhase', () => {
     const before = snapshot(world)
     const cooldownsBefore = JSON.stringify(cooldowns)
 
-    const update = processPostRacePhase(world, cooldowns, results, false)
+    const update = processPostRacePhase(world, cooldowns, results, null, false)
 
     // Input not mutated
     expect(snapshot(world)).toBe(before)
@@ -160,7 +160,7 @@ describe('orchestrator — processPostRacePhase', () => {
   it('updates driver season stats after race', () => {
     const world = initializeGame('mclaren', 'golden-era', 600)
     const results = buildRaceResults(world)
-    const update = processPostRacePhase(world, {}, results, false)
+    const update = processPostRacePhase(world, {}, results, null, false)
 
     const winnerId = results[0].driverId
     const winner = update.world.drivers.find(d => d.id === winnerId)
@@ -172,7 +172,7 @@ describe('orchestrator — processPostRacePhase', () => {
     const world = initializeGame('red-bull', 'golden-era', 700)
     const results = buildRaceResults(world)
 
-    const update = processPostRacePhase(world, {}, results, true)
+    const update = processPostRacePhase(world, {}, results, null, true)
 
     const winnerId = results[0].driverId
     const winner = update.world.drivers.find(d => d.id === winnerId)
@@ -188,8 +188,8 @@ describe('orchestrator — processPostRacePhase', () => {
     const resultsA = buildRaceResults(worldA)
     const resultsB = buildRaceResults(worldB)
 
-    const updateA = processPostRacePhase(worldA, {}, resultsA, false)
-    const updateB = processPostRacePhase(worldB, {}, resultsB, false)
+    const updateA = processPostRacePhase(worldA, {}, resultsA, null, false)
+    const updateB = processPostRacePhase(worldB, {}, resultsB, null, false)
 
     expect(snapshot(updateA.world)).toBe(snapshot(updateB.world))
   })

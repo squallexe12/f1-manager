@@ -128,7 +128,7 @@ export default function StrategyPage() {
       appliedPenalties: appliedPenaltiesByDriver[r.driverId] ?? [],
     }))
     const isSprint = gameState?.phase === 'sprint'
-    submitRaceResults(raceResults, isSprint ?? false)
+    submitRaceResults(raceResults, fastestLap, isSprint ?? false)
   }, [gameState?.phase, submitRaceResults])
 
   // IP-07: Resolve the circuit's calibration profile once per race context so

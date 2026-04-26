@@ -5,7 +5,7 @@ import type { NarrativeEvent, EventConsequence } from '@/types/narrative'
 import type { PRNG } from '@/engine/core/prng'
 import type { AppliedPenalty } from '@/types/race'
 import { updateMood, type MoodEvent } from '@/engine/drivers/mood-system'
-import { pushForm, pushOvrSample, FORM_DNF } from '@/engine/drivers/form-history'
+import { pushForm, pushOvrSample, pushFastestLap, FORM_DNF } from '@/engine/drivers/form-history'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
 import { recordSpend } from '@/engine/finance/budget-engine'
 import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige'
@@ -58,6 +58,7 @@ export function processPostRace(
   narrativeEvents: NarrativeEvent[],
   eventCooldowns: Record<string, number>,
   results: RaceResult[],
+  fastestLap: { driverId: string; time: number } | null,
   isSprint: boolean,
   currentRound: number,
   currentSeason: number,
@@ -212,11 +213,21 @@ export function processPostRace(
     // Snapshot OVR alongside constructor position — same idempotency guard
     // keeps the sparkline free of duplicate entries on re-runs.
     const currentOvr = calculateOverallRating(team.car)
+    // Box 1 (Phase 1): append a fastestLapHistory entry to the team whose
+    // driver held the absolute race-wide fastest lap. Other teams retain
+    // their existing buffer untouched. `team.driverIds` is `[string, string]`;
+    // `.includes(string)` works without a cast.
+    const teamHadFastestLap =
+      fastestLap !== null && team.driverIds.includes(fastestLap.driverId)
+    const nextFastestLapHistory = teamHadFastestLap
+      ? pushFastestLap(team.fastestLapHistory, { round: currentRound, lapMs: fastestLap!.time })
+      : team.fastestLapHistory
     return {
       ...team,
       constructorPosition: pos,
       seasonForm: pushForm(team.seasonForm, pos),
       ovrHistory: pushOvrSample(team.ovrHistory, currentOvr),
+      fastestLapHistory: nextFastestLapHistory,
       lastProcessedRound: currentRound,
     }
   })

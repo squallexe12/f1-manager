@@ -38,3 +38,20 @@ export function pushOvrSample(series: readonly number[], value: number): number[
   if (next.length <= OVR_HISTORY_WINDOW) return next
   return next.slice(next.length - OVR_HISTORY_WINDOW)
 }
+
+/**
+ * Maximum entries kept in a team's rolling fastest-lap log. Sized so the
+ * Δ-vs-Leader derivation has at least 3 (its required minimum) and a few
+ * extra to absorb rounds where the leader didn't post a race-wide fastest.
+ */
+export const FASTEST_LAP_WINDOW = 6
+
+/**
+ * Append a fastest-lap entry to a team's rolling history, bounded to
+ * `FASTEST_LAP_WINDOW` entries. Same immutable semantics as `pushForm`.
+ */
+export function pushFastestLap<T>(series: readonly T[], entry: T): T[] {
+  const next = [...series, entry]
+  if (next.length <= FASTEST_LAP_WINDOW) return next
+  return next.slice(next.length - FASTEST_LAP_WINDOW)
+}

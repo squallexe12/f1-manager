@@ -73,7 +73,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const update = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       1,        // currentRound
       2026,     // currentSeason
       'mclaren', createPRNG(42),
@@ -98,7 +98,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const update = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       1, 2026,
       'mclaren', createPRNG(43),
     )
@@ -135,7 +135,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const update = processPostRace(
       world.teams, seededDrivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       12, 2026,
       'mclaren', createPRNG(44),
     )
@@ -163,7 +163,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const update = processPostRace(
       world.teams, seededDrivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       1, 2026,
       'mclaren', createPRNG(45),
     )
@@ -189,7 +189,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const update = processPostRace(
       world.teams, seededDrivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       5, 2026, // currentRound === banUntilRound
       'mclaren', createPRNG(46),
     )
@@ -213,7 +213,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const update = processPostRace(
       world.teams, seededDrivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       5, 2026, // currentRound < banUntilRound — should NOT clear
       'mclaren', createPRNG(47),
     )
@@ -233,7 +233,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const firstPass = processPostRace(
       world.teams, world.drivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       1, 2026,
       'mclaren', createPRNG(48),
     )
@@ -241,7 +241,7 @@ describe('processPostRace — appliedPenalties fold', () => {
     const secondPass = processPostRace(
       firstPass.teams, firstPass.drivers, firstPass.finance,
       firstPass.narrativeEvents, firstPass.eventCooldowns,
-      results, false,
+      results, null, false,
       1, 2026, // same round — idempotency guard must fire
       'mclaren', createPRNG(48),
     )
@@ -277,7 +277,7 @@ describe('processPostRace — appliedPenalties fold', () => {
 
     const update = processPostRace(
       world.teams, seededDrivers, world.finance,
-      [], {}, results, false,
+      [], {}, results, null, false,
       1, 2027,  // one full season later → age === 22 → entry expires
       'mclaren', createPRNG(49),
     )

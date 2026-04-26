@@ -133,6 +133,10 @@ export function processSeasonEnd(
     // for R01 until the first post-race write.
     ovrHistory: [],
     lastUpgradeRound: 0,
+    // Box 1 (Phase 1) buffers also reset: fastest-lap log starts fresh for
+    // the new championship; failure-event log is per-season.
+    fastestLapHistory: [],
+    failureEvents: [],
   }))
 
   // 5. Apply next season's regulation changes

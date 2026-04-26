@@ -110,13 +110,14 @@ export function processPostRacePhase(
   world: FullGameState,
   eventCooldowns: Record<string, number>,
   results: RaceResult[],
+  fastestLap: { driverId: string; time: number } | null,
   isSprint: boolean,
 ): PostRaceOrchestratorResult {
   const rng = createPRNG(world.gameState.seed + world.gameState.currentRound + 999)
   const update = processPostRace(
     world.teams, world.drivers, world.finance,
     world.narrativeEvents, eventCooldowns,
-    results, isSprint,
+    results, fastestLap, isSprint,
     world.gameState.currentRound,
     world.gameState.season,
     world.gameState.playerTeamId,
