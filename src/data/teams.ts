@@ -19,6 +19,8 @@ export type TeamData = Omit<
   | 'lastUpgradeRound'
   | 'fastestLapHistory'
   | 'failureEvents'
+  | 'penaltiesTaken'
+  | 'pendingComponentSwaps'
   | 'staff'
 > & {
   staff: Omit<DepartmentHead, 'contractEndSeason'>[]

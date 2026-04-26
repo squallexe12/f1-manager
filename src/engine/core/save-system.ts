@@ -7,7 +7,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -71,6 +71,14 @@ export interface SlotInfo {
  * whose driver held the absolute race-wide fastest lap. `failureEvents`
  * trigger lands in a later phase. Both buffers are FIFO-capped (6 / 10
  * respectively) and cleared at season end.
+ *
+ * v9 → v10 (Factory Box 2 — Power Unit strategy): Adds
+ * `team.penaltiesTaken: 0` and `team.pendingComponentSwaps: []` for the
+ * new pre-weekend swap-election decision. `penaltiesTaken` increments
+ * when a player-elected swap pushes a team-shared element counter past
+ * its season limit; the named driver in the queued swap pays the grid
+ * penalty via the existing Tier A `driver.nextRaceGridDrop` channel.
+ * Both fields reset at season end.
  */
 /**
  * Back-fill map for `team.headquarters` when migrating a save from v4 → v5.
@@ -246,6 +254,20 @@ export const MIGRATIONS: Record<number, Migration> = {
       ...team,
       fastestLapHistory: team.fastestLapHistory ?? [],
       failureEvents: team.failureEvents ?? [],
+    })),
+  }),
+  /**
+   * v9 → v10 (Factory Box 2 — Power Unit strategy): Adds two persisted
+   * team fields. `penaltiesTaken` is a running season counter; defaults
+   * to 0. `pendingComponentSwaps` is the player-elected swap queue;
+   * defaults to []. Existing values are preserved verbatim.
+   */
+  9: (data) => ({
+    ...data,
+    teams: data.teams.map((team) => ({
+      ...team,
+      penaltiesTaken: team.penaltiesTaken ?? 0,
+      pendingComponentSwaps: team.pendingComponentSwaps ?? [],
     })),
   }),
   3: (data) => {

@@ -67,6 +67,20 @@ export interface FailureEvent {
   driverId: string
 }
 
+/**
+ * One queued power-unit element swap election made by the player during the
+ * management phase. Drained by `applyPendingSwaps` at the management →
+ * practice transition. The named driver is the one who pays the grid
+ * penalty if the swap pushes the team-shared element counter past its
+ * season limit (real F1 model: each car carries its own ICE history, but
+ * we simplify to a team pool plus a per-driver penalty target).
+ */
+export interface PendingComponentSwap {
+  driverId: string
+  element: ComponentElement
+  electedRound: number
+}
+
 export interface AiPersonality {
   aggressiveness: number  // 0-1
   financialDiscipline: number // 0-1
@@ -147,4 +161,19 @@ export interface Team {
    * the read path falls back to a per-element-wear heuristic when empty.
    */
   failureEvents: FailureEvent[]
+  /**
+   * Running season counter of grid-penalty events incurred from elected
+   * component swaps. Increments by one each time `applyPendingSwaps` drains
+   * a swap whose post-increment `used > limit` (i.e., the player elected to
+   * take a penalty here rather than risk a worse circuit later). Reset at
+   * season end.
+   */
+  penaltiesTaken: number
+  /**
+   * Queue of player-elected component swaps awaiting the management →
+   * practice transition. Each entry names the driver who will pay any
+   * grid penalty. Idempotent on append (one entry per driver × element);
+   * drained by `applyPendingSwaps`. Reset at season end.
+   */
+  pendingComponentSwaps: PendingComponentSwap[]
 }
