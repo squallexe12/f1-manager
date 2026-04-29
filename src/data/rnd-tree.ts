@@ -2,6 +2,18 @@ import type { RndUpgrade } from '@/types/team'
 
 type RndTemplate = Omit<RndUpgrade, 'progress' | 'status'>
 
+/**
+ * Per-cycle aerodynamic budget consumption for each upgrade. Calibrated so
+ * a typical mid-season slate (one chassis + one aero in-progress) uses
+ * ~30–50% of a mid-grid team's CDT window before reset, leaving room for
+ * a third upgrade without immediate stall. Phase 3 (Box 3) reads these
+ * values to drive `consumeAeroBudget`.
+ *
+ * Heuristic per branch:
+ *  - chassis  → high WT, moderate CFD (real-world wind-tunnel-driven program)
+ *  - power-unit → low WT, high CFD (engineering simulation, no aero work)
+ *  - active-aero → high WT, high CFD (continuous correlation + simulation)
+ */
 export const RND_TREE: RndTemplate[] = [
   // === Chassis Branch ===
   {
@@ -10,6 +22,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 8_000_000, developmentRaces: 3,
     performanceDelta: { downforce: 3, cornering: 2 },
     prerequisiteIds: [],
+    wtHoursPerCycle: 22, cfdRunsPerCycle: 110,
   },
   {
     id: 'chassis-floor-upgrade', branch: 'chassis',
@@ -17,6 +30,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 15_000_000, developmentRaces: 4,
     performanceDelta: { downforce: 5, cornering: 3, tireManagement: 1 },
     prerequisiteIds: ['chassis-front-wing-v2'],
+    wtHoursPerCycle: 32, cfdRunsPerCycle: 160,
   },
   {
     id: 'chassis-rear-wing-active', branch: 'chassis',
@@ -24,6 +38,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 12_000_000, developmentRaces: 3,
     performanceDelta: { straightSpeed: 3, downforce: 2 },
     prerequisiteIds: ['chassis-front-wing-v2'],
+    wtHoursPerCycle: 24, cfdRunsPerCycle: 130,
   },
   {
     id: 'chassis-sidepod-redesign', branch: 'chassis',
@@ -31,6 +46,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 20_000_000, developmentRaces: 5,
     performanceDelta: { downforce: 4, straightSpeed: 2, cornering: 3 },
     prerequisiteIds: ['chassis-floor-upgrade', 'chassis-rear-wing-active'],
+    wtHoursPerCycle: 40, cfdRunsPerCycle: 200,
   },
 
   // === Power Unit Branch ===
@@ -40,6 +56,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 10_000_000, developmentRaces: 3,
     performanceDelta: { straightSpeed: 2, reliability: 1 },
     prerequisiteIds: [],
+    wtHoursPerCycle: 0, cfdRunsPerCycle: 90,
   },
   {
     id: 'pu-battery-capacity', branch: 'power-unit',
@@ -47,6 +64,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 14_000_000, developmentRaces: 4,
     performanceDelta: { straightSpeed: 3, tireManagement: 1 },
     prerequisiteIds: ['pu-ers-efficiency'],
+    wtHoursPerCycle: 0, cfdRunsPerCycle: 120,
   },
   {
     id: 'pu-turbo-reliability', branch: 'power-unit',
@@ -54,6 +72,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 8_000_000, developmentRaces: 3,
     performanceDelta: { reliability: 5 },
     prerequisiteIds: ['pu-ers-efficiency'],
+    wtHoursPerCycle: 0, cfdRunsPerCycle: 70,
   },
   {
     id: 'pu-ice-power-mode', branch: 'power-unit',
@@ -61,6 +80,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 18_000_000, developmentRaces: 5,
     performanceDelta: { straightSpeed: 5, reliability: -2 },
     prerequisiteIds: ['pu-battery-capacity', 'pu-turbo-reliability'],
+    wtHoursPerCycle: 0, cfdRunsPerCycle: 180,
   },
 
   // === Active Aero Branch ===
@@ -70,6 +90,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 9_000_000, developmentRaces: 3,
     performanceDelta: { straightSpeed: 4 },
     prerequisiteIds: [],
+    wtHoursPerCycle: 26, cfdRunsPerCycle: 140,
   },
   {
     id: 'aero-overtake-mode', branch: 'active-aero',
@@ -77,6 +98,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 12_000_000, developmentRaces: 4,
     performanceDelta: { straightSpeed: 2, braking: 2 },
     prerequisiteIds: ['aero-straight-mode-v2'],
+    wtHoursPerCycle: 28, cfdRunsPerCycle: 150,
   },
   {
     id: 'aero-wing-sync', branch: 'active-aero',
@@ -84,6 +106,7 @@ export const RND_TREE: RndTemplate[] = [
     cost: 11_000_000, developmentRaces: 3,
     performanceDelta: { cornering: 4, braking: 2 },
     prerequisiteIds: ['aero-straight-mode-v2'],
+    wtHoursPerCycle: 24, cfdRunsPerCycle: 130,
   },
   {
     id: 'aero-adaptive-response', branch: 'active-aero',
@@ -91,5 +114,15 @@ export const RND_TREE: RndTemplate[] = [
     cost: 22_000_000, developmentRaces: 5,
     performanceDelta: { downforce: 3, straightSpeed: 3, cornering: 3, braking: 1 },
     prerequisiteIds: ['aero-overtake-mode', 'aero-wing-sync'],
+    wtHoursPerCycle: 36, cfdRunsPerCycle: 220,
   },
 ]
+
+/**
+ * Default WT/CFD per-cycle costs for upgrades on legacy saves that pre-date
+ * Phase 3. Picked at the lower-mid end of the range so a save migration
+ * never accidentally pushes a team's running upgrades over the budget on
+ * first load. Used by the v10 → v11 save migration.
+ */
+export const DEFAULT_WT_HOURS_PER_CYCLE = 2
+export const DEFAULT_CFD_RUNS_PER_CYCLE = 80

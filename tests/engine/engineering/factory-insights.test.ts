@@ -59,6 +59,8 @@ function team(id: string, pos: number, perf: Partial<CarPerformance> = {}): Team
     failureEvents: [],
     penaltiesTaken: 0,
     pendingComponentSwaps: [],
+    aeroBookings: [],
+    upgradeOutcomes: [],
   }
 }
 
@@ -84,6 +86,8 @@ function upgrade(
     developmentRaces: races,
     performanceDelta: {},
     prerequisiteIds: [],
+    wtHoursPerCycle: 0,
+    cfdRunsPerCycle: 0,
   }
 }
 

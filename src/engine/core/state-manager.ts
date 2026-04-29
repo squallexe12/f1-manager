@@ -86,6 +86,8 @@ function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARI
     failureEvents: [],
     penaltiesTaken: 0,
     pendingComponentSwaps: [],
+    aeroBookings: [],
+    upgradeOutcomes: [],
   }
 }
 
@@ -110,6 +112,8 @@ function buildTeam(teamData: TeamData, startingSeason: number): Team {
     failureEvents: [],
     penaltiesTaken: 0,
     pendingComponentSwaps: [],
+    aeroBookings: [],
+    upgradeOutcomes: [],
   }
 }
 

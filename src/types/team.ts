@@ -28,6 +28,19 @@ export interface RndUpgrade {
   developmentRaces: number // races to complete
   performanceDelta: Partial<CarPerformance>
   prerequisiteIds: string[]
+  /**
+   * Wind-tunnel hours consumed per management cycle while in-progress.
+   * Aero-heavy branches burn more; non-aero upgrades burn 0. Phase 3 (Box 3)
+   * uses this to drive real WT consumption tied to running upgrades, with a
+   * stall when the team's CDT-window allowance would be exceeded.
+   */
+  wtHoursPerCycle: number
+  /**
+   * CFD compute runs consumed per management cycle while in-progress. Same
+   * mechanic as `wtHoursPerCycle`: only upgrades that exercise the simulator
+   * spend; everything else is 0.
+   */
+  cfdRunsPerCycle: number
 }
 
 export interface ComponentAllocation {
@@ -79,6 +92,37 @@ export interface PendingComponentSwap {
   driverId: string
   element: ComponentElement
   electedRound: number
+}
+
+/**
+ * One management-cycle booking against the FIA Aerodynamic Testing
+ * Restriction (CDT) window. Each entry captures the wind-tunnel hours and
+ * CFD runs spent during that cycle by upgrades that successfully fit
+ * inside the team's remaining budget. Stalled upgrades contribute zero.
+ * Capped at 14 entries — one per day in the rolling window — and cleared
+ * when `resetAeroWindow` runs.
+ */
+export interface AeroBooking {
+  /** Ordinal day index in the current 14-day CDT window (0..13). */
+  day: number
+  wtHours: number
+  cfdRuns: number
+}
+
+/**
+ * Tracking record for an R&D upgrade that has shipped this season.
+ * `predictedOvrDelta` is the sum of `performanceDelta` axes captured at
+ * delivery; `actualOvrDelta` is filled after the first race that runs
+ * post-delivery. `ovrAtDelivery` snapshots the team's car-OVR at delivery
+ * time so the actual-vs-predicted comparison has a stable baseline even
+ * after `ovrHistory` rolls past the delivery round (capped at 12).
+ */
+export interface UpgradeOutcome {
+  upgradeId: string
+  deliveredRound: number
+  predictedOvrDelta: number
+  ovrAtDelivery: number
+  actualOvrDelta: number | null
 }
 
 export interface AiPersonality {
@@ -176,4 +220,19 @@ export interface Team {
    * drained by `applyPendingSwaps`. Reset at season end.
    */
   pendingComponentSwaps: PendingComponentSwap[]
+  /**
+   * Per-day wind-tunnel + CFD bookings inside the current CDT window,
+   * ordered oldest → newest. Capped at 14 entries (FIFO trim). Cleared
+   * when `resetAeroWindow` runs at the window boundary, and again at
+   * season end.
+   */
+  aeroBookings: AeroBooking[]
+  /**
+   * Rolling window of recent R&D deliveries used to compute the Factory
+   * card's correlation Δ readout. Each outcome's `actualOvrDelta` is null
+   * until the first race after delivery resolves; once filled, the entry
+   * stays in the buffer for averaging. Capped at 3 entries (FIFO trim).
+   * Cleared at season end.
+   */
+  upgradeOutcomes: UpgradeOutcome[]
 }

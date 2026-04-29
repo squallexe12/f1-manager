@@ -8,6 +8,7 @@ import { updateMood, type MoodEvent } from '@/engine/drivers/mood-system'
 import { pushForm, pushOvrSample, pushFastestLap, FORM_DNF } from '@/engine/drivers/form-history'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
 import { tickComponentWear } from '@/engine/engineering/component-strategy'
+import { measureUpgradeOutcome } from '@/engine/engineering/aero-budget'
 import { recordSpend } from '@/engine/finance/budget-engine'
 import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige'
 import { generateEvents, resolveExpiredEvents, type GameContext } from '@/engine/narrative/event-generator'
@@ -224,6 +225,13 @@ export function processPostRace(
       ? pushFastestLap(team.fastestLapHistory, { round: currentRound, lapMs: fastestLap!.time })
       : team.fastestLapHistory
     const worn = tickComponentWear(team)
+    // Phase 3 (Box 3): for the player team, measure each upgrade outcome
+    // whose first post-delivery race has just completed. AI teams skip this
+    // — their outcomes are persisted but not surfaced anywhere, and pruning
+    // them isn't free.
+    const measured = team.id === playerTeamId
+      ? measureUpgradeOutcome(team, currentRound)
+      : team
     return {
       ...team,
       constructorPosition: pos,
@@ -231,6 +239,7 @@ export function processPostRace(
       ovrHistory: pushOvrSample(team.ovrHistory, currentOvr),
       fastestLapHistory: nextFastestLapHistory,
       components: worn.components,
+      upgradeOutcomes: measured.upgradeOutcomes,
       lastProcessedRound: currentRound,
     }
   })

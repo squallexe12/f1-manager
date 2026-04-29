@@ -16,10 +16,8 @@ import {
   peerRank,
   projectNextChange,
   atrCoefficientForPosition,
-  correlationDelta,
   nextDeliveryRound,
   windowResetsIn,
-  deterministicAeroHistory,
 } from '@/engine/engineering/factory-insights'
 import {
   componentSwapRows,
@@ -29,6 +27,10 @@ import {
   deltaVsLeaderFromHistory,
   mtbfFromFailureLog,
 } from '@/engine/engineering/car-performance-insights'
+import {
+  correlationDeltaFromOutcomes,
+  AERO_BOOKINGS_CAP,
+} from '@/engine/engineering/aero-budget'
 
 export default function FactoryPage() {
   useRequireGame()
@@ -74,7 +76,7 @@ export default function FactoryPage() {
     0,
   )
   const atr = atrCoefficientForPosition(playerTeam.constructorPosition)
-  const corr = correlationDelta(playerTeam.id, gameState.currentRound)
+  const corr = correlationDeltaFromOutcomes(playerTeam, gameState.currentRound)
   const nextDelivery = nextDeliveryRound(playerTeam.rndUpgrades, gameState.currentRound)
   const daysToReset = windowResetsIn(gameState.currentRound)
 
@@ -82,21 +84,50 @@ export default function FactoryPage() {
     ? playerTeam.rndUpgrades.find((u) => u.id === nextDelivery.upgradeId)
     : undefined
 
-  // Wave 3 wiring: real persisted trend + last-upgrade round, plus derived MTBF
-  // and deterministic aero booking histograms.
-  const wtRatio = playerTeam.windTunnelHoursLimit > 0
-    ? playerTeam.windTunnelHoursUsed / playerTeam.windTunnelHoursLimit
-    : 0
-  const cfdRatio = playerTeam.cfdRunsLimit > 0
-    ? playerTeam.cfdRunsUsed / playerTeam.cfdRunsLimit
-    : 0
-  const wtHistory = deterministicAeroHistory(playerTeam.id, gameState.currentRound, wtRatio)
-  const cfdHistory = deterministicAeroHistory(
-    playerTeam.id,
-    gameState.currentRound + 100, // offset so wt/cfd bars don't mirror each other
-    cfdRatio,
-  )
+  // Phase 3 (Box 3): real per-day aero booking histograms. Each entry in
+  // `team.aeroBookings` is one management cycle's actual WT/CFD spend; we
+  // pad the array out to AERO_BOOKINGS_CAP slots so the histogram retains
+  // a fixed-width layout, and normalize each value against the team's
+  // per-cycle budget ceiling for visual scale.
+  const wtPerDayCeiling = Math.max(1, playerTeam.windTunnelHoursLimit / AERO_BOOKINGS_CAP)
+  const cfdPerDayCeiling = Math.max(1, playerTeam.cfdRunsLimit / AERO_BOOKINGS_CAP)
+  const padded = [
+    ...playerTeam.aeroBookings,
+    ...Array.from({ length: Math.max(0, AERO_BOOKINGS_CAP - playerTeam.aeroBookings.length) }, () => ({
+      day: -1, wtHours: 0, cfdRuns: 0,
+    })),
+  ].slice(0, AERO_BOOKINGS_CAP)
+  const wtHistory = padded.map((b) => Math.max(0, Math.min(1, b.wtHours / wtPerDayCeiling)))
+  const cfdHistory = padded.map((b) => Math.max(0, Math.min(1, b.cfdRuns / cfdPerDayCeiling)))
   const mtbf = mtbfFromFailureLog(playerTeam)
+
+  // Phase 3 (Box 3): forecast which in-progress upgrades would stall on the
+  // *next* management cycle, given current WT/CFD usage. Mirrors the engine's
+  // lex-asc-id processing order from `consumeAeroBudget` so the UI badge
+  // matches what would actually happen at the next phase advance.
+  const stalledUpgradeIds = (() => {
+    const inProgress = playerTeam.rndUpgrades
+      .filter((u) => u.status === 'in-progress')
+      .slice()
+      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    let wt = playerTeam.windTunnelHoursUsed
+    let cfd = playerTeam.cfdRunsUsed
+    let triggered = false
+    const ids = new Set<string>()
+    for (const u of inProgress) {
+      if (triggered) { ids.add(u.id); continue }
+      const nextWt = wt + u.wtHoursPerCycle
+      const nextCfd = cfd + u.cfdRunsPerCycle
+      if (nextWt > playerTeam.windTunnelHoursLimit || nextCfd > playerTeam.cfdRunsLimit) {
+        ids.add(u.id)
+        triggered = true
+        continue
+      }
+      wt = nextWt
+      cfd = nextCfd
+    }
+    return ids
+  })()
 
   return (
     <PageShell theme="broadcast">
@@ -152,7 +183,11 @@ export default function FactoryPage() {
           nextDeliveryLabel={nextDeliveryUpgrade?.name}
         />
 
-        <RdQueue upgrades={playerTeam.rndUpgrades} currentRound={gameState.currentRound} />
+        <RdQueue
+          upgrades={playerTeam.rndUpgrades}
+          currentRound={gameState.currentRound}
+          stalledUpgradeIds={stalledUpgradeIds}
+        />
 
         <TechTree
           upgrades={playerTeam.rndUpgrades}

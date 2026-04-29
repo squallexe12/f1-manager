@@ -8,16 +8,19 @@ function mockUpgrades(): RndUpgrade[] {
       id: 'a', branch: 'chassis', name: 'Upgrade A', description: '', progress: 0,
       status: 'in-progress', cost: 1000, developmentRaces: 4,
       performanceDelta: { downforce: 3 }, prerequisiteIds: [],
+      wtHoursPerCycle: 0, cfdRunsPerCycle: 0,
     },
     {
       id: 'b', branch: 'chassis', name: 'Upgrade B', description: '', progress: 0,
       status: 'locked', cost: 2000, developmentRaces: 3,
       performanceDelta: { cornering: 2 }, prerequisiteIds: ['a'],
+      wtHoursPerCycle: 0, cfdRunsPerCycle: 0,
     },
     {
       id: 'c', branch: 'power-unit', name: 'Upgrade C', description: '', progress: 50,
       status: 'in-progress', cost: 1500, developmentRaces: 2,
       performanceDelta: { straightSpeed: 2 }, prerequisiteIds: [],
+      wtHoursPerCycle: 0, cfdRunsPerCycle: 0,
     },
   ]
 }
@@ -60,11 +63,13 @@ describe('R&D engine', () => {
         id: 'x', branch: 'active-aero', name: 'X', description: '', progress: 80,
         status: 'in-progress', cost: 1000, developmentRaces: 5,
         performanceDelta: { braking: 2 }, prerequisiteIds: [],
+        wtHoursPerCycle: 0, cfdRunsPerCycle: 0,
       },
       {
         id: 'y', branch: 'active-aero', name: 'Y', description: '', progress: 0,
         status: 'locked', cost: 1500, developmentRaces: 3,
         performanceDelta: { cornering: 3 }, prerequisiteIds: ['x'],
+        wtHoursPerCycle: 0, cfdRunsPerCycle: 0,
       },
     ]
     const result = processRnDCycle(upgrades)

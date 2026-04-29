@@ -8,6 +8,13 @@ import { processSeasonEnd } from './season-end-processor'
 import { applyTechnicalDirective, getTechnicalDirectives } from '@/engine/regulations/regulation-engine'
 import { generateRecommendations } from '@/engine/delegation/department-ai'
 import { applyPendingSwaps } from '@/engine/engineering/component-strategy'
+import {
+  consumeAeroBudget,
+  resetAeroWindow,
+  snapshotUpgradePrediction,
+  UPGRADE_OUTCOMES_CAP,
+} from '@/engine/engineering/aero-budget'
+import { windowResetsIn } from '@/engine/engineering/factory-insights'
 
 /**
  * Process management-phase entry: R&D cycles, technical directives, AI teams.
@@ -15,23 +22,45 @@ import { applyPendingSwaps } from '@/engine/engineering/component-strategy'
  */
 export function processManagementEntry(world: FullGameState): FullGameState {
   const rng = createPRNG(world.gameState.seed + world.gameState.currentRound)
+  const currentRound = world.gameState.currentRound
 
-  // Process player team R&D
-  const playerTeam = world.teams.find(t => t.id === world.gameState.playerTeamId)!
-  const updatedUpgrades = processRnDCycle(playerTeam.rndUpgrades)
-  // Detect newly completed upgrades so we can stamp `lastUpgradeRound` for
-  // the Factory "Last Upgrade" readout. Transition is one-way — upgrade ids
-  // are stable, so a status flip from non-complete → complete at the same
-  // index is sufficient.
-  const anyNewlyCompleted = updatedUpgrades.some((u, i) =>
+  // Phase 3 (Box 3): CDT-window reset at the boundary, then aero-budget
+  // consumption tied to the player's in-progress upgrades. Stalled
+  // upgrade ids skip their progress tick this cycle (no progress, no spend).
+  const playerTeamRaw = world.teams.find(t => t.id === world.gameState.playerTeamId)!
+  const daysToReset = windowResetsIn(currentRound)
+  const teamWithReset = daysToReset === 0 ? resetAeroWindow(playerTeamRaw) : playerTeamRaw
+  const todayIndex = Math.max(0, Math.min(13, 13 - daysToReset))
+  const { team: teamAfterBudget, stalledUpgradeIds } = consumeAeroBudget(teamWithReset, todayIndex)
+  const stallSet = new Set(stalledUpgradeIds)
+  const playerTeam = teamAfterBudget
+
+  // Process player team R&D — stalled upgrades are skipped this cycle.
+  const updatedUpgrades = processRnDCycle(playerTeam.rndUpgrades, 1.0, stallSet)
+  // Detect newly completed upgrades. Transition is one-way; upgrade ids are
+  // stable, so a status flip from non-complete → complete at the same index
+  // identifies the deliveries this cycle.
+  const newlyCompletedUpgrades = updatedUpgrades.filter((u, i) =>
     u.status === 'complete' && playerTeam.rndUpgrades[i]?.status !== 'complete',
   )
+  const anyNewlyCompleted = newlyCompletedUpgrades.length > 0
+  // Phase 3 (Box 3): snapshot the predicted-vs-actual prediction for each
+  // freshly-shipped upgrade. `actualOvrDelta` fills after the next race.
+  let nextOutcomes = playerTeam.upgradeOutcomes
+  for (const u of newlyCompletedUpgrades) {
+    const snapshot = snapshotUpgradePrediction(playerTeam, u.id, currentRound)
+    if (snapshot) nextOutcomes = [...nextOutcomes, snapshot].slice(-UPGRADE_OUTCOMES_CAP)
+  }
   let updatedTeams = world.teams.map(t =>
     t.id === playerTeam.id
       ? {
         ...t,
+        windTunnelHoursUsed: playerTeam.windTunnelHoursUsed,
+        cfdRunsUsed: playerTeam.cfdRunsUsed,
+        aeroBookings: playerTeam.aeroBookings,
         rndUpgrades: updatedUpgrades,
-        lastUpgradeRound: anyNewlyCompleted ? world.gameState.currentRound : t.lastUpgradeRound,
+        upgradeOutcomes: nextOutcomes,
+        lastUpgradeRound: anyNewlyCompleted ? currentRound : t.lastUpgradeRound,
       }
       : t,
   )

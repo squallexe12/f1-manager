@@ -58,6 +58,8 @@ function makeTeam(
     failureEvents: [],
     penaltiesTaken: 0,
     pendingComponentSwaps: [],
+    aeroBookings: [],
+    upgradeOutcomes: [],
     ...overrides,
   }
 }

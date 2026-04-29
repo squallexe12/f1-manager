@@ -21,6 +21,8 @@ export type TeamData = Omit<
   | 'failureEvents'
   | 'penaltiesTaken'
   | 'pendingComponentSwaps'
+  | 'aeroBookings'
+  | 'upgradeOutcomes'
   | 'staff'
 > & {
   staff: Omit<DepartmentHead, 'contractEndSeason'>[]

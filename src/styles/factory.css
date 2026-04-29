@@ -900,6 +900,23 @@
   color: var(--ink-hi);
   font-weight: 700;
   font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rdq-stall-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--bg-void);
+  background: var(--sig-amber, #ffb000);
+  border-radius: 2px;
+  text-transform: uppercase;
 }
 .rdq-branch {
   color: var(--ink-mute);

@@ -761,6 +761,76 @@ describe('v9 → v10 migration (Factory Box 2 — Power Unit strategy)', () => {
   })
 })
 
+describe('v10 → v11 migration (Factory Box 3 — Aero Testing real data)', () => {
+  it('back-fills aeroBookings, upgradeOutcomes, and per-upgrade WT/CFD costs', () => {
+    const v10State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 10 },
+      teams: [
+        {
+          id: 'mclaren',
+          rndUpgrades: [
+            // Legacy upgrade with no per-cycle costs.
+            {
+              id: 'aero-x', branch: 'active-aero',
+              name: 'Old Aero', description: '', progress: 30,
+              status: 'in-progress', cost: 5, developmentRaces: 3,
+              performanceDelta: { downforce: 2 }, prerequisiteIds: [],
+            },
+          ],
+        },
+      ],
+      drivers: [],
+    }
+    const { data, migrated } = migrateToCurrent(v10State as unknown as FullGameState, 10)
+    expect(migrated).toBe(true)
+    expect(data.teams[0].aeroBookings).toEqual([])
+    expect(data.teams[0].upgradeOutcomes).toEqual([])
+    const upgrade = data.teams[0].rndUpgrades[0]
+    expect(upgrade.wtHoursPerCycle).toBeGreaterThanOrEqual(0)
+    expect(upgrade.cfdRunsPerCycle).toBeGreaterThanOrEqual(0)
+    expect(typeof upgrade.wtHoursPerCycle).toBe('number')
+    expect(typeof upgrade.cfdRunsPerCycle).toBe('number')
+  })
+
+  it('preserves existing aeroBookings, upgradeOutcomes, and per-upgrade costs verbatim', () => {
+    const v10State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 10 },
+      teams: [{
+        id: 'mclaren',
+        aeroBookings: [{ day: 3, wtHours: 5, cfdRuns: 25 }],
+        upgradeOutcomes: [{
+          upgradeId: 'a', deliveredRound: 3,
+          predictedOvrDelta: 5, ovrAtDelivery: 80, actualOvrDelta: 6,
+        }],
+        rndUpgrades: [{
+          id: 'aero-x', branch: 'active-aero',
+          name: 'Old Aero', description: '', progress: 30,
+          status: 'in-progress', cost: 5, developmentRaces: 3,
+          performanceDelta: { downforce: 2 }, prerequisiteIds: [],
+          wtHoursPerCycle: 17, cfdRunsPerCycle: 88,
+        }],
+      }],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v10State as unknown as FullGameState, 10)
+    expect(data.teams[0].aeroBookings).toEqual([{ day: 3, wtHours: 5, cfdRuns: 25 }])
+    expect(data.teams[0].upgradeOutcomes[0].actualOvrDelta).toBe(6)
+    expect(data.teams[0].rndUpgrades[0].wtHoursPerCycle).toBe(17)
+    expect(data.teams[0].rndUpgrades[0].cfdRunsPerCycle).toBe(88)
+  })
+
+  it('is idempotent — running twice yields the same result', () => {
+    const v10State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 10 },
+      teams: [{ id: 'mclaren', rndUpgrades: [] }],
+      drivers: [],
+    }
+    const once = migrateToCurrent(v10State as unknown as FullGameState, 10).data
+    const twice = migrateToCurrent(once, SCHEMA_VERSION).data
+    expect(twice).toEqual(once)
+  })
+})
+
 describe('SaveSystem auto-rewrite on migration', () => {
   it('rewrites a migrated save back at the current schema version', async () => {
     // Stub a migration from a hypothetical older version (0 → 1) by temporarily

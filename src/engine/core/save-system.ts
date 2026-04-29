@@ -1,13 +1,17 @@
 import { openDB, type IDBPDatabase } from 'idb'
 import type { FullGameState } from './state-manager'
 import type { ComponentAllocation } from '@/types/team'
+import {
+  DEFAULT_WT_HOURS_PER_CYCLE,
+  DEFAULT_CFD_RUNS_PER_CYCLE,
+} from '@/data/rnd-tree'
 
 const DB_NAME = 'mission-control-f1'
 const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 11
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -268,6 +272,30 @@ export const MIGRATIONS: Record<number, Migration> = {
       ...team,
       penaltiesTaken: team.penaltiesTaken ?? 0,
       pendingComponentSwaps: team.pendingComponentSwaps ?? [],
+    })),
+  }),
+  /**
+   * v10 → v11 (Factory Box 3 — Aero Testing real data): Adds two
+   * persisted team buffers and back-fills WT/CFD per-cycle costs onto
+   * existing R&D upgrades. `aeroBookings` (cap 14) is the per-day CDT
+   * window booking ledger; `upgradeOutcomes` (cap 3) is the rolling
+   * predicted-vs-actual upgrade outcome buffer. Both default to []. The
+   * `wtHoursPerCycle` / `cfdRunsPerCycle` fields are static-data props on
+   * `RndUpgrade` that pre-Phase-3 saves did not have; legacy upgrades on
+   * disk get conservative defaults so existing in-progress upgrades do
+   * not accidentally exceed the team's CDT budget on first load.
+   */
+  10: (data) => ({
+    ...data,
+    teams: data.teams.map((team) => ({
+      ...team,
+      aeroBookings: team.aeroBookings ?? [],
+      upgradeOutcomes: team.upgradeOutcomes ?? [],
+      rndUpgrades: (team.rndUpgrades ?? []).map((u) => ({
+        ...u,
+        wtHoursPerCycle: u.wtHoursPerCycle ?? DEFAULT_WT_HOURS_PER_CYCLE,
+        cfdRunsPerCycle: u.cfdRunsPerCycle ?? DEFAULT_CFD_RUNS_PER_CYCLE,
+      })),
     })),
   }),
   3: (data) => {

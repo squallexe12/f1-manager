@@ -142,6 +142,12 @@ export function processSeasonEnd(
     // unresolved election from the prior championship).
     penaltiesTaken: 0,
     pendingComponentSwaps: [],
+    // Phase 3 (Box 3) buffers reset per season: the CDT booking ledger
+    // and recent-upgrade-outcome buffer both start fresh for the new
+    // championship. Correlation Δ falls back to its hash heuristic until
+    // the new season's first delivery resolves.
+    aeroBookings: [],
+    upgradeOutcomes: [],
   }))
 
   // 5. Apply next season's regulation changes

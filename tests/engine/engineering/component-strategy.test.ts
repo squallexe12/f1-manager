@@ -32,6 +32,7 @@ function makeTeam(overrides: Partial<Team> = {}): Team {
     ovrHistory: [], lastUpgradeRound: 0,
     fastestLapHistory: [], failureEvents: [],
     penaltiesTaken: 0, pendingComponentSwaps: [],
+    aeroBookings: [], upgradeOutcomes: [],
     ...overrides,
   }
 }

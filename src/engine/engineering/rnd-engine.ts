@@ -4,10 +4,20 @@ import type { RndUpgrade, CarPerformance } from '@/types/team'
  * Advance R&D progress for in-progress upgrades.
  * Called once per management phase (between races).
  * Returns updated upgrades array.
+ *
+ * Phase 3 (Box 3): upgrades whose id is in `stalledIds` skip their progress
+ * tick this cycle. They keep their `in-progress` status and current
+ * `progress` value — they will resume next cycle if the CDT-window budget
+ * recovers (or stall again if the overrun persists).
  */
-export function advanceRnD(upgrades: RndUpgrade[], rndEfficiency: number = 1.0): RndUpgrade[] {
+export function advanceRnD(
+  upgrades: RndUpgrade[],
+  rndEfficiency: number = 1.0,
+  stalledIds: ReadonlySet<string> = new Set(),
+): RndUpgrade[] {
   return upgrades.map(upgrade => {
     if (upgrade.status === 'in-progress') {
+      if (stalledIds.has(upgrade.id)) return upgrade
       const progressPerRace = (100 / upgrade.developmentRaces) * rndEfficiency
       const newProgress = Math.min(100, upgrade.progress + progressPerRace)
 
@@ -63,8 +73,14 @@ export function pauseUpgrade(upgrades: RndUpgrade[], upgradeId: string): RndUpgr
 
 /**
  * Process a full R&D cycle: advance progress, then unlock dependents.
+ * `stalledIds` (Phase 3 Box 3) lets the orchestrator skip progress for
+ * upgrades whose CDT-window cost overflowed this cycle.
  */
-export function processRnDCycle(upgrades: RndUpgrade[], efficiency: number = 1.0): RndUpgrade[] {
-  const advanced = advanceRnD(upgrades, efficiency)
+export function processRnDCycle(
+  upgrades: RndUpgrade[],
+  efficiency: number = 1.0,
+  stalledIds: ReadonlySet<string> = new Set(),
+): RndUpgrade[] {
+  const advanced = advanceRnD(upgrades, efficiency, stalledIds)
   return unlockDependents(advanced)
 }
