@@ -48,10 +48,12 @@ This spec adds a first-class **Team Radio** layer: an authored library of real-F
 - `src/engine/race/radio-picker.ts` — `pickRadioMessage()` and `isBroadcastWorthy()` pure functions.
 
 **Touched:**
-- `src/types/race.ts` — extend `CommentaryEntry` with optional fields (additive).
-- `src/engine/race/race-simulator.ts` — replace 2 existing emits, add up to 6 new emit points, plus 2 wired-but-dormant for safety car.
-- `src/components/strategy/commentary-feed.tsx` — filter out `severity === 'radio'` entries (so they don't render in two panels).
-- `src/app/strategy/page.tsx` — add Team Radio panel above the Commentary feed.
+- `src/types/race.ts` — extend `CommentaryEntry` with optional fields (additive). *Owned by sim-engine* — type definition.
+- `src/engine/race/race-simulator.ts` — replace 2 existing emits, add up to 6 new emit points, plus 2 wired-but-dormant for safety car. *Owned by sim-engine.*
+- `src/components/strategy/commentary-feed.tsx` — filter out `severity === 'radio'` entries (so they don't render in two panels). *Owned by ui-interface* — no store action change needed.
+- `src/app/strategy/page.tsx` — add Team Radio panel above the Commentary feed. *Owned by ui-interface* — layout-only, no new store wiring.
+
+**Note:** `game-state` is not in the ownership chain. No new store actions, no new worker-protocol messages, no new persisted fields. Radio entries flow through the existing `commentary` array on `WorkerOutMessage` and the existing `runtime.commentary` reducer path.
 
 **New (ui-interface owned):**
 - `src/components/strategy/team-radio-panel.tsx` — `'use client'` panel.
@@ -175,7 +177,7 @@ export function pickRadioMessage(ctx: RadioContext, rng: PRNG): CommentaryEntry
    - `template.archetypes` is empty OR intersects `profile.archetypes`
    - `ctx.driver.mood.frustration ∈ [minFrustration, maxFrustration]`
 4. **Weighted pick** from the eligible pool using `rng.range(0, totalWeight)`.
-5. **Token resolution** — replace `{driver}`, `{opponent}`, `{gap}`, etc. from `ctx`. Missing-token → throw in dev, fall back to "..." in prod (caught by tests).
+5. **Token resolution** — replace `{driver}`, `{opponent}`, `{gap}`, etc. from `ctx`. Missing-token behaviour gated on `process.env.NODE_ENV !== 'production'`: throw in dev (Vitest runs as non-production, so tests catch it), fall back to `"..."` in production. The gate is read once at module load into a `const DEBUG_MODE`, keeping the picker pure and deterministic across environments.
 6. Return a fully-formed `CommentaryEntry` with `severity: 'radio'`, populated `speaker / driverId / teamId / category / tone / isPlayerTeam`.
 
 **Determinism:** at most two `rng` calls per pick (signature gate + weighted pick, or just one signature draw). Same seed + same `ctx` → identical output.
@@ -215,12 +217,12 @@ The simulator calls `pickRadioMessage` only when `isBroadcastWorthy === true`. T
 | 8 | Fastest lap detected | after `lapResults` loop | engineer `fastest_lap` for the driver | Only when fastest-time strictly improves |
 | 9 | Tire wear < 25 | after `degradeTire` | driver `tire_complaint` (mood-gated) | Once per stint per driver |
 | 10 | Rain incoming | after `weatherEngine.tick()` | engineer `rain_incoming` | Once per weather transition |
-| 11 | Push/overtake command issued by player | `applyCommandEnvelopeToSim` | engineer `push_now` | Player team only |
-| 12 | Conserve/defend command issued by player | `applyCommandEnvelopeToSim` | engineer `manage_tires` | Player team only |
+| 11 | Push/overtake command issued by player | `applyCommandEnvelopeToSim` | engineer `push_now` | Player team only. **No new command bus message** — radio is a side effect of an existing command being applied. |
+| 12 | Conserve/defend command issued by player | `applyCommandEnvelopeToSim` | engineer `manage_tires` | Player team only. Same as #11 — side effect of existing command. |
 | 13 | Safety car deployed | new (wired-but-dormant) | FIA `safety_car_deploy` + engineer `manage_tires` for all cars | **Dormant in v1** — simulator does not currently emit SC incidents |
 | 14 | Safety car ending | new (wired-but-dormant) | FIA `safety_car_in` + engineer urgent push | **Dormant in v1** — same reason |
 
-**State additions** on `SimRaceState` (session-scoped, not persisted):
+**State additions** on `SimRaceState` — the worker-internal race state defined in `src/engine/race/race-simulator.ts`, **not** the store's `raceRuntime` slice. These flags live entirely inside the Web Worker, are session-scoped, never reach the store, and are never persisted:
 ```ts
 radioFlags: {
   tireComplainedThisStint: Record<string, boolean>
@@ -265,7 +267,7 @@ Today the right column hosts `commentary-feed.tsx`. v1 splits it vertically:
 
 Below 1024px: stack vertically (existing responsive pattern). Both panels independently scrollable.
 
-The stale "PIT" badge mapped to `severity: 'radio'` in `commentary-feed.tsx` becomes irrelevant once radio is routed exclusively to the new panel — that mapping line can be removed.
+The stale "PIT" badge mapped to `severity: 'radio'` in `commentary-feed.tsx` becomes irrelevant once radio is routed exclusively to the new panel — that mapping line can be removed. **Implementer must verify** during planning that no other engine path emits `severity: 'radio'` after the rewrite, so the legacy badge isn't silently used by something else (sanity grep: `severity:\s*['"]radio` should match only the new picker).
 
 ## 8. Testing strategy
 
