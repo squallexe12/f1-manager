@@ -10,8 +10,11 @@ import type { DriverRadioProfile } from '@/types/radio'
  * when a category has signatures and the catchphrase roll succeeds, the
  * picker selects from those instead of the archetype pool.
  *
- * Invariant: every Driver.id in `src/data/drivers.ts` MUST have an entry
- * here. `tests/data/driver-radio-profiles.test.ts` enforces this.
+ * Invariant: every grid driverId in `src/data/teams.ts` (the 22 race
+ * roster drivers, derived from `TEAMS.flatMap(t => t.driverIds)`) MUST
+ * have an entry here. `tests/data/driver-radio-profiles.test.ts`
+ * enforces this. Reserve / scouting / F2 drivers in `src/data/drivers.ts`
+ * are intentionally NOT in scope.
  */
 export const DRIVER_RADIO_PROFILES: readonly DriverRadioProfile[] = [
   // McLaren
