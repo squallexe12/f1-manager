@@ -1,5 +1,7 @@
 import type { RadioCategory, RadioSpeaker, RadioTone } from '@/types/race'
 
+export type { RadioCategory, RadioSpeaker, RadioTone }
+
 export type RadioArchetype =
   | 'calm-pro'
   | 'hot-headed'
