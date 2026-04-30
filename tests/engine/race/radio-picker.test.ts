@@ -92,12 +92,34 @@ describe('pickRadioMessage — token resolution', () => {
     expect(result.text).not.toContain('{opponent}')
   })
 
-  it('throws on unknown token in dev', () => {
-    // This test verifies the dev-mode guard. We can't directly inject a bad
-    // template without monkey-patching RADIO_TEMPLATES, so instead this test
-    // is a smoke check that no template uses an unknown token by exhausting
-    // the pool with a deterministic walk.
-    // (Fully covered by tests/data/race-radio.test.ts — see Task 8.)
-    expect(true).toBe(true)
+  it('never leaves unresolved {tokens} in resolved output across many seeds', () => {
+    // Smoke check: across a representative sweep of categories and seeds, the
+    // picker should never emit text containing an unreplaced {token}. This is
+    // a defense-in-depth check; tests/data/race-radio.test.ts statically
+    // validates that all templates use only allowed tokens.
+    const categories: Array<{ category: 'box_box' | 'pit_confirm' | 'overtake_done' | 'overtake_failed' | 'tire_complaint' | 'lights_out' | 'final_lap'; speaker: 'engineer' | 'driver' }> = [
+      { category: 'box_box', speaker: 'engineer' },
+      { category: 'pit_confirm', speaker: 'driver' },
+      { category: 'overtake_done', speaker: 'driver' },
+      { category: 'overtake_failed', speaker: 'driver' },
+      { category: 'tire_complaint', speaker: 'driver' },
+      { category: 'lights_out', speaker: 'engineer' },
+      { category: 'final_lap', speaker: 'engineer' },
+    ]
+    for (const { category, speaker } of categories) {
+      for (let seed = 0; seed < 30; seed++) {
+        const ctx = fixtureCtx({
+          category,
+          speaker,
+          opponent: { id: 'piastri', shortName: 'PIA' } as never,
+          gap: 1.5,
+          compound: 'C3',
+          turn: 4,
+        })
+        const result = pickRadioMessage(ctx, createPRNG(seed))
+        expect(result.text).not.toMatch(/\{[a-z_]+\}/)
+        expect(result.text.length).toBeGreaterThan(0)
+      }
+    }
   })
 })
