@@ -65,6 +65,7 @@ function makeStartPayload(overrides: Partial<RaceWorkerStartPayload> = {}): Race
       {
         id: 'drv-a',
         teamId: 'team-1',
+        shortName: 'DRA',
         attributes: { pace: 90, racecraft: 88, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 },
         car: { downforce: 85, straightSpeed: 80, reliability: 90, tireManagement: 85, braking: 88, cornering: 86 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },
@@ -72,6 +73,7 @@ function makeStartPayload(overrides: Partial<RaceWorkerStartPayload> = {}): Race
       {
         id: 'drv-b',
         teamId: 'team-1',
+        shortName: 'DRB',
         attributes: { pace: 85, racecraft: 82, experience: 70, mentality: 75, marketability: 65, developmentPotential: 55 },
         car: { downforce: 85, straightSpeed: 80, reliability: 90, tireManagement: 85, braking: 88, cornering: 86 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },

@@ -218,6 +218,12 @@ export type RaceCommandPayload = SetCommandPayload | PitCommandPayload | Strateg
 export interface BootstrapDriverInput {
   id: string
   teamId: string
+  /**
+   * 3-letter abbreviation (e.g. 'NOR', 'VER'). Plumbed through to RaceDriver
+   * so the team-radio token resolver can stamp speaker names without rounding
+   * back through the `world.drivers` lookup at every emit site.
+   */
+  shortName: string
   attributes: DriverAttributes
   /**
    * Driver mood at race start. Drives in-race fault probability via the
@@ -276,6 +282,15 @@ export interface WorkerErrorRecovery {
 export type RaceWorkerStartPayload = RaceBootstrapInput & {
   /** Optional initial simulation speed (defaults to 1× on the worker). */
   simSpeed?: SimSpeed
+  /**
+   * Player metadata for the team-radio system. The simulator threads these
+   * through `SimRaceState` so radio emit sites can stamp `isPlayerTeam` and
+   * curate player vs. rival commentary without round-tripping to the store.
+   * All optional — empty/undefined keeps radio behaviour neutral.
+   */
+  playerTeamId?: string
+  playerDriverIds?: readonly string[]
+  championshipRivalIds?: readonly string[]
 }
 
 export type WorkerInMessage =

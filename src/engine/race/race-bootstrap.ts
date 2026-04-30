@@ -67,6 +67,8 @@ export function bootstrapRace(input: RaceBootstrapInput): RaceBootstrapOutput {
 
   const raceDrivers: RaceDriver[] = drivers.map((d) => ({
     id: d.id,
+    shortName: d.shortName,
+    teamId: d.teamId,
     car: { ...d.car },
     attributes: { ...d.attributes },
     mood: { ...d.mood },

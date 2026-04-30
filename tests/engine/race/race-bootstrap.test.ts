@@ -27,6 +27,7 @@ function makeInput(overrides: Partial<RaceBootstrapInput> = {}): RaceBootstrapIn
       {
         id: 'd1',
         teamId: 't1',
+        shortName: 'D1',
         attributes: { pace: 90, racecraft: 88, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 },
         car: { downforce: 85, straightSpeed: 80, reliability: 90, tireManagement: 85, braking: 88, cornering: 86 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },
@@ -34,6 +35,7 @@ function makeInput(overrides: Partial<RaceBootstrapInput> = {}): RaceBootstrapIn
       {
         id: 'd2',
         teamId: 't1',
+        shortName: 'D2',
         attributes: { pace: 85, racecraft: 82, experience: 70, mentality: 75, marketability: 65, developmentPotential: 55 },
         car: { downforce: 85, straightSpeed: 80, reliability: 90, tireManagement: 85, braking: 88, cornering: 86 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },

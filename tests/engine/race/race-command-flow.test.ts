@@ -29,6 +29,16 @@ function makeSim(): SimRaceState {
     pendingInvestigations: [],
     pendingTimePenalties: {},
     appliedPenaltiesByDriver: {},
+    radioFlags: {
+      tireComplainedThisStint: {},
+      weatherTransitionAnnounced: false,
+      fastestLapAnnouncedTime: Infinity,
+      finalLapAnnouncedFor: {},
+      lightsOutAnnounced: false,
+    },
+    playerTeamId: undefined,
+    playerDriverIds: [],
+    championshipRivalIds: [],
   }
 }
 

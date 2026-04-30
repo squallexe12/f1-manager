@@ -207,6 +207,16 @@ export function __handleMessage(msg: unknown): void {
         pendingInvestigations: [],
         pendingTimePenalties: {},
         appliedPenaltiesByDriver: {},
+        radioFlags: {
+          tireComplainedThisStint: {},
+          weatherTransitionAnnounced: false,
+          fastestLapAnnouncedTime: Infinity,
+          finalLapAnnouncedFor: {},
+          lightsOutAnnounced: false,
+        },
+        playerTeamId: payload.playerTeamId,
+        playerDriverIds: [...(payload.playerDriverIds ?? [])],
+        championshipRivalIds: [...(payload.championshipRivalIds ?? [])],
       }
 
       isPaused = false

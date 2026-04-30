@@ -39,6 +39,8 @@ function makeDriverPool(count: number): RaceDriver[] {
   for (let i = 0; i < count; i++) {
     drivers.push({
       id: `d${i + 1}`,
+      shortName: `D${i + 1}`,
+      teamId: `t${Math.floor(i / 2) + 1}`,
       attributes: {
         pace: 80 + (i % 10),
         racecraft: 78 + (i % 9),

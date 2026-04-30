@@ -16,6 +16,18 @@ import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
 
 export interface RaceDriver {
   id: string
+  /**
+   * 3-letter abbreviation (e.g. 'NOR'). Used by the radio token resolver to
+   * stamp speaker names without round-tripping through the world driver list.
+   * Plumbed in from `BootstrapDriverInput.shortName`.
+   */
+  shortName: string
+  /**
+   * Constructor identifier. Required by radio emit sites to compute the
+   * `isPlayerTeam` flag and the team-color border on commentary entries.
+   * Plumbed in from `BootstrapDriverInput.teamId`.
+   */
+  teamId: string
   car: CarPerformance
   attributes: DriverAttributes
   /**
@@ -49,6 +61,36 @@ export interface SimRaceState {
   pendingInvestigations: import('./penalty-engine').PendingInvestigation[]
   pendingTimePenalties: Record<string, number>
   appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>
+  /**
+   * Per-race radio bookkeeping. Each flag prevents a category of radio line
+   * from firing more than the policy allows (e.g. one tire-complaint per
+   * stint, one weather-transition radio per change, one final-lap line per
+   * driver). All session-scoped — never persisted.
+   */
+  radioFlags: {
+    tireComplainedThisStint: Record<string, boolean>
+    weatherTransitionAnnounced: boolean
+    fastestLapAnnouncedTime: number
+    finalLapAnnouncedFor: Record<string, boolean>
+    lightsOutAnnounced: boolean
+  }
+  /**
+   * Player team identifier for the active save. Allows radio emit sites to
+   * stamp `isPlayerTeam` on commentary without lifting back to the store.
+   * Optional — undefined when running an unattended simulation (tests, AI vs
+   * AI smoke runs).
+   */
+  playerTeamId?: string
+  /**
+   * Driver IDs belonging to the player's team this race. Empty for
+   * unattended simulations.
+   */
+  playerDriverIds: string[]
+  /**
+   * Driver IDs flagged as championship rivals (curation-only, never authority
+   * on race outcomes). Empty when not provided by the start payload.
+   */
+  championshipRivalIds: string[]
 }
 
 export interface RaceSetup {
@@ -426,6 +468,16 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     pendingInvestigations: [],
     pendingTimePenalties: {},
     appliedPenaltiesByDriver: {},
+    radioFlags: {
+      tireComplainedThisStint: {},
+      weatherTransitionAnnounced: false,
+      fastestLapAnnouncedTime: Infinity,
+      finalLapAnnouncedFor: {},
+      lightsOutAnnounced: false,
+    },
+    playerTeamId: undefined,
+    playerDriverIds: [],
+    championshipRivalIds: [],
   }
 
   const allLapData: LapResult[][] = []
