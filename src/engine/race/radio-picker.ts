@@ -104,13 +104,13 @@ export function pickRadioMessage(ctx: RadioContext, rng: PRNG): CommentaryEntry 
   const profile = PROFILE_BY_DRIVER_ID.get(ctx.driver.id)
 
   // Signature roll
+  const signaturePool = profile?.signatureLines?.[ctx.category]
   if (
-    profile?.signatureLines?.[ctx.category] &&
-    profile.signatureLines[ctx.category]!.length > 0 &&
-    rng.chance(profile.catchphraseChance ?? DEFAULT_CATCHPHRASE_CHANCE)
+    signaturePool &&
+    signaturePool.length > 0 &&
+    rng.chance(profile?.catchphraseChance ?? DEFAULT_CATCHPHRASE_CHANCE)
   ) {
-    const signaturePool = profile.signatureLines[ctx.category]!
-    const text = rng.pick([...signaturePool])
+    const text = rng.pick(signaturePool)
     return {
       lap: ctx.lap,
       text: resolveTokens(text, ctx),
@@ -132,7 +132,6 @@ export function pickRadioMessage(ctx: RadioContext, rng: PRNG): CommentaryEntry 
   if (pool.length === 0) {
     // Fallback — empty pool. Soft-warn in dev, return a neutral filler in prod.
     if (DEBUG_MODE) {
-      // eslint-disable-next-line no-console
       console.warn(`No eligible radio template for category=${ctx.category} speaker=${ctx.speaker} driver=${ctx.driver.id}`)
     }
     return {
