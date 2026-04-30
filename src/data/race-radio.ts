@@ -21,7 +21,7 @@ export const RADIO_TEMPLATES: readonly RadioTemplate[] = [
   // ─── box_box (engineer) ──────────────────────────────────────────────
   { category: 'box_box', speaker: 'engineer', text: 'Box, box, box this lap. {compound} ready.', tone: 'urgent' },
   { category: 'box_box', speaker: 'engineer', text: 'Box this lap. Confirm box.', tone: 'urgent' },
-  { category: 'box_box', speaker: 'engineer', text: 'Pit window open, box opposite is on.', tone: 'calm' },
+  { category: 'box_box', speaker: 'engineer', text: 'Pit window open. Box this lap, {driver}.', tone: 'calm' },
   { category: 'box_box', speaker: 'engineer', text: 'OK {driver}, box now. {compound} on.', tone: 'urgent' },
   { category: 'box_box', speaker: 'engineer', text: 'Box, box. Target lap plus three.', tone: 'flat' },
   { category: 'box_box', speaker: 'engineer', text: 'Pit, pit, pit. {compound} fitted.', tone: 'urgent' },
@@ -104,7 +104,7 @@ export const RADIO_TEMPLATES: readonly RadioTemplate[] = [
   { category: 'penalty_5s', speaker: 'fia', text: '5-second time penalty applied to car {driver}.', tone: 'flat' },
   { category: 'penalty_5s', speaker: 'fia', text: 'Car {driver}: 5-second penalty for the incident at turn {turn}.', tone: 'flat' },
   { category: 'penalty_5s', speaker: 'fia', text: 'Stewards: 5-second penalty for car {driver}, to be served at the next stop.', tone: 'flat' },
-  { category: 'penalty_5s', speaker: 'fia', text: '5-second penalty, car {driver}. Causing a collision at turn {turn}.', tone: 'flat' },
+  { category: 'penalty_5s', speaker: 'fia', text: '5-second penalty, car {driver}, at turn {turn}.', tone: 'flat' },
 
   // ─── penalty_drive_through (fia) ─────────────────────────────────────
   { category: 'penalty_drive_through', speaker: 'fia', text: 'Drive-through penalty for car {driver}.', tone: 'urgent' },
@@ -116,7 +116,7 @@ export const RADIO_TEMPLATES: readonly RadioTemplate[] = [
   { category: 'safety_car_deploy', speaker: 'fia', text: 'Safety car deployed. Safety car deployed.', tone: 'urgent' },
   { category: 'safety_car_deploy', speaker: 'fia', text: 'Yellow flags sector 2. Safety car on track.', tone: 'urgent' },
   { category: 'safety_car_deploy', speaker: 'fia', text: 'Safety car, safety car. No overtaking.', tone: 'urgent' },
-  { category: 'safety_car_deploy', speaker: 'fia', text: 'Race neutralised. Safety car out at turn {turn}.', tone: 'urgent' },
+  { category: 'safety_car_deploy', speaker: 'fia', text: 'Race neutralised. Safety car deployed.', tone: 'urgent' },
 
   // ─── safety_car_in (fia) ─────────────────────────────────────────────
   { category: 'safety_car_in', speaker: 'fia', text: 'Safety car in this lap. Safety car in.', tone: 'urgent' },
