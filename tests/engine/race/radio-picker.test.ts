@@ -167,4 +167,22 @@ describe('isBroadcastWorthy', () => {
     // For v1, asserting that championship-rival drivers also pass:
     expect(isBroadcastWorthy('overtake_done', ctx, raceCtx)).toBe(true)
   })
+
+  it('passes non-player overtake when opponent is in playerDriverIds (off-podium, non-rival)', () => {
+    // Use a midfield driver (off-podium, non-rival) overtaking a player driver.
+    // The only path that should make this broadcast-worthy is opponentIsPlayer.
+    const raceCtxWithPlayer = {
+      championshipRivalIds: ['verstappen'],
+      podiumPositions: ['norris', 'piastri', 'leclerc'],
+      playerDriverIds: ['norris', 'piastri'],
+    }
+    const ctx = fixtureCtx({
+      isPlayerTeam: false,
+      category: 'overtake_done',
+      driver: { ...fixtureCtx().driver, id: 'ocon', shortName: 'OCO' } as never,  // off-podium, non-rival
+      opponent: { id: 'norris', shortName: 'NOR' } as never,  // player driver
+      position: 12,
+    })
+    expect(isBroadcastWorthy('overtake_done', ctx, raceCtxWithPlayer)).toBe(true)
+  })
 })
