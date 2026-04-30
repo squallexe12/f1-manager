@@ -295,6 +295,8 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       } else if (sanction.sanction === 'drive-through') {
         emitRadio(state, commentary, state.positions, rng, offendingDriver, 'penalty_drive_through', 'fia')
       }
+      // '10s', 'reprimand', 'fine', 'stop-go', 'grid-drop' — no FIA radio template in v1.
+      // Add new RadioCategory entries and wire them here when those sanctions become broadcast-relevant.
       emitRadio(state, commentary, state.positions, rng, offendingDriver, 'driver_frustration', 'driver')
     }
   }
@@ -383,12 +385,10 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       }
       // Radio: engineer "box box" call + driver pit confirm. Reset the
       // tire-complaint flag so the new stint can complain again.
-      const pitDriver = state.drivers.find(d => d.id === driverId)
-      if (pitDriver) {
-        emitRadio(state, commentary, positions, rng, pitDriver, 'box_box', 'engineer', { compound: newCompound })
-        emitRadio(state, commentary, positions, rng, pitDriver, 'pit_confirm', 'driver', { compound: newCompound })
-        state.radioFlags.tireComplainedThisStint[driverId] = false
-      }
+      // `driver` is already resolved with ! assertion at the top of the loop; no re-lookup needed.
+      emitRadio(state, commentary, positions, rng, driver, 'box_box', 'engineer', { compound: newCompound })
+      emitRadio(state, commentary, positions, rng, driver, 'pit_confirm', 'driver', { compound: newCompound })
+      state.radioFlags.tireComplainedThisStint[driverId] = false
     } else {
       // Degrade tires for this lap
       const newTire = degradeTire(tire, tireCal, state.trackTemp)
