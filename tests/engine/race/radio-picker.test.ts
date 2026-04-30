@@ -6,13 +6,13 @@ import { pickRadioMessage, type RadioContext } from '@/engine/race/radio-picker'
 function fixtureCtx(overrides: Partial<RadioContext> = {}): RadioContext {
   return {
     category: 'box_box',
+    speaker: 'engineer',
     driver: {
       id: 'norris',
       shortName: 'NOR',
       teamId: 'mclaren',
       mood: { motivation: 70, frustration: 20, confidence: 70 },
-      attributes: { pace: 90, racecraft: 88, experience: 70, mentality: 80, marketability: 90, developmentPotential: 80 },
-    } as RadioContext['driver'],
+    },
     team: { id: 'mclaren', name: 'McLaren Racing' },
     lap: 23,
     totalLaps: 50,
