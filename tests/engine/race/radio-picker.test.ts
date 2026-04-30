@@ -1,7 +1,7 @@
 // tests/engine/race/radio-picker.test.ts
 import { describe, it, expect } from 'vitest'
 import { createPRNG } from '@/engine/core/prng'
-import { pickRadioMessage, type RadioContext } from '@/engine/race/radio-picker'
+import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from '@/engine/race/radio-picker'
 
 function fixtureCtx(overrides: Partial<RadioContext> = {}): RadioContext {
   return {
@@ -121,5 +121,50 @@ describe('pickRadioMessage — token resolution', () => {
         expect(result.text.length).toBeGreaterThan(0)
       }
     }
+  })
+})
+
+describe('isBroadcastWorthy', () => {
+  const raceCtx = { championshipRivalIds: ['verstappen'], podiumPositions: ['norris', 'piastri', 'leclerc'] }
+
+  it('player team always passes', () => {
+    const ctx = fixtureCtx({ isPlayerTeam: true, category: 'tire_complaint' })
+    expect(isBroadcastWorthy('tire_complaint', ctx, raceCtx)).toBe(true)
+  })
+
+  it('FIA categories always pass for any team', () => {
+    const ctx = fixtureCtx({ isPlayerTeam: false, category: 'penalty_5s' })
+    expect(isBroadcastWorthy('penalty_5s', ctx, raceCtx)).toBe(true)
+  })
+
+  it('drops non-player tire_complaint for midfield non-rival', () => {
+    const ctx = fixtureCtx({
+      isPlayerTeam: false,
+      category: 'tire_complaint',
+      driver: { ...fixtureCtx().driver, id: 'ocon', shortName: 'OCO' } as never,
+      position: 12,
+    })
+    expect(isBroadcastWorthy('tire_complaint', ctx, raceCtx)).toBe(false)
+  })
+
+  it('passes non-player overtake_done when driver is on podium', () => {
+    const ctx = fixtureCtx({
+      isPlayerTeam: false,
+      category: 'overtake_done',
+      driver: { ...fixtureCtx().driver, id: 'piastri', shortName: 'PIA' } as never,
+      position: 2,
+    })
+    expect(isBroadcastWorthy('overtake_done', ctx, raceCtx)).toBe(true)
+  })
+
+  it('passes non-player overtake_done when opponent is the player', () => {
+    const ctx = fixtureCtx({
+      isPlayerTeam: false,
+      category: 'overtake_done',
+      driver: { ...fixtureCtx().driver, id: 'leclerc', shortName: 'LEC' } as never,
+      opponent: { id: 'norris', shortName: 'NOR' } as never,  // player
+    })
+    // For v1, asserting that championship-rival drivers also pass:
+    expect(isBroadcastWorthy('overtake_done', ctx, raceCtx)).toBe(true)
   })
 })

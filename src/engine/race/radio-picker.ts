@@ -160,3 +160,40 @@ export function pickRadioMessage(ctx: RadioContext, rng: PRNG): CommentaryEntry 
     isPlayerTeam: ctx.isPlayerTeam,
   }
 }
+
+// ---------------------------------------------------------------------------
+// Broadcast curation filter
+// ---------------------------------------------------------------------------
+
+const FIA_ALWAYS_BROADCAST: ReadonlySet<RadioCategory> = new Set([
+  'penalty_5s', 'penalty_drive_through', 'investigation',
+  'safety_car_deploy', 'safety_car_in',
+  'fastest_lap', 'lights_out', 'final_lap', 'rain_incoming',
+])
+
+const NON_PLAYER_CONDITIONAL: ReadonlySet<RadioCategory> = new Set([
+  'overtake_done', 'overtake_failed', 'tire_complaint', 'driver_frustration',
+])
+
+export interface BroadcastRaceContext {
+  championshipRivalIds: readonly string[]
+  podiumPositions: readonly string[]   // driverIds in P1, P2, P3
+  playerDriverIds?: readonly string[]
+}
+
+export function isBroadcastWorthy(
+  category: RadioCategory,
+  ctx: RadioContext,
+  raceCtx: BroadcastRaceContext,
+): boolean {
+  if (ctx.isPlayerTeam) return true
+  if (FIA_ALWAYS_BROADCAST.has(category)) return true
+  if (!NON_PLAYER_CONDITIONAL.has(category)) return false
+
+  const onPodium = raceCtx.podiumPositions.includes(ctx.driver.id)
+  const isRival = raceCtx.championshipRivalIds.includes(ctx.driver.id)
+  const opponentIsPlayer = ctx.opponent !== undefined &&
+    (raceCtx.playerDriverIds?.includes(ctx.opponent.id) ?? false)
+
+  return onPodium || isRival || opponentIsPlayer
+}
