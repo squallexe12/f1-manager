@@ -107,6 +107,15 @@ export interface RaceSetup {
   weather: WeatherState
   gridOrder: string[] // driver IDs in grid position order
   calibration?: CalibrationProfile
+  /**
+   * Optional player metadata. When provided, plumbed into `SimRaceState` so
+   * radio curation (`isBroadcastWorthy`) sees the player's team / drivers /
+   * rivals and admits the appropriate categories. Omitted in unattended
+   * simulations (smoke tests, AI vs AI runs).
+   */
+  playerTeamId?: string
+  playerDriverIds?: readonly string[]
+  championshipRivalIds?: readonly string[]
 }
 
 export interface LapSimResult {
@@ -657,9 +666,9 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
       finalLapAnnouncedFor: {},
       lightsOutAnnounced: false,
     },
-    playerTeamId: undefined,
-    playerDriverIds: [],
-    championshipRivalIds: [],
+    playerTeamId: setup.playerTeamId,
+    playerDriverIds: [...(setup.playerDriverIds ?? [])],
+    championshipRivalIds: [...(setup.championshipRivalIds ?? [])],
   }
 
   const allLapData: LapResult[][] = []
