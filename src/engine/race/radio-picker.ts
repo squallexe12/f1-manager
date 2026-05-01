@@ -64,27 +64,32 @@ function resolveTokens(text: string, ctx: RadioContext): string {
       }
       return '...'
     }
-    return replacements[key]
+    const value = replacements[key]
+    // Empty value (token defined but ctx didn't supply it) → substitute placeholder
+    return value === '' ? '...' : value
   })
 }
 
 function archetypesIntersect(
   templateArchetypes: RadioArchetype[] | undefined,
-  driverArchetypes: [RadioArchetype, RadioArchetype?],
+  driverArchetypes: readonly RadioArchetype[],
 ): boolean {
+  // Generic templates (no archetype gate) — always match
   if (!templateArchetypes || templateArchetypes.length === 0) return true
+  // Driver has no archetypes (missing profile) — only generic templates match (handled above)
+  if (driverArchetypes.length === 0) return false
   return templateArchetypes.some(t => driverArchetypes.includes(t))
 }
 
 function eligibleTemplates(
   ctx: RadioContext,
-  profile: DriverRadioProfile,
+  driverArchetypes: readonly RadioArchetype[],
 ): RadioTemplate[] {
   const frustration = ctx.driver.mood.frustration
   return RADIO_TEMPLATES.filter(t =>
     t.category === ctx.category &&
     t.speaker === ctx.speaker &&
-    archetypesIntersect(t.archetypes, profile.archetypes) &&
+    archetypesIntersect(t.archetypes, driverArchetypes) &&
     frustration >= (t.minFrustration ?? 0) &&
     frustration <= (t.maxFrustration ?? 100),
   )
@@ -125,9 +130,9 @@ export function pickRadioMessage(ctx: RadioContext, rng: PRNG): CommentaryEntry 
   }
 
   // Archetype-eligible pool
-  const archetypes = profile?.archetypes ?? ['calm-pro'] as [RadioArchetype]
-  const fakeProfile: DriverRadioProfile = profile ?? { driverId: ctx.driver.id, archetypes }
-  const pool = eligibleTemplates(ctx, fakeProfile)
+  // Missing profile → empty archetypes → only generic templates (no archetype gate) are eligible (spec §6.2.1)
+  const driverArchetypes: readonly RadioArchetype[] = profile?.archetypes.filter((a): a is RadioArchetype => a !== undefined) ?? []
+  const pool = eligibleTemplates(ctx, driverArchetypes)
 
   if (pool.length === 0) {
     // Fallback — empty pool. Soft-warn in dev, return a neutral filler in prod.

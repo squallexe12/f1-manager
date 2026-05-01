@@ -178,7 +178,7 @@ function emitRadio(
   speaker: RadioSpeaker,
   extras: RadioEmitExtras = {},
 ): void {
-  const isPlayerTeam = state.playerTeamId === driver.teamId
+  const isPlayerTeam = state.playerTeamId !== undefined && state.playerTeamId === driver.teamId
   const ctx: RadioContext = {
     category,
     speaker,
