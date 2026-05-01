@@ -7,6 +7,8 @@ import type { RaceDriver } from '@/engine/race/race-simulator'
 function makeDriver(id: string, overrides: Partial<RaceDriver['attributes']> = {}): RaceDriver {
   return {
     id,
+    shortName: id.slice(0, 3).toUpperCase(),
+    teamId: `team-${id}`,
     car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 },
     attributes: {
       pace: 80, racecraft: 80, experience: 80, mentality: 70,

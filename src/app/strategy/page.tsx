@@ -11,6 +11,7 @@ import { PageShell } from '@/components/layout/page-shell'
 import { TimingTower } from '@/components/strategy/timing-tower'
 import { TireStrategy } from '@/components/strategy/tire-strategy'
 import { CommentaryFeed } from '@/components/strategy/commentary-feed'
+import { TeamRadioPanel } from '@/components/strategy/team-radio-panel'
 import { BattleForecast } from '@/components/strategy/battle-forecast'
 import { DriverCommands } from '@/components/strategy/driver-commands'
 import { BroadcastChrome } from '@/components/strategy/broadcast-chrome'
@@ -212,6 +213,22 @@ export default function StrategyPage() {
     const penalisedIds = Object.keys(gridDrops)
     if (penalisedIds.length > 0) consumeGridDrops(penalisedIds)
 
+    // Player + rival metadata for the team-radio system. Threaded through
+    // SimRaceState so emit sites can stamp `isPlayerTeam` and curate radio
+    // by championship context. Rivals: top-3 constructors in standings,
+    // excluding the player's team. Empty array if standings are not yet
+    // populated (round 1) — radio still curates correctly without it.
+    const playerDriverIdsForRace = orderedDrivers
+      .filter((d) => d.teamId === playerTeamId)
+      .map((d) => d.id)
+
+    const championshipRivalIds = teams
+      .filter((t) => t.id !== playerTeamId)
+      .slice()
+      .sort((a, b) => b.constructorPoints - a.constructorPoints)
+      .slice(0, 3)
+      .flatMap((t) => orderedDrivers.filter((d) => d.teamId === t.id).map((d) => d.id))
+
     const payload: RaceWorkerStartPayload = {
       seed: state.seed,
       round: state.currentRound,
@@ -222,6 +239,7 @@ export default function StrategyPage() {
         return {
           id: d.id,
           teamId: d.teamId ?? '',
+          shortName: d.shortName,
           attributes: d.attributes,
           car: dTeam.car,
           mood: d.mood,
@@ -237,6 +255,9 @@ export default function StrategyPage() {
             startCompound: plan.startCompound,
           }
         }),
+      playerTeamId: playerTeamId || undefined,
+      playerDriverIds: playerDriverIdsForRace,
+      championshipRivalIds,
     }
 
     startRace(payload)
@@ -472,6 +493,10 @@ export default function StrategyPage() {
               incidents={raceSim.incidents}
               currentLap={raceSim.currentLap}
               driverNames={driverShortNames}
+            />
+            <TeamRadioPanel
+              entries={raceSim.commentary}
+              playerTeamId={playerTeamId}
             />
             <CommentaryFeed entries={raceSim.commentary} />
           </div>

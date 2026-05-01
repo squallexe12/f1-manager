@@ -3,6 +3,7 @@ import type { DriverAttributes, Mood } from '@/types/driver'
 import type {
   TireCompound, TireState, LapResult, RaceStrategy,
   DriverCommand, CommentaryEntry, RaceIncident, WeatherState, AppliedPenalty,
+  RadioCategory, RadioSpeaker,
 } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
@@ -13,9 +14,22 @@ import { WeatherEngine } from './weather'
 import { resolveCalibrationForCircuit } from '@/data/calibration'
 import { resolveInvestigations, selectSanction, evaluateContestedEvent, openInvestigation } from './penalty-engine'
 import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
+import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
 
 export interface RaceDriver {
   id: string
+  /**
+   * 3-letter abbreviation (e.g. 'NOR'). Used by the radio token resolver to
+   * stamp speaker names without round-tripping through the world driver list.
+   * Plumbed in from `BootstrapDriverInput.shortName`.
+   */
+  shortName: string
+  /**
+   * Constructor identifier. Required by radio emit sites to compute the
+   * `isPlayerTeam` flag and the team-color border on commentary entries.
+   * Plumbed in from `BootstrapDriverInput.teamId`.
+   */
+  teamId: string
   car: CarPerformance
   attributes: DriverAttributes
   /**
@@ -49,6 +63,36 @@ export interface SimRaceState {
   pendingInvestigations: import('./penalty-engine').PendingInvestigation[]
   pendingTimePenalties: Record<string, number>
   appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>
+  /**
+   * Per-race radio bookkeeping. Each flag prevents a category of radio line
+   * from firing more than the policy allows (e.g. one tire-complaint per
+   * stint, one weather-transition radio per change, one final-lap line per
+   * driver). All session-scoped — never persisted.
+   */
+  radioFlags: {
+    tireComplainedThisStint: Record<string, boolean>
+    weatherTransitionAnnounced: boolean
+    fastestLapAnnouncedTime: number
+    finalLapAnnouncedFor: Record<string, boolean>
+    lightsOutAnnounced: boolean
+  }
+  /**
+   * Player team identifier for the active save. Allows radio emit sites to
+   * stamp `isPlayerTeam` on commentary without lifting back to the store.
+   * Optional — undefined when running an unattended simulation (tests, AI vs
+   * AI smoke runs).
+   */
+  playerTeamId?: string
+  /**
+   * Driver IDs belonging to the player's team this race. Empty for
+   * unattended simulations.
+   */
+  playerDriverIds: string[]
+  /**
+   * Driver IDs flagged as championship rivals (curation-only, never authority
+   * on race outcomes). Empty when not provided by the start payload.
+   */
+  championshipRivalIds: string[]
 }
 
 export interface RaceSetup {
@@ -63,6 +107,15 @@ export interface RaceSetup {
   weather: WeatherState
   gridOrder: string[] // driver IDs in grid position order
   calibration?: CalibrationProfile
+  /**
+   * Optional player metadata. When provided, plumbed into `SimRaceState` so
+   * radio curation (`isBroadcastWorthy`) sees the player's team / drivers /
+   * rivals and admits the appropriate categories. Omitted in unattended
+   * simulations (smoke tests, AI vs AI runs).
+   */
+  playerTeamId?: string
+  playerDriverIds?: readonly string[]
+  championshipRivalIds?: readonly string[]
 }
 
 export interface LapSimResult {
@@ -91,6 +144,73 @@ function sampleGaussian(rng: PRNG): number {
   return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
 }
 
+// ---------------------------------------------------------------------------
+// Team radio emit helpers (Team Radio v1)
+//
+// `buildRadioRaceCtx` and `emitRadio` keep every emit site uniform: build the
+// per-driver `RadioContext`, gate it through `isBroadcastWorthy`, and push the
+// resolved `CommentaryEntry` into the per-lap commentary list. All randomness
+// flows through the simulator's PRNG — no Math.random.
+// ---------------------------------------------------------------------------
+
+function buildRadioRaceCtx(state: SimRaceState, positions: string[]) {
+  return {
+    championshipRivalIds: state.championshipRivalIds,
+    podiumPositions: positions.slice(0, 3),
+    playerDriverIds: state.playerDriverIds,
+  }
+}
+
+interface RadioEmitExtras {
+  opponent?: RaceDriver
+  compound?: TireCompound
+  turn?: number
+  gap?: number
+}
+
+function emitRadio(
+  state: SimRaceState,
+  commentary: CommentaryEntry[],
+  positions: string[],
+  rng: PRNG,
+  driver: RaceDriver,
+  category: RadioCategory,
+  speaker: RadioSpeaker,
+  extras: RadioEmitExtras = {},
+): void {
+  const isPlayerTeam = state.playerTeamId !== undefined && state.playerTeamId === driver.teamId
+  const ctx: RadioContext = {
+    category,
+    speaker,
+    driver: {
+      id: driver.id,
+      shortName: driver.shortName,
+      teamId: driver.teamId,
+      mood: driver.mood,
+    },
+    opponent: extras.opponent
+      ? {
+          id: extras.opponent.id,
+          shortName: extras.opponent.shortName,
+          teamId: extras.opponent.teamId,
+          mood: extras.opponent.mood,
+        }
+      : undefined,
+    team: { id: driver.teamId, name: driver.teamId },
+    lap: state.currentLap,
+    totalLaps: state.totalLaps,
+    position: positions.indexOf(driver.id) + 1,
+    compound: extras.compound,
+    turn: extras.turn,
+    gap: extras.gap,
+    isPlayerTeam,
+  }
+  const raceCtx = buildRadioRaceCtx(state, positions)
+  if (isBroadcastWorthy(category, ctx, raceCtx)) {
+    commentary.push(pickRadioMessage(ctx, rng))
+  }
+}
+
 function calculateBaseLapTime(driver: RaceDriver, tirePerf: number, weather: WeatherState): number {
   const { car, attributes } = driver
 
@@ -114,6 +234,36 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const lapResults: LapResult[] = []
   const commentary: CommentaryEntry[] = []
   const incidents: RaceIncident[] = []
+
+  // Capture safety-car state at lap start so the post-lap diff can fire
+  // deploy/in radios on transitions. Dormant in v1 (the simulator does not
+  // currently transition `state.safetyCar`) — wired so v2 inherits it.
+  const prevSafetyCar = state.safetyCar
+
+  // Lights-out radio (lap 1 only, fires once per race for player drivers).
+  if (state.currentLap === 1 && !state.radioFlags.lightsOutAnnounced) {
+    state.radioFlags.lightsOutAnnounced = true
+    for (const pid of state.playerDriverIds) {
+      const pd = state.drivers.find(d => d.id === pid)
+      if (pd) {
+        emitRadio(state, commentary, state.positions, rng, pd, 'lights_out', 'engineer')
+      }
+    }
+  }
+
+  // Final-lap radio: player drivers + race leader, once each.
+  if (state.currentLap === state.totalLaps) {
+    const targets = new Set<string>([...state.playerDriverIds, state.positions[0]])
+    for (const driverId of targets) {
+      if (!driverId) continue
+      if (state.radioFlags.finalLapAnnouncedFor[driverId]) continue
+      state.radioFlags.finalLapAnnouncedFor[driverId] = true
+      const d = state.drivers.find(dr => dr.id === driverId)
+      if (d) {
+        emitRadio(state, commentary, state.positions, rng, d, 'final_lap', 'engineer')
+      }
+    }
+  }
 
   // Resolve any investigations whose decision lap has arrived.
   const { resolved, stillPending } = resolveInvestigations(state.pendingInvestigations, state.currentLap)
@@ -142,6 +292,22 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       penaltyPointsIssued: sanction.penaltyPoints,
       offenceType: inv.offenceType,
     })
+
+    // Radio: FIA voice announces the sanction; offending driver gets a
+    // frustration line (curated by the picker via maxFrustration gating).
+    const offendingDriver = state.drivers.find(d => d.id === inv.driverId)
+    if (offendingDriver) {
+      if (sanction.sanction === '5s') {
+        emitRadio(state, commentary, state.positions, rng, offendingDriver, 'penalty_5s', 'fia', {
+          turn: Math.floor(rng.range(1, 16)),
+        })
+      } else if (sanction.sanction === 'drive-through') {
+        emitRadio(state, commentary, state.positions, rng, offendingDriver, 'penalty_drive_through', 'fia')
+      }
+      // '10s', 'reprimand', 'fine', 'stop-go', 'grid-drop' — no FIA radio template in v1.
+      // Add new RadioCategory entries and wire them here when those sanctions become broadcast-relevant.
+      emitRadio(state, commentary, state.positions, rng, offendingDriver, 'driver_frustration', 'driver')
+    }
   }
 
   const positions = [...state.positions]
@@ -226,17 +392,24 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       if (strategy.plannedStops.length > 0) {
         strategy.plannedStops = strategy.plannedStops.slice(1)
       }
-      commentary.push({
-        lap: state.currentLap,
-        text: `${driverId.toUpperCase()} pits for ${newCompound} tires`,
-        severity: 'highlight',
-      })
+      // Radio: engineer "box box" call + driver pit confirm. Reset the
+      // tire-complaint flag so the new stint can complain again.
+      // `driver` is already resolved with ! assertion at the top of the loop; no re-lookup needed.
+      emitRadio(state, commentary, positions, rng, driver, 'box_box', 'engineer', { compound: newCompound })
+      emitRadio(state, commentary, positions, rng, driver, 'pit_confirm', 'driver', { compound: newCompound })
+      state.radioFlags.tireComplainedThisStint[driverId] = false
     } else {
       // Degrade tires for this lap
       const newTire = degradeTire(tire, tireCal, state.trackTemp)
       // Apply extra tire wear from command
       newTire.wear = Math.max(0, newTire.wear - (tireMod - 1) * 1.5)
       state.tireStates[driverId] = newTire
+
+      // Radio: tire complaint when wear drops below 25% (one per stint).
+      if (newTire.wear < 25 && !state.radioFlags.tireComplainedThisStint[driverId]) {
+        state.radioFlags.tireComplainedThisStint[driverId] = true
+        emitRadio(state, commentary, positions, rng, driver, 'tire_complaint', 'driver')
+      }
     }
 
     const currentTire = state.tireStates[driverId]
@@ -298,11 +471,15 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     if (allowSwap) {
       positions[i - 1] = behindId
       positions[i] = aheadId
-      commentary.push({
-        lap: state.currentLap,
-        text: `${behindId.toUpperCase()} overtakes ${aheadId.toUpperCase()}!`,
-        severity: 'highlight',
-      })
+      // Radio: attacker celebration + defender frustration (gated by
+      // isBroadcastWorthy — non-player swaps surface only on rivalry,
+      // podium, or attacker-vs-player axes).
+      const attackerDriver = state.drivers.find(d => d.id === behindId)
+      const defenderDriver = state.drivers.find(d => d.id === aheadId)
+      if (attackerDriver && defenderDriver) {
+        emitRadio(state, commentary, positions, rng, attackerDriver, 'overtake_done', 'driver', { opponent: defenderDriver })
+        emitRadio(state, commentary, positions, rng, defenderDriver, 'overtake_failed', 'driver', { opponent: attackerDriver })
+      }
     } else {
       // Block the inversion: pin trailing driver's cumulative to just behind
       // the leading driver. Preserves gap reporting without faking the lap.
@@ -349,6 +526,17 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         offenceType: evaluation.decision.offenceType,
         decideOnLap: inv.decideOnLap,
       })
+
+      // Radio: FIA voice opens an investigation. `turn` is synthesised from
+      // PRNG since the simulator does not yet model corner numbers; templates
+      // referencing {turn} resolve cleanly.
+      const offenderId = evaluation.decision.driverId
+      const offendingDriver = state.drivers.find(d => d.id === offenderId)
+      if (offendingDriver) {
+        emitRadio(state, commentary, positions, rng, offendingDriver, 'investigation', 'fia', {
+          turn: Math.floor(rng.range(1, 16)),
+        })
+      }
     }
   }
 
@@ -365,6 +553,51 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   }
 
   state.positions = positions
+
+  // Fastest-lap radio: scan this lap's results for any time strictly faster
+  // than the running session-best, then emit once.
+  let fastestThisLap = { driverId: '', time: Infinity }
+  for (const r of lapResults) {
+    if (r.lapTime < fastestThisLap.time) {
+      fastestThisLap = { driverId: r.driverId, time: r.lapTime }
+    }
+  }
+  if (fastestThisLap.time < state.radioFlags.fastestLapAnnouncedTime) {
+    state.radioFlags.fastestLapAnnouncedTime = fastestThisLap.time
+    const flDriver = state.drivers.find(d => d.id === fastestThisLap.driverId)
+    if (flDriver) {
+      emitRadio(state, commentary, positions, rng, flDriver, 'fastest_lap', 'engineer')
+    }
+  }
+
+  // Rain-incoming radio: fired once per wet-transition, emitted to the
+  // player team only. Resets when weather returns to dry so a later squall
+  // can re-trigger.
+  if (state.weather.rainProbability >= 0.7 && !state.radioFlags.weatherTransitionAnnounced) {
+    state.radioFlags.weatherTransitionAnnounced = true
+    for (const pid of state.playerDriverIds) {
+      const pd = state.drivers.find(d => d.id === pid)
+      if (pd) {
+        emitRadio(state, commentary, positions, rng, pd, 'rain_incoming', 'engineer')
+      }
+    }
+  }
+  if (state.weather.current === 'dry') {
+    state.radioFlags.weatherTransitionAnnounced = false
+  }
+
+  // Safety-car transitions (dormant in v1 — simulator does not currently
+  // change `state.safetyCar`). Wired here so v2 inherits SC radio for free.
+  if (state.safetyCar !== 'green' && prevSafetyCar === 'green') {
+    for (const d of state.drivers) {
+      emitRadio(state, commentary, positions, rng, d, 'safety_car_deploy', 'fia')
+    }
+  }
+  if (state.safetyCar === 'green' && prevSafetyCar !== 'green') {
+    for (const d of state.drivers) {
+      emitRadio(state, commentary, positions, rng, d, 'safety_car_in', 'fia')
+    }
+  }
 
   return { lapResults, commentary, incidents }
 }
@@ -426,6 +659,16 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     pendingInvestigations: [],
     pendingTimePenalties: {},
     appliedPenaltiesByDriver: {},
+    radioFlags: {
+      tireComplainedThisStint: {},
+      weatherTransitionAnnounced: false,
+      fastestLapAnnouncedTime: Infinity,
+      finalLapAnnouncedFor: {},
+      lightsOutAnnounced: false,
+    },
+    playerTeamId: setup.playerTeamId,
+    playerDriverIds: [...(setup.playerDriverIds ?? [])],
+    championshipRivalIds: [...(setup.championshipRivalIds ?? [])],
   }
 
   const allLapData: LapResult[][] = []

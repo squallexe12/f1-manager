@@ -24,6 +24,32 @@ export type SanctionType =
 
 export type SeverityTier = 'minor' | 'serious' | 'major' | 'egregious'
 
+export type RadioCategory =
+  | 'box_box'
+  | 'box_opposite'
+  | 'pit_confirm'
+  | 'stay_out'
+  | 'overtake_done'
+  | 'overtake_failed'
+  | 'tire_complaint'
+  | 'gap_call'
+  | 'push_now'
+  | 'manage_tires'
+  | 'investigation'
+  | 'penalty_5s'
+  | 'penalty_drive_through'
+  | 'safety_car_deploy'
+  | 'safety_car_in'
+  | 'rain_incoming'
+  | 'fastest_lap'
+  | 'final_lap'
+  | 'lights_out'
+  | 'driver_frustration'
+
+export type RadioSpeaker = 'engineer' | 'driver' | 'fia'
+
+export type RadioTone = 'calm' | 'urgent' | 'angry' | 'flat' | 'celebrate'
+
 export interface AppliedPenalty {
   offenceType: OffenceType
   sanction: SanctionType
@@ -145,6 +171,15 @@ export interface CommentaryEntry {
   lap: number
   text: string
   severity: 'critical' | 'highlight' | 'radio' | 'info' | 'neutral'
+  // Optional radio metadata. All fields additive; old commentary entries
+  // (overtakes pre-radio-rewrite, fastest-lap markers, neutral lap-by-lap)
+  // remain valid.
+  speaker?: RadioSpeaker
+  driverId?: string
+  teamId?: string
+  category?: RadioCategory
+  tone?: RadioTone
+  isPlayerTeam?: boolean
 }
 
 export type SimSpeed = 1 | 2 | 5 | 'max'
@@ -183,6 +218,12 @@ export type RaceCommandPayload = SetCommandPayload | PitCommandPayload | Strateg
 export interface BootstrapDriverInput {
   id: string
   teamId: string
+  /**
+   * 3-letter abbreviation (e.g. 'NOR', 'VER'). Plumbed through to RaceDriver
+   * so the team-radio token resolver can stamp speaker names without rounding
+   * back through the `world.drivers` lookup at every emit site.
+   */
+  shortName: string
   attributes: DriverAttributes
   /**
    * Driver mood at race start. Drives in-race fault probability via the
@@ -241,6 +282,15 @@ export interface WorkerErrorRecovery {
 export type RaceWorkerStartPayload = RaceBootstrapInput & {
   /** Optional initial simulation speed (defaults to 1× on the worker). */
   simSpeed?: SimSpeed
+  /**
+   * Player metadata for the team-radio system. The simulator threads these
+   * through `SimRaceState` so radio emit sites can stamp `isPlayerTeam` and
+   * curate player vs. rival commentary without round-tripping to the store.
+   * All optional — empty/undefined keeps radio behaviour neutral.
+   */
+  playerTeamId?: string
+  playerDriverIds?: readonly string[]
+  championshipRivalIds?: readonly string[]
 }
 
 export type WorkerInMessage =

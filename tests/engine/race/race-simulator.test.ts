@@ -7,10 +7,10 @@ import { createFallbackProfile } from '@/types/calibration'
 function mockDrivers() {
   const mood = { motivation: 50, frustration: 30, confidence: 60 }
   return [
-    { id: 'd1', car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 }, attributes: { pace: 85, racecraft: 80, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 }, mood: { ...mood } },
-    { id: 'd2', car: { downforce: 78, straightSpeed: 78, reliability: 78, tireManagement: 78, braking: 78, cornering: 78 }, attributes: { pace: 80, racecraft: 78, experience: 70, mentality: 75, marketability: 65, developmentPotential: 70 }, mood: { ...mood } },
-    { id: 'd3', car: { downforce: 75, straightSpeed: 82, reliability: 75, tireManagement: 75, braking: 75, cornering: 75 }, attributes: { pace: 78, racecraft: 82, experience: 80, mentality: 78, marketability: 60, developmentPotential: 40 }, mood: { ...mood } },
-    { id: 'd4', car: { downforce: 72, straightSpeed: 72, reliability: 85, tireManagement: 72, braking: 72, cornering: 72 }, attributes: { pace: 72, racecraft: 70, experience: 60, mentality: 70, marketability: 55, developmentPotential: 85 }, mood: { ...mood } },
+    { id: 'd1', shortName: 'D1', teamId: 't1', car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 }, attributes: { pace: 85, racecraft: 80, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 }, mood: { ...mood } },
+    { id: 'd2', shortName: 'D2', teamId: 't2', car: { downforce: 78, straightSpeed: 78, reliability: 78, tireManagement: 78, braking: 78, cornering: 78 }, attributes: { pace: 80, racecraft: 78, experience: 70, mentality: 75, marketability: 65, developmentPotential: 70 }, mood: { ...mood } },
+    { id: 'd3', shortName: 'D3', teamId: 't3', car: { downforce: 75, straightSpeed: 82, reliability: 75, tireManagement: 75, braking: 75, cornering: 75 }, attributes: { pace: 78, racecraft: 82, experience: 80, mentality: 78, marketability: 60, developmentPotential: 40 }, mood: { ...mood } },
+    { id: 'd4', shortName: 'D4', teamId: 't4', car: { downforce: 72, straightSpeed: 72, reliability: 85, tireManagement: 72, braking: 72, cornering: 72 }, attributes: { pace: 72, racecraft: 70, experience: 60, mentality: 70, marketability: 55, developmentPotential: 85 }, mood: { ...mood } },
   ]
 }
 
@@ -43,6 +43,16 @@ function mockRaceState(): SimRaceState {
     pendingInvestigations: [],
     pendingTimePenalties: {},
     appliedPenaltiesByDriver: {},
+    radioFlags: {
+      tireComplainedThisStint: {},
+      weatherTransitionAnnounced: false,
+      fastestLapAnnouncedTime: Infinity,
+      finalLapAnnouncedFor: {},
+      lightsOutAnnounced: false,
+    },
+    playerTeamId: undefined,
+    playerDriverIds: [],
+    championshipRivalIds: [],
   }
 }
 
@@ -58,6 +68,32 @@ function mockRaceSetup(): RaceSetup {
     strategies: mockStrategies(drivers),
     weather: 'dry',
     gridOrder: drivers.map(d => d.id),
+  }
+}
+
+/**
+ * Variant of `mockRaceSetup` that wires player metadata so radio curation
+ * (`isBroadcastWorthy`) admits the player + rival categories. The fixture's
+ * synthetic driver/team IDs (`d1..d4` / `t1..t4`) are used as-is. Strategies
+ * are widened to two planned stops per driver so the radio volume test sees
+ * a realistic mix of pit pairs, lights-out, final-lap, and fastest-lap radio.
+ */
+function mockRadioRaceSetup(): RaceSetup {
+  const base = mockRaceSetup()
+  const strategies: RaceStrategy[] = base.drivers.map((d, idx) => ({
+    driverId: d.id,
+    plannedStops: [
+      { lap: 18 + idx, compound: 'C3' as TireCompound },
+      { lap: 36 + idx, compound: 'C4' as TireCompound },
+    ],
+    currentCommand: 'standard' as const,
+  }))
+  return {
+    ...base,
+    strategies,
+    playerTeamId: 't1',
+    playerDriverIds: ['d1'],
+    championshipRivalIds: ['d2', 'd3'],
   }
 }
 
@@ -287,12 +323,16 @@ describe('race simulator', () => {
     state.drivers = [
       {
         id: 'd1',
+        shortName: 'D1',
+        teamId: 't1',
         car: { downforce: 80, straightSpeed: 80, reliability: 80, tireManagement: 80, braking: 80, cornering: 80 },
         attributes: { pace: 80, racecraft: 80, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },
       },
       {
         id: 'd2',
+        shortName: 'D2',
+        teamId: 't2',
         car: { downforce: 90, straightSpeed: 90, reliability: 90, tireManagement: 90, braking: 90, cornering: 90 },
         attributes: { pace: 90, racecraft: 30, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },
@@ -381,12 +421,16 @@ function makeRaceEndFoldSetup(): RaceSetup {
     drivers: [
       {
         id: 'd1',
+        shortName: 'D1',
+        teamId: 't1',
         car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
         attributes: { pace: 80, racecraft: 80, experience: 80, mentality: 80, marketability: 70, developmentPotential: 60 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },
       },
       {
         id: 'd2',
+        shortName: 'D2',
+        teamId: 't2',
         // Same car as d1 but higher pace attribute — only ~2s/lap faster, not 10s.
         // Over 6 laps that is ~14s gap. Any ≥15s penalty flips positions.
         car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
@@ -491,5 +535,45 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
     // D1 should be P1, D2 should be P2.
     expect(result.finalPositions[0]).toBe('d1')
     expect(result.finalPositions[1]).toBe('d2')
+  })
+})
+
+describe('race radio — volume and determinism', () => {
+  it('produces ≥25 radio entries over a 50-lap seeded race', () => {
+    const setup = mockRadioRaceSetup()
+    setup.circuit = { ...setup.circuit, laps: 50 }
+    const result = simulateRace(setup, 12345)
+    const radioEntries = result.commentary.filter(c => c.severity === 'radio')
+    // With 4 drivers x 2 planned stops + lights-out + final-lap + fastest-lap +
+    // organic overtake/defense radio, this fixture reproducibly emits ~50
+    // entries on seed 12345. The bounds protect both volume floor and
+    // anti-flood ceiling.
+    expect(radioEntries.length).toBeGreaterThanOrEqual(25)
+    expect(radioEntries.length).toBeLessThanOrEqual(120)
+  })
+
+  it('produces identical radio output for identical seed', () => {
+    const setupA = mockRadioRaceSetup()
+    setupA.circuit = { ...setupA.circuit, laps: 50 }
+    const setupB = mockRadioRaceSetup()
+    setupB.circuit = { ...setupB.circuit, laps: 50 }
+    const a = simulateRace(setupA, 12345)
+    const b = simulateRace(setupB, 12345)
+    const radioA = a.commentary.filter(c => c.severity === 'radio').map(c => c.text)
+    const radioB = b.commentary.filter(c => c.severity === 'radio').map(c => c.text)
+    expect(radioA).toEqual(radioB)
+  })
+
+  it('a pit stop produces engineer + driver pair on the same lap', () => {
+    const setup = mockRadioRaceSetup()
+    setup.circuit = { ...setup.circuit, laps: 50 }
+    const pitLap = setup.strategies[0]?.plannedStops[0]?.lap ?? 20
+    const result = simulateRace(setup, 99)
+    const pitLapEntries = result.commentary.filter(
+      c => c.lap === pitLap && c.severity === 'radio',
+    )
+    const speakers = pitLapEntries.map(e => e.speaker)
+    expect(speakers).toContain('engineer')
+    expect(speakers).toContain('driver')
   })
 })

@@ -207,6 +207,16 @@ export function __handleMessage(msg: unknown): void {
         pendingInvestigations: [],
         pendingTimePenalties: {},
         appliedPenaltiesByDriver: {},
+        radioFlags: {
+          tireComplainedThisStint: {},
+          weatherTransitionAnnounced: false,
+          fastestLapAnnouncedTime: Infinity,
+          finalLapAnnouncedFor: {},
+          lightsOutAnnounced: false,
+        },
+        playerTeamId: payload.playerTeamId,
+        playerDriverIds: [...(payload.playerDriverIds ?? [])],
+        championshipRivalIds: [...(payload.championshipRivalIds ?? [])],
       }
 
       isPaused = false
@@ -249,7 +259,7 @@ export function __handleMessage(msg: unknown): void {
         ))
         return
       }
-      const result = applyCommandEnvelopeToSim(raceState, msg.envelope)
+      const result = applyCommandEnvelopeToSim(raceState, msg.envelope, rng!)
       if (!result.applied) {
         emitError(buildErrorEvent(
           'command/unknown-driver',
