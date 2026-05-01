@@ -18,14 +18,15 @@ interface CommentaryFeedProps {
  * no separate `tag` field, only `severity`):
  *   critical  → OVERTAKE  → red badge    (race-critical action / overtake moment)
  *   highlight → FASTEST   → purple badge (highlight / fastest-lap type event)
- *   radio     → PIT       → amber badge  (team radio / pit instruction)
  *   info      → INFO      → neutral badge
  *   neutral   → INFO      → neutral badge
+ *
+ * Note: 'radio' entries are filtered out before reaching this map — they are
+ * rendered exclusively by TeamRadioPanel, not the commentary feed.
  */
 const SEVERITY_TAG: Record<string, { label: string; cls: string }> = {
   critical:  { label: 'OVERTAKE', cls: 'bg-sig-red text-surface-void' },
   highlight: { label: 'FASTEST',  cls: 'bg-sig-purple text-white' },
-  radio:     { label: 'PIT',      cls: 'bg-sig-amber text-surface-void' },
   info:      { label: 'INFO',     cls: 'bg-surface-hi text-ink-mute' },
   neutral:   { label: 'INFO',     cls: 'bg-surface-hi text-ink-mute' },
 }
@@ -35,10 +36,14 @@ const DEFAULT_TAG = { label: 'INFO', cls: 'bg-surface-hi text-ink-mute' }
 export function CommentaryFeed({ entries, className = '' }: CommentaryFeedProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Radio entries are surfaced separately by TeamRadioPanel — exclude them
+  // here so the commentary feed shows only race-event commentary.
+  const visibleEntries = entries.filter(e => e.severity !== 'radio')
+
   useEffect(() => {
     const el = containerRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [entries.length])
+  }, [visibleEntries.length])
 
   return (
     <div
@@ -59,13 +64,13 @@ export function CommentaryFeed({ entries, className = '' }: CommentaryFeedProps)
         aria-label="Race commentary feed"
         aria-live="polite"
       >
-        {entries.length === 0 ? (
+        {visibleEntries.length === 0 ? (
           <p className="px-3.5 py-4 font-mono text-[11px] text-ink-dim italic">
             Waiting for race to begin...
           </p>
         ) : (
           <div className="flex flex-col gap-px bg-line-hair">
-            {entries.map((entry, i) => {
+            {visibleEntries.map((entry, i) => {
               const tag = SEVERITY_TAG[entry.severity] ?? DEFAULT_TAG
               return (
                 <motion.div

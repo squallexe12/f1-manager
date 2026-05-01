@@ -11,6 +11,7 @@ import { PageShell } from '@/components/layout/page-shell'
 import { TimingTower } from '@/components/strategy/timing-tower'
 import { TireStrategy } from '@/components/strategy/tire-strategy'
 import { CommentaryFeed } from '@/components/strategy/commentary-feed'
+import { TeamRadioPanel } from '@/components/strategy/team-radio-panel'
 import { BattleForecast } from '@/components/strategy/battle-forecast'
 import { DriverCommands } from '@/components/strategy/driver-commands'
 import { BroadcastChrome } from '@/components/strategy/broadcast-chrome'
@@ -492,6 +493,10 @@ export default function StrategyPage() {
               incidents={raceSim.incidents}
               currentLap={raceSim.currentLap}
               driverNames={driverShortNames}
+            />
+            <TeamRadioPanel
+              entries={raceSim.commentary}
+              playerTeamId={playerTeamId}
             />
             <CommentaryFeed entries={raceSim.commentary} />
           </div>
