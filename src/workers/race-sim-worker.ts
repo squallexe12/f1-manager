@@ -259,7 +259,7 @@ export function __handleMessage(msg: unknown): void {
         ))
         return
       }
-      const result = applyCommandEnvelopeToSim(raceState, msg.envelope)
+      const result = applyCommandEnvelopeToSim(raceState, msg.envelope, rng!)
       if (!result.applied) {
         emitError(buildErrorEvent(
           'command/unknown-driver',

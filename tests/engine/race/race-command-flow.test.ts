@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { createRaceCommandBus } from '@/engine/race/race-command-bus'
 import { applyCommandEnvelopeToSim } from '@/engine/race/race-command-apply'
+import { createPRNG } from '@/engine/core/prng'
 import type { RaceCommandEnvelope, RaceStrategy } from '@/types/race'
 import type { SimRaceState } from '@/engine/race/race-simulator'
 import { createFallbackProfile } from '@/types/calibration'
@@ -147,7 +148,7 @@ describe('applyCommandEnvelopeToSim', () => {
     const envelope: RaceCommandEnvelope = {
       type: 'setCommand', driverId: 'd1', payload: { command: 'push' }, timestamp: 0, sequence: 0,
     }
-    const res = applyCommandEnvelopeToSim(sim, envelope)
+    const res = applyCommandEnvelopeToSim(sim, envelope, createPRNG(1))
     expect(res.applied).toBe(true)
     expect(sim.strategies[0].currentCommand).toBe('push')
   })
@@ -157,7 +158,7 @@ describe('applyCommandEnvelopeToSim', () => {
     const envelope: RaceCommandEnvelope = {
       type: 'pit', driverId: 'd1', payload: { compound: 'C5' }, timestamp: 0, sequence: 0,
     }
-    const res = applyCommandEnvelopeToSim(sim, envelope)
+    const res = applyCommandEnvelopeToSim(sim, envelope, createPRNG(1))
     expect(res.applied).toBe(true)
     expect(sim.strategies[0].currentCommand).toBe('pit')
     expect(sim.strategies[0].plannedStops[0]).toEqual({ lap: sim.currentLap, compound: 'C5' })
@@ -179,7 +180,7 @@ describe('applyCommandEnvelopeToSim', () => {
       timestamp: 0,
       sequence: 0,
     }
-    const res = applyCommandEnvelopeToSim(sim, envelope)
+    const res = applyCommandEnvelopeToSim(sim, envelope, createPRNG(1))
     expect(res.applied).toBe(true)
     expect(sim.strategies[0].plannedStops).toEqual([{ lap: 15, compound: 'C3' }])
     expect(sim.strategies[0].currentCommand).toBe('conserve')
@@ -190,7 +191,7 @@ describe('applyCommandEnvelopeToSim', () => {
     const envelope: RaceCommandEnvelope = {
       type: 'setCommand', driverId: 'ghost', payload: { command: 'push' }, timestamp: 0, sequence: 0,
     }
-    const res = applyCommandEnvelopeToSim(sim, envelope)
+    const res = applyCommandEnvelopeToSim(sim, envelope, createPRNG(1))
     expect(res.applied).toBe(false)
     expect(sim.strategies[0].currentCommand).toBe('standard')
     expect(sim.strategies[1].currentCommand).toBe('standard')
@@ -200,10 +201,10 @@ describe('applyCommandEnvelopeToSim', () => {
     const sim = makeSim()
     applyCommandEnvelopeToSim(sim, {
       type: 'setCommand', driverId: 'd1', payload: { command: 'push' }, timestamp: 0, sequence: 0,
-    })
+    }, createPRNG(1))
     applyCommandEnvelopeToSim(sim, {
       type: 'setCommand', driverId: 'd1', payload: { command: 'conserve' }, timestamp: 1, sequence: 1,
-    })
+    }, createPRNG(1))
     expect(sim.strategies[0].currentCommand).toBe('conserve')
   })
 })
