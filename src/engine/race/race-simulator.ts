@@ -456,12 +456,18 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     const behindResult = lapResults.find(r => r.driverId === behindId)!
     const lapDelta = aheadResult.lapTime - behindResult.lapTime
 
+    // Resolve drivers and strategies once for both the overtake gate, the
+    // swap-radio block, and the penalty-engine fault evaluation that follows.
+    const attackerDriver = state.drivers.find(d => d.id === behindId)!
+    const defenderDriver = state.drivers.find(d => d.id === aheadId)!
+    const attackerStrat = state.strategies.find(s => s.driverId === behindId)!
+    const defenderStrat = state.strategies.find(s => s.driverId === aheadId)!
+
     let allowSwap = false
     if (lapDelta > 0.15) {
-      const behindDriver = state.drivers.find(d => d.id === behindId)!
       const overtakeResult = calculateOvertakeProbability({
         performanceDelta: lapDelta,
-        racecraft: behindDriver.attributes.racecraft,
+        racecraft: attackerDriver.attributes.racecraft,
         calibration: overtakeCal,
         tireDelta: state.tireStates[behindId].wear - state.tireStates[aheadId].wear,
       })
@@ -474,12 +480,8 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
       // Radio: attacker celebration + defender frustration (gated by
       // isBroadcastWorthy — non-player swaps surface only on rivalry,
       // podium, or attacker-vs-player axes).
-      const attackerDriver = state.drivers.find(d => d.id === behindId)
-      const defenderDriver = state.drivers.find(d => d.id === aheadId)
-      if (attackerDriver && defenderDriver) {
-        emitRadio(state, commentary, positions, rng, attackerDriver, 'overtake_done', 'driver', { opponent: defenderDriver })
-        emitRadio(state, commentary, positions, rng, defenderDriver, 'overtake_failed', 'driver', { opponent: attackerDriver })
-      }
+      emitRadio(state, commentary, positions, rng, attackerDriver, 'overtake_done', 'driver', { opponent: defenderDriver })
+      emitRadio(state, commentary, positions, rng, defenderDriver, 'overtake_failed', 'driver', { opponent: attackerDriver })
     } else {
       // Block the inversion: pin trailing driver's cumulative to just behind
       // the leading driver. Preserves gap reporting without faking the lap.
@@ -489,22 +491,18 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     // Penalty-engine fault evaluation. Runs on every contested pair regardless
     // of the swap outcome — failed dive bombs are more likely to cause
     // incidents than clean overtakes.
-    const aheadDriver = state.drivers.find((d) => d.id === aheadId)!
-    const behindDriver2 = state.drivers.find((d) => d.id === behindId)!
-    const aheadStrat = state.strategies.find((s) => s.driverId === aheadId)!
-    const behindStrat = state.strategies.find((s) => s.driverId === behindId)!
     const evaluation = evaluateContestedEvent({
-      attacker: behindDriver2,
-      defender: aheadDriver,
-      attackerCommand: behindStrat.currentCommand,
-      defenderCommand: aheadStrat.currentCommand,
+      attacker: attackerDriver,
+      defender: defenderDriver,
+      attackerCommand: attackerStrat.currentCommand,
+      defenderCommand: defenderStrat.currentCommand,
       lapDelta,
       tireDelta: state.tireStates[behindId].wear - state.tireStates[aheadId].wear,
       circuit: { overtakingDifficulty: state.circuit.overtakingDifficulty },
       // Mood is piped through BootstrapDriverInput → RaceDriver, so the
       // frustration term in the fault formula now reflects real driver state.
-      attackerMood: { frustration: behindDriver2.mood.frustration, confidence: behindDriver2.mood.confidence },
-      defenderMood: { frustration: aheadDriver.mood.frustration, confidence: aheadDriver.mood.confidence },
+      attackerMood: { frustration: attackerDriver.mood.frustration, confidence: attackerDriver.mood.confidence },
+      defenderMood: { frustration: defenderDriver.mood.frustration, confidence: defenderDriver.mood.confidence },
       calibration: DEFAULT_PENALTY_CALIBRATION,
     }, rng)
     if (evaluation.decision) {
@@ -514,6 +512,7 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         evaluation.decision.offenceType,
         state.currentLap,
         state.totalLaps,
+        DEFAULT_PENALTY_CALIBRATION,
         rng,
       )
       state.pendingInvestigations.push(inv)

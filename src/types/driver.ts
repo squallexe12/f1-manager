@@ -34,6 +34,14 @@ export interface SeasonStats {
   podiums: number
   poles: number
   dnfs: number
+  /**
+   * Count of race-time sanctions issued to this driver this season that
+   * actually cost lap time. Incremented by 1 per `AppliedPenalty` whose
+   * `timePenaltySeconds > 0` (5s, 10s, drive-through, stop-go). Reprimands,
+   * fines, and penalty-points-only sanctions are NOT counted here — they
+   * are tracked via `Driver.penaltyPoints` and `Driver.warningsThisSeason`.
+   * Folded in by `processPostRace` in `src/engine/core/post-race-processor.ts`.
+   */
   penalties: number
   bestFinish: number
   averageFinish: number

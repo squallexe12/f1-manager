@@ -132,7 +132,7 @@ import { openInvestigation, resolveInvestigations, type PendingInvestigation, se
 describe('openInvestigation', () => {
   it('decideOnLap is currentLap + a value within [minLaps, maxLaps]', () => {
     const rng = createPRNG(1)
-    const inv = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, rng)
+    const inv = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, DEFAULT_PENALTY_CALIBRATION, rng)
     expect(inv.decideOnLap).toBeGreaterThanOrEqual(11)
     expect(inv.decideOnLap).toBeLessThanOrEqual(15)
     expect(inv.openedOnLap).toBe(10)
@@ -141,17 +141,28 @@ describe('openInvestigation', () => {
 
   it('clamps decideOnLap to totalLaps when window would exceed it', () => {
     const rng = createPRNG(1)
-    const inv = openInvestigation('drv-1', 'minor', 'forcing-off', 49, 50, rng)
+    const inv = openInvestigation('drv-1', 'minor', 'forcing-off', 49, 50, DEFAULT_PENALTY_CALIBRATION, rng)
     expect(inv.decideOnLap).toBeLessThanOrEqual(50)
   })
 
   it('id is deterministic for the same seed and inputs', () => {
     const rngA = createPRNG(42)
     const rngB = createPRNG(42)
-    const a = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, rngA)
-    const b = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, rngB)
+    const a = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, DEFAULT_PENALTY_CALIBRATION, rngA)
+    const b = openInvestigation('drv-1', 'minor', 'forcing-off', 10, 50, DEFAULT_PENALTY_CALIBRATION, rngB)
     expect(a.id).toBe(b.id)
     expect(a.decideOnLap).toBe(b.decideOnLap)
+  })
+
+  it('honours a non-default investigationWindow from calibration', () => {
+    const rng = createPRNG(1)
+    const widerCalibration = {
+      ...DEFAULT_PENALTY_CALIBRATION,
+      investigationWindow: { minLaps: 10, maxLaps: 12 },
+    }
+    const inv = openInvestigation('drv-1', 'minor', 'forcing-off', 5, 100, widerCalibration, rng)
+    expect(inv.decideOnLap).toBeGreaterThanOrEqual(15)
+    expect(inv.decideOnLap).toBeLessThanOrEqual(17)
   })
 })
 

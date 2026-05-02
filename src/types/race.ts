@@ -147,25 +147,41 @@ export interface RaceState {
   commentary: CommentaryEntry[]
 }
 
-export interface RaceIncident {
+interface RaceIncidentBase {
   lap: number
-  type:
-    | 'crash'
-    | 'mechanical'
-    | 'safety-car'
-    | 'weather-change'
-    | 'investigation-opened'
-    | 'penalty-issued'
-    | 'investigation-closed'
   driverIds: string[]
   description: string
-  // optional payload for the new sub-types
-  investigationId?: string
-  sanction?: SanctionType
-  penaltyPointsIssued?: number
-  offenceType?: OffenceType
-  decideOnLap?: number
 }
+
+/**
+ * Race-time incident emitted by the simulator. Strict discriminated union on
+ * `type` — payload fields are only present (and only typed) for the variants
+ * that carry them. Reserved variants `crash` / `mechanical` / `safety-car` /
+ * `weather-change` are not yet constructed by the simulator but are kept
+ * here so future engines can emit them without re-litigating the type.
+ */
+export type RaceIncident =
+  | (RaceIncidentBase & { type: 'crash' })
+  | (RaceIncidentBase & { type: 'mechanical' })
+  | (RaceIncidentBase & { type: 'safety-car' })
+  | (RaceIncidentBase & { type: 'weather-change' })
+  | (RaceIncidentBase & {
+      type: 'investigation-opened'
+      investigationId: string
+      offenceType: OffenceType
+      decideOnLap: number
+    })
+  | (RaceIncidentBase & {
+      type: 'penalty-issued'
+      investigationId: string
+      sanction: SanctionType
+      penaltyPointsIssued: number
+      offenceType: OffenceType
+    })
+  | (RaceIncidentBase & {
+      type: 'investigation-closed'
+      investigationId: string
+    })
 
 export interface CommentaryEntry {
   lap: number

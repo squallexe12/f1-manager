@@ -121,15 +121,14 @@ export function openInvestigation(
   offenceType: OffenceType,
   currentLap: number,
   totalLaps: number,
+  calibration: PenaltyCalibration,
   rng: PRNG,
 ): PendingInvestigation {
   // Use rng.next() to drive a deterministic window pick. We don't use rng.range
   // directly so the seeded value is encoded into the id for traceability.
   const r = rng.next()
-  // Default window: [1, 5] inclusive
-  const min = 1
-  const max = 5
-  const offset = min + Math.floor(r * (max - min + 1))
+  const { minLaps, maxLaps } = calibration.investigationWindow
+  const offset = minLaps + Math.floor(r * (maxLaps - minLaps + 1))
   const decideOnLap = Math.min(currentLap + offset, totalLaps)
   const id = `inv-${currentLap}-${driverId}-${Math.floor(r * 1e9)}`
   return { id, driverId, openedOnLap: currentLap, decideOnLap, severity, offenceType }
