@@ -831,6 +831,65 @@ describe('v10 → v11 migration (Factory Box 3 — Aero Testing real data)', () 
   })
 })
 
+describe('v11 → v12 migration (Tier B v2 — pit-crew staff schema)', () => {
+  it('back-fills pitCrewChief: null and pitCrewMembers: [] on every team', () => {
+    const v11State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 11 },
+      teams: [
+        { id: 'mclaren', name: 'McLaren', constructorPoints: 0 },
+        { id: 'red-bull', name: 'Red Bull', constructorPoints: 0 },
+      ],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v11State as unknown as FullGameState, 11)
+    for (const team of data.teams) {
+      expect(team.pitCrewChief).toBeNull()
+      expect(team.pitCrewMembers).toEqual([])
+    }
+  })
+
+  it('back-fills empty staffMarket and poachingAttempts at the world level', () => {
+    const v11State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 11 },
+      teams: [],
+      drivers: [],
+    }
+    const { data } = migrateToCurrent(v11State as unknown as FullGameState, 11)
+    expect(data.staffMarket).toEqual({ chiefs: [], members: [], lastRefreshedSeason: 0 })
+    expect(data.poachingAttempts).toEqual([])
+  })
+
+  it('preserves existing pit-crew fields verbatim if already populated', () => {
+    const v11State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 11 },
+      teams: [{
+        id: 'mclaren',
+        pitCrewChief: { id: 'chief-x', firstName: 'Test', lastName: 'Chief' },
+        pitCrewMembers: [{ id: 'm1', role: 'lollipop' }],
+      }],
+      drivers: [],
+      staffMarket: { chiefs: [{ id: 'chief-y' }], members: [], lastRefreshedSeason: 1 },
+      poachingAttempts: [{ id: 'p1' }],
+    }
+    const { data } = migrateToCurrent(v11State as unknown as FullGameState, 11)
+    expect(data.teams[0].pitCrewChief?.id).toBe('chief-x')
+    expect(data.teams[0].pitCrewMembers).toHaveLength(1)
+    expect(data.staffMarket.chiefs).toHaveLength(1)
+    expect(data.poachingAttempts).toHaveLength(1)
+  })
+
+  it('is idempotent — running twice yields the same result', () => {
+    const v11State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 11 },
+      teams: [{ id: 'mclaren' }],
+      drivers: [],
+    }
+    const once = migrateToCurrent(v11State as unknown as FullGameState, 11).data
+    const twice = migrateToCurrent(once, SCHEMA_VERSION).data
+    expect(twice).toEqual(once)
+  })
+})
+
 describe('SaveSystem auto-rewrite on migration', () => {
   it('rewrites a migrated save back at the current schema version', async () => {
     // Stub a migration from a hypothetical older version (0 → 1) by temporarily

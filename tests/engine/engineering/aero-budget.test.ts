@@ -47,6 +47,8 @@ function makeTeam(overrides: Partial<Team> = {}): Team {
     fastestLapHistory: [], failureEvents: [],
     penaltiesTaken: 0, pendingComponentSwaps: [],
     aeroBookings: [], upgradeOutcomes: [],
+    pitCrewChief: null,
+    pitCrewMembers: [],
     ...overrides,
   }
 }

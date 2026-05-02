@@ -13,6 +13,12 @@ import type { ComponentElement } from '@/types/team'
 import { initializeGame, type FullGameState } from '@/engine/core/state-manager'
 import { startUpgrade, pauseUpgrade } from '@/engine/engineering/rnd-engine'
 import { electComponentSwap as electComponentSwapEngine } from '@/engine/engineering/component-strategy'
+import {
+  hireChief as hireChiefEngine,
+  fireChief as fireChiefEngine,
+  hireMember as hireMemberEngine,
+  fireMember as fireMemberEngine,
+} from '@/engine/staff/hiring'
 import { type RaceResult } from '@/engine/core/post-race-processor'
 import { type SeasonEndResult } from '@/engine/core/season-end-processor'
 import { advanceGamePhase, processPostRacePhase, processSeasonEndPhase } from '@/engine/core/orchestrator'
@@ -54,6 +60,14 @@ interface GameStore {
   allocateRnD: (upgradeId: string) => void
   pauseRnD: (upgradeId: string) => void
   electComponentSwap: (driverId: string, element: ComponentElement) => void
+  /** Tier B v2 — hire a free-agent pit-crew chief by id. Auto-fires the existing chief if any. */
+  hireStaffChief: (staffId: string) => void
+  /** Tier B v2 — fire the currently employed pit-crew chief; returns to free-agent pool with attribute decay. */
+  fireStaffChief: () => void
+  /** Tier B v2 — hire a free-agent pit-crew member by id. Auto-fires any existing occupant of the same role. */
+  hireStaffMember: (staffId: string) => void
+  /** Tier B v2 — fire a roster pit-crew member by id; returns to free-agent pool with attribute decay. */
+  fireStaffMember: (staffId: string) => void
   setDriverCommand: (driverId: string, command: DriverCommand) => RaceCommandEnvelope
   requestPit: (driverId: string, compound: TireCompound) => RaceCommandEnvelope
   changeDriverStrategy: (driverId: string, strategy: RaceStrategy) => RaceCommandEnvelope
@@ -214,6 +228,66 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : electComponentSwapEngine(t, driverId, element, currentRound),
     )
     set({ world: { ...world, teams } })
+  },
+
+  hireStaffChief: (staffId) => {
+    const { world } = get()
+    if (!world) return
+    const playerTeamId = world.gameState.playerTeamId
+    const playerTeam = world.teams.find((t) => t.id === playerTeamId)
+    if (!playerTeam) return
+    const result = hireChiefEngine(world.staffMarket, playerTeam.pitCrewChief, playerTeam.pitCrewMembers, staffId)
+    const teams = world.teams.map((t) =>
+      t.id !== playerTeamId
+        ? t
+        : { ...t, pitCrewChief: result.team.pitCrewChief, pitCrewMembers: result.team.pitCrewMembers },
+    )
+    set({ world: { ...world, teams, staffMarket: result.market } })
+  },
+
+  fireStaffChief: () => {
+    const { world } = get()
+    if (!world) return
+    const playerTeamId = world.gameState.playerTeamId
+    const playerTeam = world.teams.find((t) => t.id === playerTeamId)
+    if (!playerTeam) return
+    const result = fireChiefEngine(world.staffMarket, playerTeam.pitCrewChief, playerTeam.pitCrewMembers)
+    const teams = world.teams.map((t) =>
+      t.id !== playerTeamId
+        ? t
+        : { ...t, pitCrewChief: result.team.pitCrewChief, pitCrewMembers: result.team.pitCrewMembers },
+    )
+    set({ world: { ...world, teams, staffMarket: result.market } })
+  },
+
+  hireStaffMember: (staffId) => {
+    const { world } = get()
+    if (!world) return
+    const playerTeamId = world.gameState.playerTeamId
+    const playerTeam = world.teams.find((t) => t.id === playerTeamId)
+    if (!playerTeam) return
+    const result = hireMemberEngine(world.staffMarket, playerTeam.pitCrewChief, playerTeam.pitCrewMembers, staffId)
+    const teams = world.teams.map((t) =>
+      t.id !== playerTeamId
+        ? t
+        : { ...t, pitCrewChief: result.team.pitCrewChief, pitCrewMembers: result.team.pitCrewMembers },
+    )
+    set({ world: { ...world, teams, staffMarket: result.market } })
+  },
+
+  fireStaffMember: (staffId) => {
+    const { world } = get()
+    if (!world) return
+    const playerTeamId = world.gameState.playerTeamId
+    const playerTeam = world.teams.find((t) => t.id === playerTeamId)
+    if (!playerTeam) return
+    const result = fireMemberEngine(world.staffMarket, playerTeam.pitCrewChief, playerTeam.pitCrewMembers, staffId)
+    const teams = world.teams.map((t) =>
+      t.id !== playerTeamId
+        ? t
+        : { ...t, pitCrewChief: result.team.pitCrewChief, pitCrewMembers: result.team.pitCrewMembers },
+    )
+    set({ world: { ...world, teams, staffMarket: result.market } })
   },
 
   setDriverCommand: (driverId, command) => {

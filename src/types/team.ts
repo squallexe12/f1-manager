@@ -235,4 +235,18 @@ export interface Team {
    * Cleared at season end.
    */
   upgradeOutcomes: UpgradeOutcome[]
+  /**
+   * Tier B v2 — pit-crew chief. `null` when no chief is hired (default state
+   * for a fresh save). Aggregated by `aggregateCrewRatings` into the engine's
+   * `release` / `speedDiscipline` / `serviceTime` inputs once IP-B3 wires the
+   * connection. IP-B2 reads stay neutral 70/70/70.
+   */
+  pitCrewChief: import('./staff').PitCrewChief | null
+  /**
+   * Tier B v2 — hireable pit-crew members (lollipop + 2 jacks + 4 wheel
+   * specialists). Empty `[]` for a fresh save. Members are role-keyed:
+   * each role can have at most one occupant; hiring a duplicate role
+   * auto-fires the prior occupant.
+   */
+  pitCrewMembers: import('./staff').PitCrewMember[]
 }

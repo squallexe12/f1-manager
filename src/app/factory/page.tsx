@@ -7,6 +7,7 @@ import { FactoryHeader } from '@/components/factory/factory-header'
 import { CarPerformanceCard } from '@/components/factory/car-performance-card'
 import { PowerUnitCard } from '@/components/factory/power-unit-card'
 import { AeroCard } from '@/components/factory/aero-card'
+import { PitCrewCard } from '@/components/factory/pit-crew-card'
 import { RdPipelineHeader } from '@/components/factory/rd-pipeline-header'
 import { RdQueue } from '@/components/factory/rd-queue'
 import { TechTree } from '@/components/factory/tech-tree'
@@ -37,6 +38,10 @@ export default function FactoryPage() {
   const allocateRnD = useGameStore((s) => s.allocateRnD)
   const pauseRnD = useGameStore((s) => s.pauseRnD)
   const electComponentSwap = useGameStore((s) => s.electComponentSwap)
+  const hireStaffChief = useGameStore((s) => s.hireStaffChief)
+  const fireStaffChief = useGameStore((s) => s.fireStaffChief)
+  const hireStaffMember = useGameStore((s) => s.hireStaffMember)
+  const fireStaffMember = useGameStore((s) => s.fireStaffMember)
 
   const slice = useGameSlice((w) => ({
     teams: w.teams,
@@ -44,11 +49,12 @@ export default function FactoryPage() {
     gameState: w.gameState,
     finance: w.finance,
     recommendations: w.recommendations,
+    staffMarket: w.staffMarket,
   }))
 
   if (!slice) return null
 
-  const { teams, drivers, gameState, finance, recommendations } = slice
+  const { teams, drivers, gameState, finance, recommendations, staffMarket } = slice
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
   const playerFinance = finance[playerTeam.id]
   const overallRating = calculateOverallRating(playerTeam.car)
@@ -174,6 +180,15 @@ export default function FactoryPage() {
             atrCoefficient={atr}
             correlationDelta={corr}
             nextDeliveryRound={nextDelivery?.round}
+          />
+          <PitCrewCard
+            chief={playerTeam.pitCrewChief}
+            members={playerTeam.pitCrewMembers}
+            market={staffMarket}
+            onHireChief={hireStaffChief}
+            onFireChief={fireStaffChief}
+            onHireMember={hireStaffMember}
+            onFireMember={fireStaffMember}
           />
         </div>
 

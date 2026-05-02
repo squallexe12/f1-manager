@@ -12,6 +12,7 @@ import { SCENARIOS } from '@/data/scenarios'
 import { RND_TREE } from '@/data/rnd-tree'
 import { SPONSORS } from '@/data/sponsors'
 import { getAvailableSponsors, signSponsor } from '@/engine/finance/sponsor-engine'
+import { generateTalentPool, DEFAULT_STAFF_POOL_SIZE } from '@/engine/staff/talent-pool'
 import type { DepartmentHead } from '@/types/team'
 
 /**
@@ -51,6 +52,10 @@ export interface FullGameState {
   storyArcs: StoryArc[]
   recommendations: Recommendation[]
   stagedStrategies: StagedStrategies
+  /** Tier B v2 — season-scoped procgen free-agent pool of pit-crew staff. */
+  staffMarket: import('@/types/staff').StaffMarket
+  /** Tier B v2 — open / resolved poaching attempts (logic ships IP-B3). */
+  poachingAttempts: import('@/types/staff').PoachingAttempt[]
 }
 
 function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARIOS['find']>, startingSeason: number): Team {
@@ -88,6 +93,8 @@ function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARI
     pendingComponentSwaps: [],
     aeroBookings: [],
     upgradeOutcomes: [],
+    pitCrewChief: null,
+    pitCrewMembers: [],
   }
 }
 
@@ -114,6 +121,8 @@ function buildTeam(teamData: TeamData, startingSeason: number): Team {
     pendingComponentSwaps: [],
     aeroBookings: [],
     upgradeOutcomes: [],
+    pitCrewChief: null,
+    pitCrewMembers: [],
   }
 }
 
@@ -227,6 +236,10 @@ export function initializeGame(
     storyArcs: [],
     recommendations: [],
     stagedStrategies: {},
+    // Tier B v2 — staff market gets populated by `generateTalentPool` once
+    // the engine module exists (Task 6). For IP-B2 init this is the stub.
+    staffMarket: generateTalentPool(seed, 1, DEFAULT_STAFF_POOL_SIZE),
+    poachingAttempts: [],
   }
 }
 

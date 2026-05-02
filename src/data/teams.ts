@@ -24,6 +24,8 @@ export type TeamData = Omit<
   | 'aeroBookings'
   | 'upgradeOutcomes'
   | 'staff'
+  | 'pitCrewChief'
+  | 'pitCrewMembers'
 > & {
   staff: Omit<DepartmentHead, 'contractEndSeason'>[]
 }

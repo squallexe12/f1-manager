@@ -60,6 +60,8 @@ function makeTeam(
     pendingComponentSwaps: [],
     aeroBookings: [],
     upgradeOutcomes: [],
+    pitCrewChief: null,
+    pitCrewMembers: [],
     ...overrides,
   }
 }

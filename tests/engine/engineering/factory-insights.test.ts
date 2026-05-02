@@ -61,6 +61,8 @@ function team(id: string, pos: number, perf: Partial<CarPerformance> = {}): Team
     pendingComponentSwaps: [],
     aeroBookings: [],
     upgradeOutcomes: [],
+    pitCrewChief: null,
+    pitCrewMembers: [],
   }
 }
 
