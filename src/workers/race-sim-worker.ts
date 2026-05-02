@@ -231,6 +231,7 @@ export function __handleMessage(msg: unknown): void {
         playerTeamId: payload.playerTeamId,
         playerDriverIds: [...(payload.playerDriverIds ?? [])],
         championshipRivalIds: [...(payload.championshipRivalIds ?? [])],
+        teamCrews: payload.teamCrews ?? {},
       }
 
       isPaused = false

@@ -68,6 +68,10 @@ interface GameStore {
   hireStaffMember: (staffId: string) => void
   /** Tier B v2 — fire a roster pit-crew member by id; returns to free-agent pool with attribute decay. */
   fireStaffMember: (staffId: string) => void
+  /** Tier B v2 — match a rival team's poaching offer; staff stays, salary bumps to offer. */
+  matchPoachingOffer: (attemptId: string) => void
+  /** Tier B v2 — decline a rival team's poaching offer; staff leaves at end of current season. */
+  declinePoachingOffer: (attemptId: string) => void
   setDriverCommand: (driverId: string, command: DriverCommand) => RaceCommandEnvelope
   requestPit: (driverId: string, compound: TireCompound) => RaceCommandEnvelope
   changeDriverStrategy: (driverId: string, strategy: RaceStrategy) => RaceCommandEnvelope
@@ -288,6 +292,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : { ...t, pitCrewChief: result.team.pitCrewChief, pitCrewMembers: result.team.pitCrewMembers },
     )
     set({ world: { ...world, teams, staffMarket: result.market } })
+  },
+
+  matchPoachingOffer: (attemptId) => {
+    const { world } = get()
+    if (!world) return
+    const attempt = world.poachingAttempts.find((a) => a.id === attemptId)
+    if (!attempt || attempt.status !== 'open') return
+    const playerTeamId = world.gameState.playerTeamId
+    const playerTeam = world.teams.find((t) => t.id === playerTeamId)
+    if (!playerTeam) return
+    // Bump the targeted staff's salary to match. Staff stays put.
+    const teams = world.teams.map((t) => {
+      if (t.id !== playerTeamId) return t
+      let nextChief = t.pitCrewChief
+      if (nextChief && nextChief.id === attempt.targetStaffId) {
+        nextChief = { ...nextChief, contract: { ...nextChief.contract, salary: attempt.offeredSalary } }
+      }
+      const nextMembers = t.pitCrewMembers.map((m) =>
+        m.id === attempt.targetStaffId
+          ? { ...m, contract: { ...m.contract, salary: attempt.offeredSalary } }
+          : m,
+      )
+      return { ...t, pitCrewChief: nextChief, pitCrewMembers: nextMembers }
+    })
+    const poachingAttempts = world.poachingAttempts.map((a) =>
+      a.id === attemptId ? { ...a, status: 'matched' as const } : a,
+    )
+    set({ world: { ...world, teams, poachingAttempts } })
+  },
+
+  declinePoachingOffer: (attemptId) => {
+    const { world } = get()
+    if (!world) return
+    const attempt = world.poachingAttempts.find((a) => a.id === attemptId)
+    if (!attempt || attempt.status !== 'open') return
+    // v2: mark declined. The "staff leaves at season end" mechanic ships in
+    // IP-B4 polish (needs season-end processor wiring); for now declining is
+    // notional — the attempt is closed and the staff stays until that polish
+    // pass. Documented gap.
+    const poachingAttempts = world.poachingAttempts.map((a) =>
+      a.id === attemptId ? { ...a, status: 'declined' as const } : a,
+    )
+    set({ world: { ...world, poachingAttempts } })
   },
 
   setDriverCommand: (driverId, command) => {

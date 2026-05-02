@@ -310,6 +310,15 @@ export type RaceWorkerStartPayload = RaceBootstrapInput & {
   playerTeamId?: string
   playerDriverIds?: readonly string[]
   championshipRivalIds?: readonly string[]
+  /**
+   * Tier B v2 — per-team pit-crew snapshot for engine reads. Populated from
+   * `team.pitCrewChief` + `team.pitCrewMembers` at race-start. Empty / absent
+   * teams aggregate to the 70/70/70 default-quality baseline.
+   */
+  teamCrews?: Record<string, {
+    chief: import('./staff').PitCrewChief | null
+    members: import('./staff').PitCrewMember[]
+  }>
 }
 
 export type WorkerInMessage =

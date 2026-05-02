@@ -8,6 +8,7 @@ import { processSeasonEnd } from './season-end-processor'
 import { applyTechnicalDirective, getTechnicalDirectives } from '@/engine/regulations/regulation-engine'
 import { generateRecommendations } from '@/engine/delegation/department-ai'
 import { applyPendingSwaps } from '@/engine/engineering/component-strategy'
+import { evaluatePoachingAttempts, expirePoachingAttempts } from '@/engine/staff/poaching'
 import {
   consumeAeroBudget,
   resetAeroWindow,
@@ -99,14 +100,39 @@ export function processManagementEntry(world: FullGameState): FullGameState {
     drivers: aiResult.drivers,
   }
 
+  // Tier B v2 — staff market step. Runs poaching evaluation against the
+  // player team's pit crew using a distinct PRNG offset. Existing attempts
+  // are expired by lap-counter first, then a new attempt may fire (rate-
+  // limited to one per management cycle).
+  const poachRng = createPRNG(world.gameState.seed + world.gameState.currentRound + 31337)
+  const expiredAttempts = expirePoachingAttempts(world.poachingAttempts, currentRound)
+  const poachResult = evaluatePoachingAttempts(
+    {
+      playerTeamId: world.gameState.playerTeamId,
+      teams: aiTeamsStamped,
+      finance: world.finance,
+      currentRound,
+      currentSeason: world.gameState.season,
+      existingAttempts: expiredAttempts,
+      market: world.staffMarket,
+    },
+    poachRng,
+  )
+  const poachingAttempts = [...expiredAttempts, ...poachResult.attempts]
+
+  const afterStaffMarket: FullGameState = {
+    ...afterAI,
+    poachingAttempts,
+  }
+
   // Delegation — generate recommendations last so they reflect the
   // post-R&D, post-AI state of the world. Uses a distinct PRNG seed offset
   // so a rerun of this step never reuses bits the prior engines consumed.
   const recRng = createPRNG(world.gameState.seed + world.gameState.currentRound + 7777)
-  const recommendations = generateRecommendations(afterAI, recRng)
+  const recommendations = generateRecommendations(afterStaffMarket, recRng)
 
   return {
-    ...afterAI,
+    ...afterStaffMarket,
     recommendations,
   }
 }

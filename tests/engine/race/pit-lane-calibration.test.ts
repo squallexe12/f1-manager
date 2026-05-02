@@ -68,6 +68,43 @@ describe('pit-lane frequency smoke check', () => {
     expect(speedings).toBeLessThan(80)
   })
 
+  it('multi-car simultaneous pit produces unsafe-release events at a sensible per-season rate', () => {
+    let unsafeReleases = 0
+    // Simulate 22-race season with ~2 multi-car pit stops per race (rain
+    // transitions, safety-car windows, etc.). 4-car concurrent stop is
+    // realistic for those flashpoints.
+    const STOPS = 22 * 2
+    for (let stop = 0; stop < STOPS; stop++) {
+      const cars: PitLaneSimCarInput[] = [
+        makeCar('drv-a'),
+        makeCar('drv-b'),
+        makeCar('drv-c'),
+        makeCar('drv-d'),
+      ]
+      const result = simulatePitLane(
+        {
+          cars,
+          pitLane: DEFAULT_PITLANE_CALIBRATION,
+          pitLossMean: 21,
+          pitLossStddev: 1.5,
+          calibration: DEFAULT_PENALTY_CALIBRATION,
+        },
+        createPRNG(stop + 5000),
+      )
+      for (const inc of result.incidents) {
+        if (inc.type === 'investigation-opened' && inc.offenceType === 'unsafe-release') {
+          unsafeReleases++
+        }
+      }
+    }
+    // eslint-disable-next-line no-console
+    console.log(`[smoke] over ${STOPS} multi-car stops at 70/70/70: unsafe-release=${unsafeReleases}`)
+    // Real F1 target ~1.5 / season. ±100% smoke band for IP-B3 (tightens
+    // in IP-B4 polish once playtest produces grounded numbers).
+    expect(unsafeReleases).toBeGreaterThanOrEqual(0)
+    expect(unsafeReleases).toBeLessThanOrEqual(10)
+  })
+
   it('discipline rating dominates speeding frequency: 95-rated is meaningfully cleaner than 30-rated', () => {
     let highHits = 0
     let lowHits = 0

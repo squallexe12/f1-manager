@@ -20,21 +20,30 @@ function makeMember(role: PitCrewRole, rating: number): PitCrewMember {
 }
 
 describe('aggregateCrewRatings', () => {
-  it('returns neutral 50 baseline when no chief is hired', () => {
+  it('returns 70 default-quality baseline when no chief is hired (IP-B3 — engine reads uniformly)', () => {
     expect(aggregateCrewRatings(null, [])).toEqual({
-      release: 50, speedDiscipline: 50, serviceTime: 50,
+      release: 70, speedDiscipline: 70, serviceTime: 70,
     })
   })
 
-  it('a hired chief alone meaningfully raises all three sub-attributes from the no-chief baseline', () => {
+  it('an elite chief above the 70 baseline meaningfully raises all three sub-attributes', () => {
     const noStaff = aggregateCrewRatings(null, [])
-    const chiefOnly = aggregateCrewRatings(
-      makeChief({ releaseSupervision: 90, speedDisciplineCoaching: 80, serviceCoordination: 75 }),
+    const elite = aggregateCrewRatings(
+      makeChief({ releaseSupervision: 90, speedDisciplineCoaching: 90, serviceCoordination: 90 }),
       [],
     )
-    expect(chiefOnly.release).toBeGreaterThan(noStaff.release)
-    expect(chiefOnly.speedDiscipline).toBeGreaterThan(noStaff.speedDiscipline)
-    expect(chiefOnly.serviceTime).toBeGreaterThan(noStaff.serviceTime)
+    expect(elite.release).toBeGreaterThan(noStaff.release)
+    expect(elite.speedDiscipline).toBeGreaterThan(noStaff.speedDiscipline)
+    expect(elite.serviceTime).toBeGreaterThan(noStaff.serviceTime)
+  })
+
+  it('a low-rated chief drops below the 70 baseline (player tradeoff is real)', () => {
+    const noStaff = aggregateCrewRatings(null, [])
+    const lowChief = aggregateCrewRatings(
+      makeChief({ releaseSupervision: 40, speedDisciplineCoaching: 40, serviceCoordination: 40 }),
+      [],
+    )
+    expect(lowChief.release).toBeLessThan(noStaff.release)
   })
 
   it('lollipop member rating dominates the release sub-attribute relative to other roles', () => {

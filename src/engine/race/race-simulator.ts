@@ -20,6 +20,8 @@ import {
   clearSanctionDeadline,
   checkFailureToServe,
 } from './failure-to-serve'
+import { aggregateCrewRatings } from '@/engine/staff/pit-crew'
+import type { PitCrewChief, PitCrewMember } from '@/types/staff'
 import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
 
 export interface RaceDriver {
@@ -113,6 +115,13 @@ export interface SimRaceState {
    * on race outcomes). Empty when not provided by the start payload.
    */
   championshipRivalIds: string[]
+  /**
+   * Tier B v2 — per-team pit-crew snapshot for engine reads. Populated from
+   * `team.pitCrewChief` + `team.pitCrewMembers` at race-start. Empty teams
+   * (no chief, no members) get a `null/[]` entry that aggregates to the
+   * default 70/70/70 baseline. Session-scoped — never persisted.
+   */
+  teamCrews: Record<string, { chief: PitCrewChief | null; members: PitCrewMember[] }>
 }
 
 export interface RaceSetup {
@@ -136,6 +145,9 @@ export interface RaceSetup {
   playerTeamId?: string
   playerDriverIds?: readonly string[]
   championshipRivalIds?: readonly string[]
+  /** Tier B v2 — per-team pit-crew snapshot. Optional — empty map → all teams aggregate to 70/70/70. */
+  teamCrews?: Record<string, { chief: PitCrewChief | null; members: PitCrewMember[] }>
+
 }
 
 export interface LapSimResult {
@@ -389,19 +401,23 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     }
     if (strategy.currentCommand === 'pit') {
       const driver = state.drivers.find(d => d.id === driverId)!
+      // Tier B v2 — pit-crew ratings derived from the driver's team via
+      // `aggregateCrewRatings`. Empty teams (no chief, no members) aggregate
+      // to the 70/70/70 default-quality baseline. Player who hires a 90-rated
+      // chief sees ~85+ across axes; player who hires a 40-rated chief
+      // drops below baseline. AI teams sit at the baseline until IP-B4 adds
+      // AI staff hiring (currently out of scope).
+      const crew = state.teamCrews[driver.teamId]
+      const ratings = crew
+        ? aggregateCrewRatings(crew.chief, crew.members)
+        : aggregateCrewRatings(null, [])
       pittingThisLap.push({
         driverId,
-        // Race-line entry/exit speed approximated from car's straight-speed.
-        // ~220-260 km/h range. Lower values for slow circuits accepted as
-        // calibration noise; refine in IP-B3 if needed.
         carEntrySpeedKph: 220 + (driver.car.straightSpeed / 100) * 40,
         carExitSpeedKph: 220 + (driver.car.straightSpeed / 100) * 40,
-        // IP-B1 ships neutral 70/70/70 staff ratings hardcoded. Real per-team
-        // ratings flow in from `aggregateCrewRatings(chief, members)` once
-        // IP-B3 wires the staff system into engine inputs.
-        releaseRating: 70,
-        speedDisciplineRating: 70,
-        serviceTimeRating: 70,
+        releaseRating: ratings.release,
+        speedDisciplineRating: ratings.speedDiscipline,
+        serviceTimeRating: ratings.serviceTime,
         driverRacecraft: driver.attributes.racecraft,
         driverExperience: driver.attributes.experience,
       })
@@ -798,6 +814,7 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     playerTeamId: setup.playerTeamId,
     playerDriverIds: [...(setup.playerDriverIds ?? [])],
     championshipRivalIds: [...(setup.championshipRivalIds ?? [])],
+    teamCrews: setup.teamCrews ?? {},
   }
 
   const allLapData: LapResult[][] = []

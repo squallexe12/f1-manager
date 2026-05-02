@@ -13,6 +13,7 @@ import { WeeklySchedule } from '@/components/paddock/weekly-schedule'
 import { PaddockFeed } from '@/components/paddock/paddock-feed'
 import { RecommendationsPanel } from '@/components/paddock/recommendations-panel'
 import { DepartmentPanel } from '@/components/paddock/department-panel'
+import { PoachingAlerts } from '@/components/paddock/poaching-alerts'
 import { calculateOverallRating as _ignore } from '@/engine/drivers/driver-rating'
 import { calculateOverallRating as calcCarRatingStub } from '@/engine/engineering/car-performance'
 import { getNextRaceBrief } from '@/engine/paddock/race-brief'
@@ -51,6 +52,8 @@ export default function PaddockPage() {
   const resolveEvent = useGameStore((s) => s.resolveEvent)
   const applyRecommendation = useGameStore((s) => s.applyRecommendation)
   const dismissRecommendation = useGameStore((s) => s.dismissRecommendation)
+  const matchPoachingOffer = useGameStore((s) => s.matchPoachingOffer)
+  const declinePoachingOffer = useGameStore((s) => s.declinePoachingOffer)
 
   const slice = useGameSlice((w) => ({
     gameState: w.gameState,
@@ -60,11 +63,12 @@ export default function PaddockPage() {
     narrativeEvents: w.narrativeEvents,
     recommendations: w.recommendations,
     calendar: w.calendar,
+    poachingAttempts: w.poachingAttempts,
   }))
 
   if (!slice) return null
 
-  const { gameState, teams, drivers, finance, narrativeEvents, recommendations } = slice
+  const { gameState, teams, drivers, finance, narrativeEvents, recommendations, poachingAttempts } = slice
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
   const playerDrivers = drivers.filter((d) => d.teamId === playerTeam.id && !d.isReserve)
   const playerFinance = finance[playerTeam.id]
@@ -111,6 +115,14 @@ export default function PaddockPage() {
           )}
           <ConstructorFormCard team={playerTeam} drivers={drivers} />
         </div>
+
+        <PoachingAlerts
+          attempts={poachingAttempts}
+          teams={teams}
+          playerTeamId={playerTeam.id}
+          onMatch={matchPoachingOffer}
+          onDecline={declinePoachingOffer}
+        />
 
         {/* MAIN 3-COL GRID */}
         <div className="pd-main">

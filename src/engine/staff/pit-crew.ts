@@ -18,8 +18,15 @@ import type { PitCrewChief, PitCrewMember, PitCrewRole } from '@/types/staff'
  * race-simulator's `simulatePitLane` call site.
  */
 
-const NEUTRAL_BASELINE = 50 // returned when no chief is hired
-const NEUTRAL_MEMBER_FILL = 50 // used when a role slot is empty
+// Tier B v2 — empty-staff baseline. Engine reads each team's ratings
+// uniformly; if "no staff" returned 50, AI cars (which start with no chief
+// and no members) would have ~10× the speeding rate of real F1. 70 is the
+// "default-quality crew" baseline IP-B1 was tuned against — a player who
+// hasn't hired anyone perceives no penalty until they invest, and AI teams
+// behave realistically. A player who hires a low-rated chief can drop
+// BELOW this baseline; that's the tradeoff the gameplay surfaces.
+const NEUTRAL_BASELINE = 70
+const NEUTRAL_MEMBER_FILL = 70
 
 export interface CrewAggregates {
   release: number

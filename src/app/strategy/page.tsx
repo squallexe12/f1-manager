@@ -270,6 +270,13 @@ export default function StrategyPage() {
       playerTeamId: playerTeamId || undefined,
       playerDriverIds: playerDriverIdsForRace,
       championshipRivalIds,
+      // Tier B v2 — snapshot every team's pit-crew so the simulator's pit
+      // branch can aggregate ratings per pit stop. Empty teams aggregate
+      // to the 70/70/70 default-quality baseline; only the player invests
+      // in v2 (AI auto-hire is deferred).
+      teamCrews: Object.fromEntries(
+        teams.map((t) => [t.id, { chief: t.pitCrewChief, members: t.pitCrewMembers }]),
+      ),
     }
 
     startRace(payload)

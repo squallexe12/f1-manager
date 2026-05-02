@@ -32,6 +32,7 @@ function makeSim(): SimRaceState {
     appliedPenaltiesByDriver: {},
     sanctionDeadlines: {},
     dnfDriverIds: {},
+    teamCrews: {},
     radioFlags: {
       tireComplainedThisStint: {},
       weatherTransitionAnnounced: false,

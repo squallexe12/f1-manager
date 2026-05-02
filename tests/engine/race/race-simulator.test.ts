@@ -45,6 +45,7 @@ function mockRaceState(): SimRaceState {
     appliedPenaltiesByDriver: {},
     sanctionDeadlines: {},
     dnfDriverIds: {},
+    teamCrews: {},
     radioFlags: {
       tireComplainedThisStint: {},
       weatherTransitionAnnounced: false,
@@ -630,6 +631,7 @@ describe('applyRaceEndFold', () => {
       appliedPenaltiesByDriver: {},
     sanctionDeadlines: {},
     dnfDriverIds: {},
+    teamCrews: {},
       radioFlags: {
         tireComplainedThisStint: {},
         weatherTransitionAnnounced: false,
