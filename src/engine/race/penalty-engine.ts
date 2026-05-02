@@ -63,7 +63,7 @@ function computeDefenderFault(input: ContestedEventInput): number {
   return clamp01(aggression + optimism + frustration + circuitRisk - experienceProtection)
 }
 
-function severityFromScore(
+export function severityFromScore(
   score: number,
   threshold: number,
   bands: PenaltyCalibration['severityBands'],

@@ -72,6 +72,23 @@ export interface StintCalibration {
 }
 
 // ---------------------------------------------------------------------------
+// Pit-lane calibration — per-circuit pit-lane geometry (Tier B)
+// FIA-published constants: lane length, speed limit, decel/accel zone lengths.
+// Drives the deterministic 3-zone speed model in the pit-lane FSM.
+// ---------------------------------------------------------------------------
+
+export interface PitLaneCalibration {
+  /** Total pit-lane length, meters, lane-entry-line to lane-exit-line. */
+  lengthMeters: number
+  /** FIA-imposed speed limit in the limit-zone, km/h. Almost always 80; 60 at a few circuits. */
+  speedLimitKph: number
+  /** Distance from lane-entry-line to start of limit-zone, meters. Cars decelerate over this distance. */
+  entryDecelMeters: number
+  /** Distance from end of limit-zone to lane-exit-line, meters. Cars accelerate over this distance. */
+  exitAccelMeters: number
+}
+
+// ---------------------------------------------------------------------------
 // Combined profile — one per circuit
 // ---------------------------------------------------------------------------
 
@@ -83,6 +100,7 @@ export interface CalibrationProfile {
   overtake: OvertakeCalibration
   pitLoss: PitLossCalibration
   stint: StintCalibration
+  pitLane: PitLaneCalibration
 }
 
 // ---------------------------------------------------------------------------
@@ -143,6 +161,15 @@ export const DEFAULT_STINT_CALIBRATION: StintCalibration = {
   sampleCount: 0,
 }
 
+export const DEFAULT_PITLANE_CALIBRATION: PitLaneCalibration = {
+  // Generic 350m lane with 80 km/h limit and 40m decel/accel zones.
+  // Per-circuit overrides live in `src/data/pit-lane-circuits.ts`.
+  lengthMeters: 350,
+  speedLimitKph: 80,
+  entryDecelMeters: 40,
+  exitAccelMeters: 40,
+}
+
 // ---------------------------------------------------------------------------
 // Factory — creates a fallback profile for any circuit ID
 // ---------------------------------------------------------------------------
@@ -168,6 +195,7 @@ export function createFallbackProfile(circuitId: string): CalibrationProfile {
       expectedLaps: { ...DEFAULT_STINT_CALIBRATION.expectedLaps },
       sampleCount: DEFAULT_STINT_CALIBRATION.sampleCount,
     },
+    pitLane: { ...DEFAULT_PITLANE_CALIBRATION },
   }
 }
 
@@ -234,5 +262,6 @@ export function deriveCalibrationFromCircuit(circuit: Circuit): CalibrationProfi
       expectedLaps,
       sampleCount: 0,
     },
+    pitLane: { ...DEFAULT_PITLANE_CALIBRATION },
   }
 }

@@ -5,6 +5,7 @@ import {
   DEFAULT_OVERTAKE_CALIBRATION,
   DEFAULT_PITLOSS_CALIBRATION,
   DEFAULT_STINT_CALIBRATION,
+  DEFAULT_PITLANE_CALIBRATION,
   type TireCalibration,
   type WeatherCalibration,
   type OvertakeCalibration,
@@ -269,6 +270,10 @@ export function normalizeCalibrationProfile(bundle: OpenF1SessionBundle): Calibr
     overtake: normalizeOvertakeCalibration(bundle.laps),
     pitLoss: normalizePitLossCalibration(bundle.pitStops),
     stint: normalizeStintCalibration(bundle.stints, bundle.circuitCompounds),
+    // Tier B: pit-lane geometry isn't derivable from OpenF1 telemetry; the
+    // hardcoded per-circuit table in `src/data/pit-lane-circuits.ts`
+    // overrides this default at calibration-load time.
+    pitLane: { ...DEFAULT_PITLANE_CALIBRATION },
   }
 }
 

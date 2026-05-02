@@ -236,6 +236,7 @@ describe('race bootstrap', () => {
         expectedLaps: { C1: 30, C2: 24, C3: 18, C4: 13, C5: 10 },
         sampleCount: 120,
       },
+      pitLane: { lengthMeters: 350, speedLimitKph: 80, entryDecelMeters: 40, exitAccelMeters: 40 },
     }
     const { calibration } = bootstrapRace(makeInput({ calibration: override }))
     expect(calibration.source).toBe('openf1')

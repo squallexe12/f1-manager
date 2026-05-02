@@ -124,6 +124,7 @@ describe('calibration registry applies sanitization on register', () => {
         expectedLaps: { C1: 32, C2: 26, C3: 20, C4: 15, C5: 11 },
         sampleCount: 0,
       },
+      pitLane: { lengthMeters: 350, speedLimitKph: 80, entryDecelMeters: 40, exitAccelMeters: 40 },
     }
     registerCalibrationProfile(input)
     const loaded = loadCalibrationProfile('test-track')

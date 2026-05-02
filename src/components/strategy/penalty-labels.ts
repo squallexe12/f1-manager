@@ -7,10 +7,13 @@ import type { OffenceType, SanctionType } from '@/types/race'
 // (no side effects on import) — it is read by client components only.
 
 export const OFFENCE_LABELS: Record<OffenceType, string> = {
-  'collision-minor':   'Collision (minor)',
-  'collision-serious': 'Collision (serious)',
-  'forcing-off':       'Forcing Off',
-  'illegal-defending': 'Illegal Defending',
+  'collision-minor':    'Collision (minor)',
+  'collision-serious':  'Collision (serious)',
+  'forcing-off':        'Forcing Off',
+  'illegal-defending':  'Illegal Defending',
+  'unsafe-release':     'Unsafe Release',
+  'pit-lane-speeding':  'Pit-Lane Speeding',
+  'failure-to-serve':   'Failure to Serve',
 }
 
 export const SANCTION_LABELS: Record<SanctionType, string> = {

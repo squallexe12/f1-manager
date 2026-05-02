@@ -8,6 +8,7 @@ import type {
 import type { CalibrationProfile } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
 import { createPRNG } from '@/engine/core/prng'
+import { sampleGaussian } from '@/engine/core/gaussian'
 import { getTirePerformance, degradeTire } from './tire-model'
 import { calculateOvertakeProbability } from './overtake'
 import { WeatherEngine } from './weather'
@@ -138,11 +139,8 @@ const COMMAND_MODIFIERS: Record<DriverCommand, [number, number]> = {
 // standard deviation into a correctly-distributed scatter value. A uniform
 // sampler would understate variance by ~42% and hard-cap at ±σ, erasing the
 // rare botched-stop tail that the OpenF1-derived σ is meant to represent.
-function sampleGaussian(rng: PRNG): number {
-  const u1 = Math.max(rng.next(), 1e-9) // avoid log(0)
-  const u2 = rng.next()
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2)
-}
+//
+// Shared with pit-lane FSM speed-drift sampling — see `src/engine/core/gaussian.ts`.
 
 // ---------------------------------------------------------------------------
 // Team radio emit helpers (Team Radio v1)

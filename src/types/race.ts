@@ -12,6 +12,9 @@ export type OffenceType =
   | 'collision-serious'
   | 'forcing-off'
   | 'illegal-defending'
+  | 'unsafe-release'
+  | 'pit-lane-speeding'
+  | 'failure-to-serve'
 
 export type SanctionType =
   | 'reprimand'
