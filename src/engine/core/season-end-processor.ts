@@ -1,6 +1,7 @@
 import type { Team } from '@/types/team'
 import type { Driver } from '@/types/driver'
 import type { FinanceState } from '@/types/finance'
+import type { PoachingAttempt } from '@/types/staff'
 import { applyAging } from '@/engine/drivers/aging'
 import { calculatePrizeMoney, checkCapBreach } from '@/engine/finance/budget-engine'
 import { applySeasonRegulations } from '@/engine/regulations/regulation-engine'
@@ -12,6 +13,43 @@ export interface SeasonEndResult {
   finance: Record<string, FinanceState>
   prizeMoney: Record<string, number>
   capBreaches: Record<string, { breached: boolean; penaltyTier: string | null; pointsDeduction: number }>
+  /**
+   * Tier B v2 (IP-B4) — fresh poaching-attempts array for the new season.
+   * Always `[]`: matched/declined/expired attempts are resolved during
+   * `processSeasonEnd`, so the new season starts with no carry-over.
+   * Caller (`processSeasonEndPhase`) replaces `world.poachingAttempts`.
+   */
+  poachingAttempts: PoachingAttempt[]
+}
+
+/**
+ * Tier B v2 (IP-B4) — apply the consequences of declined poaching attempts:
+ * staff the player declined to retain leaves the team at season end.
+ * Returns the team list with the declined-target staff removed.
+ *
+ * Pure function. Matched and expired attempts are also dropped from the
+ * returned `poachingAttempts` regardless — the array always returns `[]`.
+ */
+function applyDeclinedPoaching(
+  teams: Team[],
+  playerTeamId: string | undefined,
+  attempts: PoachingAttempt[],
+): Team[] {
+  if (!playerTeamId) return teams
+  const declined = attempts.filter((a) => a.status === 'declined')
+  if (declined.length === 0) return teams
+  return teams.map((t) => {
+    if (t.id !== playerTeamId) return t
+    let nextChief = t.pitCrewChief
+    let nextMembers = t.pitCrewMembers
+    for (const attempt of declined) {
+      if (nextChief && nextChief.id === attempt.targetStaffId) {
+        nextChief = null
+      }
+      nextMembers = nextMembers.filter((m) => m.id !== attempt.targetStaffId)
+    }
+    return { ...t, pitCrewChief: nextChief, pitCrewMembers: nextMembers }
+  })
 }
 
 /**
@@ -29,7 +67,14 @@ export function processSeasonEnd(
   drivers: Driver[],
   finance: Record<string, FinanceState>,
   currentSeason: number,
+  poachingAttempts: PoachingAttempt[] = [],
+  playerTeamId?: string,
 ): SeasonEndResult {
+  // Tier B v2 (IP-B4) — apply declined poaching consequences before any
+  // other team transformations so the staff exodus is reflected in
+  // downstream resets.
+  teams = applyDeclinedPoaching(teams, playerTeamId, poachingAttempts)
+
   const prizeMoney: Record<string, number> = {}
   const capBreaches: Record<string, { breached: boolean; penaltyTier: string | null; pointsDeduction: number }> = {}
 
@@ -162,5 +207,7 @@ export function processSeasonEnd(
     finance: finalFinance,
     prizeMoney,
     capBreaches,
+    // Tier B v2 (IP-B4) — fresh slate. Matched/declined/expired all resolved.
+    poachingAttempts: [],
   }
 }

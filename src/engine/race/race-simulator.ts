@@ -387,6 +387,16 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   // state-driven (no PRNG) so moving it out of the per-driver loop is safe.
   // simulatePitLane runs once for the whole lap and returns per-driver
   // addedLapTime + investigation incidents + informational events.
+  //
+  // Edge-case behaviour (IP-B4 audit):
+  //   - DNF: drivers in `state.dnfDriverIds` are skipped; their pit lane
+  //     state is never instantiated.
+  //   - Safety car: a stop initiated while `state.safetyCar !== 'green'` is
+  //     completed normally. Real F1 also runs pit stops under SC; the
+  //     player just gains less from the timing benefit.
+  //   - Rain transition: tire-swap math is compound-agnostic. Switching to
+  //     intermediates / wets mid-stop is supported by `currentCommand === 'pit'`
+  //     reading the next planned stop's compound.
   const pittingThisLap: PitLaneSimCarInput[] = []
   for (const driverId of positions) {
     if (state.dnfDriverIds[driverId]) continue
@@ -439,6 +449,38 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     pitLaneAddedLapTime = result.addedLapTime
     for (const ev of result.events) {
       pitLaneEvents.push(ev)
+      // Tier B v2 (IP-B4) — surface pit-lane events as informational
+      // commentary entries so the player sees pit-stop telemetry, not
+      // just the eventual penalty outcomes. Speeding-detected events are
+      // already covered by the investigation-opened incident itself; the
+      // remaining three (entry / release / exit) are pure flavour.
+      const driverObj = state.drivers.find((d) => d.id === ev.driverId)
+      const shortName = driverObj?.shortName ?? ev.driverId.toUpperCase()
+      if (ev.type === 'pitLaneEntry') {
+        commentary.push({
+          lap: state.currentLap,
+          text: `${shortName} dives into the pit lane.`,
+          severity: 'info',
+          driverId: ev.driverId,
+          isPlayerTeam: state.playerDriverIds.includes(ev.driverId),
+        })
+      } else if (ev.type === 'pitLaneExit') {
+        commentary.push({
+          lap: state.currentLap,
+          text: `${shortName} rejoins the race after a ${ev.totalLaneSeconds.toFixed(1)}s lane time.`,
+          severity: 'info',
+          driverId: ev.driverId,
+          isPlayerTeam: state.playerDriverIds.includes(ev.driverId),
+        })
+      } else if (ev.type === 'pitLaneSpeedingDetected') {
+        commentary.push({
+          lap: state.currentLap,
+          text: `${shortName} sampled at ${ev.sampledSpeedKph.toFixed(1)} km/h in the pit lane — over the limit.`,
+          severity: 'highlight',
+          driverId: ev.driverId,
+          isPlayerTeam: state.playerDriverIds.includes(ev.driverId),
+        })
+      }
     }
     // Each pit-lane investigation incident gets a real id + decideOnLap by
     // routing through openInvestigation, mirroring how the contested-overtake

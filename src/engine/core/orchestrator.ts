@@ -228,6 +228,8 @@ export function processSeasonEndPhase(world: FullGameState) {
   const result = processSeasonEnd(
     world.teams, world.drivers, world.finance,
     world.gameState.season,
+    world.poachingAttempts,
+    world.gameState.playerTeamId,
   )
 
   const nextWorld: FullGameState = {
@@ -241,6 +243,7 @@ export function processSeasonEndPhase(world: FullGameState) {
     teams: result.teams,
     drivers: result.drivers,
     finance: result.finance,
+    poachingAttempts: result.poachingAttempts,
   }
 
   return { world: nextWorld, result }
