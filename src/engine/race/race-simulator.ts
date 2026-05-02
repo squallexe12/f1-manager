@@ -8,13 +8,18 @@ import type {
 import type { CalibrationProfile } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
 import { createPRNG } from '@/engine/core/prng'
-import { sampleGaussian } from '@/engine/core/gaussian'
 import { getTirePerformance, degradeTire } from './tire-model'
 import { calculateOvertakeProbability } from './overtake'
 import { WeatherEngine } from './weather'
 import { resolveCalibrationForCircuit } from '@/data/calibration'
 import { resolveInvestigations, selectSanction, evaluateContestedEvent, openInvestigation } from './penalty-engine'
 import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
+import { simulatePitLane, type PitLaneEvent, type PitLaneSimCarInput } from './pit-lane-engine'
+import {
+  registerSanctionDeadline,
+  clearSanctionDeadline,
+  checkFailureToServe,
+} from './failure-to-serve'
 import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
 
 export interface RaceDriver {
@@ -64,6 +69,20 @@ export interface SimRaceState {
   pendingInvestigations: import('./penalty-engine').PendingInvestigation[]
   pendingTimePenalties: Record<string, number>
   appliedPenaltiesByDriver: Record<string, AppliedPenalty[]>
+  /**
+   * Tier B v2 — open service-deadlines for issued drive-through / stop-go
+   * penalties. Cleared when the driver pits and the pending time penalty is
+   * served, OR converted to DNF when the lap-counter exceeds the deadline.
+   * Session-scoped (lives in raceRuntime), never persisted.
+   */
+  sanctionDeadlines: Record<string, import('@/types/pit-lane').SanctionDeadline>
+  /**
+   * Tier B v2 — drivers retired from the race. Keyed by driverId for O(1)
+   * membership tests. JSON-safe (Record<string, true> rather than Set).
+   * Lap simulation skips these drivers; their `cumulativeTimes` stay frozen
+   * at the last good lap.
+   */
+  dnfDriverIds: Record<string, true>
   /**
    * Per-race radio bookkeeping. Each flag prevents a category of radio line
    * from firing more than the policy allows (e.g. one tire-complaint per
@@ -123,6 +142,8 @@ export interface LapSimResult {
   lapResults: LapResult[]
   commentary: CommentaryEntry[]
   incidents: RaceIncident[]
+  /** Tier B v2 — informational pit-lane events for worker → main forwarding. */
+  pitLaneEvents?: import('./pit-lane-engine').PitLaneEvent[]
 }
 
 // Command modifiers: [pace_multiplier, tire_wear_multiplier]
@@ -232,6 +253,31 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const lapResults: LapResult[] = []
   const commentary: CommentaryEntry[] = []
   const incidents: RaceIncident[] = []
+  const pitLaneEvents: PitLaneEvent[] = []
+
+  // Tier B v2 — failure-to-serve check at lap start. Any driver whose
+  // drive-through / stop-go service-deadline lapsed before this lap began is
+  // converted to DNF, with a `failure-to-serve` penalty incident emitted.
+  const ftsCheck = checkFailureToServe(
+    { sanctionDeadlines: state.sanctionDeadlines },
+    state.currentLap,
+  )
+  state.sanctionDeadlines = ftsCheck.nextState.sanctionDeadlines
+  for (const inc of ftsCheck.incidents) {
+    incidents.push(inc)
+  }
+  for (const dnfId of ftsCheck.dnfDriverIds) {
+    state.dnfDriverIds[dnfId] = true
+    if (!state.appliedPenaltiesByDriver[dnfId]) state.appliedPenaltiesByDriver[dnfId] = []
+    state.appliedPenaltiesByDriver[dnfId].push({
+      offenceType: 'failure-to-serve',
+      sanction: 'stop-go',
+      timePenaltySeconds: 0,
+      penaltyPointsIssued: 0,
+      warningCounted: false,
+      raceLap: state.currentLap,
+    })
+  }
 
   // Capture safety-car state at lap start so the post-lap diff can fire
   // deploy/in radios on transitions. Dormant in v1 (the simulator does not
@@ -270,6 +316,18 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     const sanction = selectSanction(inv.severity, inv.offenceType, DEFAULT_PENALTY_CALIBRATION, rng)
     if (sanction.timePenaltySeconds > 0) {
       state.pendingTimePenalties[inv.driverId] = (state.pendingTimePenalties[inv.driverId] ?? 0) + sanction.timePenaltySeconds
+    }
+    // Tier B v2 — drive-through and stop-go sanctions get a 3-lap service
+    // deadline. Failing to serve converts to DNF on the next lap-start check.
+    if (sanction.sanction === 'drive-through' || sanction.sanction === 'stop-go') {
+      const ftsState = registerSanctionDeadline(
+        { sanctionDeadlines: state.sanctionDeadlines },
+        inv.driverId,
+        sanction.sanction,
+        state.currentLap,
+        DEFAULT_PENALTY_CALIBRATION.failureToServeWindowLaps,
+      )
+      state.sanctionDeadlines = ftsState.sanctionDeadlines
     }
     if (!state.appliedPenaltiesByDriver[inv.driverId]) state.appliedPenaltiesByDriver[inv.driverId] = []
     state.appliedPenaltiesByDriver[inv.driverId].push({
@@ -312,15 +370,15 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const tireCal = state.calibration.tires
   const overtakeCal = state.calibration.overtake
 
-  for (let posIdx = 0; posIdx < positions.length; posIdx++) {
-    const driverId = positions[posIdx]
-    const driver = state.drivers.find(d => d.id === driverId)!
+  // Tier B v2 — pre-pass: auto-trigger planned pit stops + collect the set of
+  // drivers entering the pit lane this lap. The auto-trigger is purely
+  // state-driven (no PRNG) so moving it out of the per-driver loop is safe.
+  // simulatePitLane runs once for the whole lap and returns per-driver
+  // addedLapTime + investigation incidents + informational events.
+  const pittingThisLap: PitLaneSimCarInput[] = []
+  for (const driverId of positions) {
+    if (state.dnfDriverIds[driverId]) continue
     const strategy = state.strategies.find(s => s.driverId === driverId)!
-    const tire = state.tireStates[driverId]
-    const tirePerf = getTirePerformance(tire, tireCal)
-
-    // Auto-trigger planned pit stop when the current lap reaches the next scheduled stop.
-    // Deterministic — driven purely by state, no PRNG involved.
     const nextPlannedStop = strategy.plannedStops[0]
     if (
       nextPlannedStop !== undefined &&
@@ -329,6 +387,77 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     ) {
       strategy.currentCommand = 'pit'
     }
+    if (strategy.currentCommand === 'pit') {
+      const driver = state.drivers.find(d => d.id === driverId)!
+      pittingThisLap.push({
+        driverId,
+        // Race-line entry/exit speed approximated from car's straight-speed.
+        // ~220-260 km/h range. Lower values for slow circuits accepted as
+        // calibration noise; refine in IP-B3 if needed.
+        carEntrySpeedKph: 220 + (driver.car.straightSpeed / 100) * 40,
+        carExitSpeedKph: 220 + (driver.car.straightSpeed / 100) * 40,
+        // IP-B1 ships neutral 70/70/70 staff ratings hardcoded. Real per-team
+        // ratings flow in from `aggregateCrewRatings(chief, members)` once
+        // IP-B3 wires the staff system into engine inputs.
+        releaseRating: 70,
+        speedDisciplineRating: 70,
+        serviceTimeRating: 70,
+        driverRacecraft: driver.attributes.racecraft,
+        driverExperience: driver.attributes.experience,
+      })
+    }
+  }
+
+  let pitLaneAddedLapTime: Record<string, number> = {}
+  if (pittingThisLap.length > 0) {
+    const result = simulatePitLane(
+      {
+        cars: pittingThisLap,
+        pitLane: state.calibration.pitLane,
+        pitLossMean: state.calibration.pitLoss.meanLossSeconds,
+        pitLossStddev: state.calibration.pitLoss.stddevSeconds,
+        calibration: DEFAULT_PENALTY_CALIBRATION,
+      },
+      rng,
+    )
+    pitLaneAddedLapTime = result.addedLapTime
+    for (const ev of result.events) {
+      pitLaneEvents.push(ev)
+    }
+    // Each pit-lane investigation incident gets a real id + decideOnLap by
+    // routing through openInvestigation, mirroring how the contested-overtake
+    // gate creates Tier A investigations.
+    for (const inc of result.incidents) {
+      if (inc.type === 'investigation-opened' && inc.offenceType) {
+        const inv = openInvestigation(
+          inc.driverIds[0],
+          'minor',
+          inc.offenceType,
+          state.currentLap,
+          state.totalLaps,
+          DEFAULT_PENALTY_CALIBRATION,
+          rng,
+        )
+        state.pendingInvestigations.push(inv)
+        incidents.push({
+          ...inc,
+          lap: state.currentLap,
+          investigationId: inv.id,
+          decideOnLap: inv.decideOnLap,
+        })
+      }
+    }
+  }
+
+  for (let posIdx = 0; posIdx < positions.length; posIdx++) {
+    const driverId = positions[posIdx]
+    if (state.dnfDriverIds[driverId]) continue
+    const driver = state.drivers.find(d => d.id === driverId)!
+    const strategy = state.strategies.find(s => s.driverId === driverId)!
+    const tire = state.tireStates[driverId]
+    const tirePerf = getTirePerformance(tire, tireCal)
+
+    // Auto-trigger has already run in the pre-pass; no per-driver duplicate.
 
     const [paceMod, tireMod] = COMMAND_MODIFIERS[strategy.currentCommand]
 
@@ -368,20 +497,21 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         wear: 100,
         lapsFitted: 0,
       }
-      const pitLoss = state.calibration.pitLoss
-      let scatter = 0
-      if (pitLoss.stddevSeconds > 0) {
-        // Clamp to ±3σ so simulator output stays bounded; 99.7% of the true
-        // Gaussian mass is already inside that window.
-        const z = Math.max(-3, Math.min(3, sampleGaussian(rng)))
-        scatter = z * pitLoss.stddevSeconds
-      }
-      lapTime += pitLoss.meanLossSeconds + scatter
-      // Apply any pending time penalty: served at this pit stop.
+      // Tier B v2 — pit-loss is computed by `simulatePitLane` in the pre-pass
+      // and looked up here per driver. Replaces the static
+      // `meanLossSeconds + scatter` that was inline pre-Tier B.
+      lapTime += pitLaneAddedLapTime[driverId] ?? state.calibration.pitLoss.meanLossSeconds
+      // Apply any pending time penalty: served at this pit stop. Clears the
+      // failure-to-serve deadline if one was open for this driver.
       const pending = state.pendingTimePenalties[driverId] ?? 0
       if (pending > 0) {
         lapTime += pending
         state.pendingTimePenalties[driverId] = 0
+        const cleared = clearSanctionDeadline(
+          { sanctionDeadlines: state.sanctionDeadlines },
+          driverId,
+        )
+        state.sanctionDeadlines = cleared.sanctionDeadlines
       }
       pitted = true
       // Reset command back to standard after pitting
@@ -596,7 +726,7 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     }
   }
 
-  return { lapResults, commentary, incidents }
+  return { lapResults, commentary, incidents, pitLaneEvents }
 }
 
 export interface RaceResult {
@@ -656,6 +786,8 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     pendingInvestigations: [],
     pendingTimePenalties: {},
     appliedPenaltiesByDriver: {},
+    sanctionDeadlines: {},
+    dnfDriverIds: {},
     radioFlags: {
       tireComplainedThisStint: {},
       weatherTransitionAnnounced: false,

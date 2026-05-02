@@ -1,10 +1,12 @@
 import type { TireCompound } from '@/types/race'
-import type { CalibrationProfile, PitLossCalibration, StintCalibration, TireCalibration } from '@/types/calibration'
+import type { CalibrationProfile, PitLossCalibration, PitLaneCalibration, StintCalibration, TireCalibration } from '@/types/calibration'
 import {
   DEFAULT_PITLOSS_CALIBRATION,
+  DEFAULT_PITLANE_CALIBRATION,
   DEFAULT_STINT_CALIBRATION,
   DEFAULT_TIRE_CALIBRATION,
 } from '@/types/calibration'
+import { pitLaneForCircuit } from '@/data/pit-lane-circuits'
 
 const COMPOUND_ORDER: readonly TireCompound[] = ['C1', 'C2', 'C3', 'C4', 'C5']
 
@@ -124,9 +126,42 @@ export function sanitizeStintCalibration(
 }
 
 /**
- * Fill in required post-IP-07 calibration sections (pitLoss, stint) on a
- * legacy profile that predates the schema extension. Existing sections are
- * left untouched; missing ones get defaults.
+ * Ensure a PitLaneCalibration shape is valid (Tier B). When the loaded
+ * profile lacks a `pitLane` block — every legacy JSON profile predates
+ * Tier B and won't have one — fall back to the per-circuit table in
+ * `src/data/pit-lane-circuits.ts`, then to `DEFAULT_PITLANE_CALIBRATION`.
+ */
+export function sanitizePitLaneCalibration(
+  pitLane: Partial<PitLaneCalibration> | undefined,
+  circuitId: string,
+): PitLaneCalibration {
+  const tableEntry = pitLaneForCircuit(circuitId, DEFAULT_PITLANE_CALIBRATION)
+  if (!pitLane) return { ...tableEntry }
+
+  const lengthMeters =
+    typeof pitLane.lengthMeters === 'number' && pitLane.lengthMeters > 0
+      ? pitLane.lengthMeters
+      : tableEntry.lengthMeters
+  const speedLimitKph =
+    typeof pitLane.speedLimitKph === 'number' && pitLane.speedLimitKph > 0
+      ? pitLane.speedLimitKph
+      : tableEntry.speedLimitKph
+  const entryDecelMeters =
+    typeof pitLane.entryDecelMeters === 'number' && pitLane.entryDecelMeters > 0
+      ? pitLane.entryDecelMeters
+      : tableEntry.entryDecelMeters
+  const exitAccelMeters =
+    typeof pitLane.exitAccelMeters === 'number' && pitLane.exitAccelMeters > 0
+      ? pitLane.exitAccelMeters
+      : tableEntry.exitAccelMeters
+  return { lengthMeters, speedLimitKph, entryDecelMeters, exitAccelMeters }
+}
+
+/**
+ * Fill in required post-IP-07 / Tier B calibration sections (pitLoss, stint,
+ * pitLane) on a legacy profile that predates each schema extension. Existing
+ * sections are left untouched; missing ones get defaults or per-circuit
+ * overrides as appropriate.
  */
 export function sanitizeCalibrationProfile(profile: CalibrationProfile): CalibrationProfile {
   return {
@@ -134,5 +169,6 @@ export function sanitizeCalibrationProfile(profile: CalibrationProfile): Calibra
     tires: sanitizeTireCalibration(profile.tires),
     pitLoss: sanitizePitLossCalibration(profile.pitLoss),
     stint: sanitizeStintCalibration(profile.stint),
+    pitLane: sanitizePitLaneCalibration(profile.pitLane, profile.circuitId),
   }
 }

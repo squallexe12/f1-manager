@@ -335,6 +335,14 @@ export type WorkerOutEvent =
     }
   | { type: 'commentary'; entries: CommentaryEntry[] }
   | { type: 'incident'; incident: RaceIncident }
+  // Tier B v2 — informational pit-lane events. Drive commentary on the main
+  // thread; not authoritative on race outcomes (penalty channel stays the
+  // existing 'incident' event with `investigation-opened` / `penalty-issued`
+  // payload). All four are emitted from `simulatePitLane` per pit stop.
+  | { type: 'pitLaneEntry'; lap: number; driverId: string; entrySpeedKph: number }
+  | { type: 'pitLaneRelease'; lap: number; driverId: string; releaseDelaySeconds: number }
+  | { type: 'pitLaneExit'; lap: number; driverId: string; totalLaneSeconds: number }
+  | { type: 'pitLaneSpeedingDetected'; lap: number; driverId: string; sampledSpeedKph: number }
   | {
       type: 'raceEnd'
       finalResults: LapResult[]

@@ -134,6 +134,14 @@ export function reduceWorkerEvent(
         ...state,
         incidents: [...state.incidents, event.incident],
       }
+    // Tier B v2 — informational pit-lane events. v1 ignores them at the
+    // store level (no UI surface yet); future commentary surfaces will fold
+    // them into the radio feed in IP-B3.
+    case 'pitLaneEntry':
+    case 'pitLaneRelease':
+    case 'pitLaneExit':
+    case 'pitLaneSpeedingDetected':
+      return state
     case 'raceEnd':
       return {
         ...state,

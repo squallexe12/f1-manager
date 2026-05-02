@@ -43,6 +43,8 @@ function mockRaceState(): SimRaceState {
     pendingInvestigations: [],
     pendingTimePenalties: {},
     appliedPenaltiesByDriver: {},
+    sanctionDeadlines: {},
+    dnfDriverIds: {},
     radioFlags: {
       tireComplainedThisStint: {},
       weatherTransitionAnnounced: false,
@@ -626,6 +628,8 @@ describe('applyRaceEndFold', () => {
       pendingInvestigations: [],
       pendingTimePenalties: overrides.pendingTimePenalties,
       appliedPenaltiesByDriver: {},
+    sanctionDeadlines: {},
+    dnfDriverIds: {},
       radioFlags: {
         tireComplainedThisStint: {},
         weatherTransitionAnnounced: false,

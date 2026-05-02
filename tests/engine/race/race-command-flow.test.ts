@@ -30,6 +30,8 @@ function makeSim(): SimRaceState {
     pendingInvestigations: [],
     pendingTimePenalties: {},
     appliedPenaltiesByDriver: {},
+    sanctionDeadlines: {},
+    dnfDriverIds: {},
     radioFlags: {
       tireComplainedThisStint: {},
       weatherTransitionAnnounced: false,

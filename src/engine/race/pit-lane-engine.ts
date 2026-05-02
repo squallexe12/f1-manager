@@ -1,7 +1,6 @@
 import type {
   OffenceType,
   RaceIncident,
-  SanctionType,
   SeverityTier,
 } from '@/types/race'
 import type { PitLaneCalibration } from '@/types/calibration'
@@ -10,7 +9,7 @@ import type { PRNG } from '@/engine/core/prng'
 import { sampleGaussian } from '@/engine/core/gaussian'
 import type { PenaltyCalibration } from '@/data/penalty-calibration'
 import { severityFromScore } from './penalty-engine'
-import { tickPitLaneFsm, transitMeters, type PitLaneFsmContext } from './pit-lane-fsm'
+import { tickPitLaneFsm, type PitLaneFsmContext } from './pit-lane-fsm'
 
 /**
  * Tier B v2 pit-lane sub-step engine. `simulatePitLane` runs a deterministic
@@ -381,6 +380,3 @@ export function simulatePitLane(input: PitLaneSimInput, rng: PRNG): PitLaneSimRe
 
 // Re-exports for plan-level convenience
 export type { PitLaneCarState }
-// Suppress unused: SanctionType is referenced by the calibration types we consume.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _SanctionTypeRef = SanctionType

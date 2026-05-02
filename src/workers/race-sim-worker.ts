@@ -87,7 +87,7 @@ function simulateNextLap(): void {
     weatherEngine.tick()
     raceState.weather = weatherEngine.getForecast(raceState.totalLaps - raceState.currentLap)
 
-    const { lapResults, commentary, incidents } = simulateLap(raceState, rng)
+    const { lapResults, commentary, incidents, pitLaneEvents } = simulateLap(raceState, rng)
 
     raceState.results.push(lapResults)
     raceState.incidents.push(...incidents)
@@ -107,6 +107,24 @@ function simulateNextLap(): void {
     }
     for (const incident of incidents) {
       postEvent({ type: 'incident', incident })
+    }
+
+    // Tier B v2 — pit-lane events surface to the main thread for commentary
+    // / telemetry. The penalty channel stays the existing 'incident' event;
+    // these four are informational.
+    if (pitLaneEvents) {
+      const lap = raceState.currentLap
+      for (const ev of pitLaneEvents) {
+        if (ev.type === 'pitLaneEntry') {
+          postEvent({ type: 'pitLaneEntry', lap, driverId: ev.driverId, entrySpeedKph: ev.entrySpeedKph })
+        } else if (ev.type === 'pitLaneRelease') {
+          postEvent({ type: 'pitLaneRelease', lap, driverId: ev.driverId, releaseDelaySeconds: ev.releaseDelaySeconds })
+        } else if (ev.type === 'pitLaneExit') {
+          postEvent({ type: 'pitLaneExit', lap, driverId: ev.driverId, totalLaneSeconds: ev.totalLaneSeconds })
+        } else if (ev.type === 'pitLaneSpeedingDetected') {
+          postEvent({ type: 'pitLaneSpeedingDetected', lap, driverId: ev.driverId, sampledSpeedKph: ev.sampledSpeedKph })
+        }
+      }
     }
   } catch (err) {
     emitError(buildErrorEvent(
@@ -201,6 +219,8 @@ export function __handleMessage(msg: unknown): void {
         pendingInvestigations: [],
         pendingTimePenalties: {},
         appliedPenaltiesByDriver: {},
+        sanctionDeadlines: {},
+        dnfDriverIds: {},
         radioFlags: {
           tireComplainedThisStint: {},
           weatherTransitionAnnounced: false,

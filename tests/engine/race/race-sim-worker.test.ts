@@ -267,6 +267,26 @@ describe('worker protocol — race lifecycle', () => {
   })
 })
 
+describe('worker protocol — Tier B pit-lane events', () => {
+  it('emits pitLaneEntry / pitLaneExit when a driver pits', () => {
+    __handleMessage(buildStartMessage(makeStartPayload({ simSpeed: 'max' })))
+    __handleMessage(buildCommandMessage(
+      makeEnvelope({ type: 'pit', driverId: 'drv-a', payload: { compound: 'C3' }, sequence: 2 }),
+    ))
+    // Race is 3 laps; advance enough for the pit lap to flow through.
+    vi.advanceTimersByTime(2000)
+
+    const entry = postedMessages.find(
+      (m) => m.type === 'pitLaneEntry' && (m as { driverId?: string }).driverId === 'drv-a',
+    )
+    const exit = postedMessages.find(
+      (m) => m.type === 'pitLaneExit' && (m as { driverId?: string }).driverId === 'drv-a',
+    )
+    expect(entry).toBeDefined()
+    expect(exit).toBeDefined()
+  })
+})
+
 describe('worker protocol — serialization round-trip (worker-safe payloads)', () => {
   it('inbound messages survive JSON round-trip', () => {
     const start: WorkerInMessage = buildStartMessage(makeStartPayload())
