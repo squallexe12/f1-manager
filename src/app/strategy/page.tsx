@@ -210,6 +210,18 @@ export default function StrategyPage() {
     const orderedDrivers = gridOrder.map((id) => driverById.get(id)!).filter(Boolean)
 
     // Step 3: Consume nextRaceGridDrop on penalised drivers (one-shot, persisted).
+    //
+    // Non-transactional by design: `consumeGridDrops` zeroes the persisted
+    // `nextRaceGridDrop` BEFORE `startRace` posts to the worker. If `startRace`
+    // were to throw downstream, the grid drop would be consumed but never
+    // applied — the next attempt would launch with a clean grid. This matches
+    // the broader "race start is fire-and-forget" pattern in this file
+    // (substitutions, mood pre-flight) and is documented here so future
+    // refactors don't accidentally try to "fix" it by reordering — wrapping
+    // the dispatch in a try/rollback would fight the worker's authoritative
+    // race-state model. If atomicity is ever required, the right shape is a
+    // dedicated `prepareRaceStart` orchestrator action that journals the
+    // intended consumption alongside the dispatch.
     const penalisedIds = Object.keys(gridDrops)
     if (penalisedIds.length > 0) consumeGridDrops(penalisedIds)
 

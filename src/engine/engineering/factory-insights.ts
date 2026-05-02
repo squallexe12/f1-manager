@@ -32,10 +32,16 @@ export function peerAveragedAxes(teams: Team[], playerTeamId: string): number[] 
   })
 }
 
-/** Player team's constructor rank, clamped to [1, 11]. */
-export function peerRank(teams: Team[], playerTeamId: string): number {
+/**
+ * Player team's constructor rank, clamped to [1, 11]. Returns `null` when
+ * the team has no constructor position yet (`constructorPosition` is 0 at
+ * season start, before any race has been processed) or when the team is
+ * missing from the list — UI is expected to render "—" in both cases.
+ */
+export function peerRank(teams: Team[], playerTeamId: string): number | null {
   const team = teams.find((t) => t.id === playerTeamId)
-  if (!team) return 11
+  if (!team) return null
+  if (team.constructorPosition <= 0) return null
   return Math.max(1, Math.min(11, team.constructorPosition))
 }
 

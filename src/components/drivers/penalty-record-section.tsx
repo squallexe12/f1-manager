@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import type { Driver } from '@/types/driver'
 import {
+  entryExpiresAt,
   expirePenaltyPoints,
   sumActivePoints,
 } from '@/engine/drivers/penalty-points'
@@ -14,32 +15,6 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const WARNINGS_THRESHOLD = 5
-const ROUNDS_PER_SEASON = 22
-
-// ─── Expiry computation ───────────────────────────────────────────────────────
-
-/**
- * Returns the season + round on which an entry expires
- * (i.e. exactly 22 rounds after issue, wrapping over season boundary).
- */
-function computeExpiry(
-  issuedSeason: number,
-  issuedRound: number,
-): { season: number; round: number } {
-  const totalRound = issuedRound + ROUNDS_PER_SEASON
-  if (totalRound <= ROUNDS_PER_SEASON) {
-    return { season: issuedSeason, round: totalRound }
-  }
-  const extraRounds = totalRound - ROUNDS_PER_SEASON
-  if (extraRounds <= ROUNDS_PER_SEASON) {
-    return { season: issuedSeason + 1, round: extraRounds }
-  }
-  // Shouldn't happen with standard 22-round window, but handle gracefully
-  return {
-    season: issuedSeason + Math.floor(totalRound / ROUNDS_PER_SEASON),
-    round:  totalRound % ROUNDS_PER_SEASON || ROUNDS_PER_SEASON,
-  }
-}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -184,7 +159,7 @@ export function PenaltyRecordSection({
             Active entries
           </span>
           {sortedEntries.map((entry, idx) => {
-            const expiry = computeExpiry(entry.issuedSeason, entry.issuedRound)
+            const expiry = entryExpiresAt(entry)
             return (
               <div
                 key={idx}

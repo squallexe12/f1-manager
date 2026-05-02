@@ -5,8 +5,8 @@ interface CarPerformanceCardProps {
   car: CarPerformance
   /** Peer axes values in the same order as AXES — TODO(Phase B): derive from other teams */
   peerAxes: number[]
-  /** Constructor rank among peers (1-11) */
-  peerRank: number
+  /** Constructor rank among peers (1-11), or null before any race is processed. */
+  peerRank: number | null
   /** Rolling OVR trend (oldest → newest) — TODO(Phase B): derive from history */
   trendSeries: number[]
   /** Δ vs championship leader, in seconds per lap — TODO(Phase B) */
@@ -192,7 +192,7 @@ export function CarPerformanceCard({
           <Sparkline points={trendSeries} />
         </div>
         <div className="rhs-rank">
-          <div className="rnum">P{peerRank}</div>
+          <div className="rnum">{peerRank === null ? '—' : `P${peerRank}`}</div>
           <span className="rsub">PEER RANK</span>
         </div>
       </div>

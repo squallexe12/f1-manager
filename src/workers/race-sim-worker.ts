@@ -47,6 +47,16 @@ function simulateNextLap(): void {
   if (!raceState || !rng || !weatherEngine || isPaused) return
 
   if (raceState.currentLap >= raceState.totalLaps) {
+    // Defensive: cancel any pending tick before posting the terminal event.
+    // Today's call path always reaches the race-end branch via the setTimeout
+    // callback (which has already fired and self-cleared), so this is a no-op.
+    // It exists so that any future re-entrant call site — direct invocation,
+    // a manual replay path, a refactor that schedules ticks elsewhere —
+    // cannot leave a stray timer running after `raceEnd` is posted.
+    if (tickTimer !== null) {
+      clearTimeout(tickTimer)
+      tickTimer = null
+    }
     // Race-end fold: residual pendingTimePenalties → cumulativeTimes,
     // re-sort positions, rewrite final-lap LapResult.position values.
     // Shared with simulateRace via `applyRaceEndFold`.

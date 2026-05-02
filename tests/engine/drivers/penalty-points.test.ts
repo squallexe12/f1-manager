@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
+  entryExpiresAt,
   expirePenaltyPoints,
   sumActivePoints,
   wipeContributingPoints,
@@ -43,6 +44,35 @@ describe('sumActivePoints', () => {
 
   it('returns 0 for empty list', () => {
     expect(sumActivePoints([])).toBe(0)
+  })
+})
+
+describe('entryExpiresAt', () => {
+  it('returns the same season when issued round + window stays inside the season', () => {
+    expect(entryExpiresAt(e(1, 1, 5), 10)).toEqual({ season: 1, round: 15 })
+  })
+
+  it('wraps into the next season when issued round + window exceeds the season', () => {
+    // (1, 5) + 22 → (2, 5)
+    expect(entryExpiresAt(e(1, 1, 5))).toEqual({ season: 2, round: 5 })
+  })
+
+  it('agrees with expirePenaltyPoints at the boundary: still active one round before expiry, gone on expiry', () => {
+    const entry = e(2, 1, 20)
+    const expiry = entryExpiresAt(entry)
+    // One round before expiry: still active
+    const before =
+      expiry.round === 1
+        ? { season: expiry.season - 1, round: 22 }
+        : { season: expiry.season, round: expiry.round - 1 }
+    expect(expirePenaltyPoints([entry], before.season, before.round)).toHaveLength(1)
+    // On expiry round: removed
+    expect(expirePenaltyPoints([entry], expiry.season, expiry.round)).toHaveLength(0)
+  })
+
+  it('handles a window larger than one season', () => {
+    // (1, 10) + 25 → totalRound 35 → season+1, round 13
+    expect(entryExpiresAt(e(1, 1, 10), 25)).toEqual({ season: 2, round: 13 })
   })
 })
 

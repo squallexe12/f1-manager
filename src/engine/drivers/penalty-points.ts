@@ -26,6 +26,23 @@ export function sumActivePoints(entries: PenaltyPointEntry[]): number {
 }
 
 /**
+ * Returns the season + round on which a penalty-point entry is removed by
+ * `expirePenaltyPoints` (i.e. the first round where its rolling-window age
+ * reaches `windowRounds`). Mirrors the engine's expiry math so UI surfaces
+ * displaying "Expires S{n} R{m}" stay in lockstep with the engine if the
+ * window or season length ever changes.
+ */
+export function entryExpiresAt(
+  entry: PenaltyPointEntry,
+  windowRounds: number = DEFAULT_WINDOW_ROUNDS,
+): { season: number; round: number } {
+  const total = entry.issuedRound + windowRounds
+  const seasonOffset = Math.ceil(total / ROUNDS_PER_SEASON) - 1
+  const round = total - seasonOffset * ROUNDS_PER_SEASON
+  return { season: entry.issuedSeason + seasonOffset, round }
+}
+
+/**
  * Sorts newest-first; accumulates points until cumulative sum >= threshold;
  * removes those entries. Returns the surviving older entries. Pure.
  */

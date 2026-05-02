@@ -116,12 +116,12 @@ describe('peerRank', () => {
     const teams = [team('p', 4)]
     expect(peerRank(teams, 'p')).toBe(4)
   })
-  it('falls back to 11 when team missing', () => {
-    expect(peerRank([], 'ghost')).toBe(11)
+  it('returns null when team is missing — UI renders "—"', () => {
+    expect(peerRank([], 'ghost')).toBeNull()
   })
-  it('clamps invalid positions to 1', () => {
+  it('returns null at season start when constructorPosition is 0 (no race processed yet)', () => {
     const teams = [team('p', 0)]
-    expect(peerRank(teams, 'p')).toBe(1)
+    expect(peerRank(teams, 'p')).toBeNull()
   })
 })
 
