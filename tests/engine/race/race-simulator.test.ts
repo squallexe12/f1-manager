@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { simulateLap, simulateRace, type SimRaceState, type RaceSetup } from '@/engine/race/race-simulator'
+import { simulateLap, simulateRace, applyRaceEndFold, type SimRaceState, type RaceSetup } from '@/engine/race/race-simulator'
 import { createPRNG } from '@/engine/core/prng'
-import type { TireCompound, RaceStrategy } from '@/types/race'
+import type { TireCompound, RaceStrategy, LapResult, TireState } from '@/types/race'
 import { createFallbackProfile } from '@/types/calibration'
 
 function mockDrivers() {
@@ -575,5 +575,142 @@ describe('race radio — volume and determinism', () => {
     const speakers = pitLapEntries.map(e => e.speaker)
     expect(speakers).toContain('engineer')
     expect(speakers).toContain('driver')
+  })
+})
+
+// ─── applyRaceEndFold (parity helper) ────────────────────────────────────────
+
+describe('applyRaceEndFold', () => {
+  function tireState(): TireState {
+    return { compound: 'C3' as TireCompound, label: 'medium', wear: 50, lapsFitted: 5 }
+  }
+
+  function lapResult(driverId: string, position: number): LapResult {
+    return {
+      lap: 50,
+      driverId,
+      lapTime: 80,
+      sector1: 26,
+      sector2: 27,
+      sector3: 27,
+      position,
+      gapToLeader: 0,
+      gapToAhead: 0,
+      tire: tireState(),
+      pitted: false,
+    }
+  }
+
+  function makeMinimalState(overrides: {
+    positions: string[]
+    cumulativeTimes: Record<string, number>
+    pendingTimePenalties: Record<string, number>
+  }): SimRaceState {
+    const drivers = mockDrivers()
+    return {
+      currentLap: 50,
+      totalLaps: 50,
+      weather: { current: 'dry', rainProbability: 0, changeInLaps: null },
+      safetyCar: 'green',
+      trackTemp: 35,
+      results: [],
+      incidents: [],
+      commentary: [],
+      drivers,
+      circuit: { tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low' },
+      calibration: createFallbackProfile('test-circuit'),
+      strategies: mockStrategies(drivers),
+      tireStates: Object.fromEntries(drivers.map(d => [d.id, tireState()])),
+      positions: overrides.positions,
+      cumulativeTimes: overrides.cumulativeTimes,
+      pendingInvestigations: [],
+      pendingTimePenalties: overrides.pendingTimePenalties,
+      appliedPenaltiesByDriver: {},
+      radioFlags: {
+        tireComplainedThisStint: {},
+        weatherTransitionAnnounced: false,
+        fastestLapAnnouncedTime: Infinity,
+        finalLapAnnouncedFor: {},
+        lightsOutAnnounced: false,
+      },
+      playerTeamId: undefined,
+      playerDriverIds: [],
+      championshipRivalIds: [],
+    }
+  }
+
+  it('folds pending penalties into cumulative times and clears them', () => {
+    const state = makeMinimalState({
+      positions: ['d1', 'd2', 'd3', 'd4'],
+      cumulativeTimes: { d1: 5400, d2: 5402, d3: 5410, d4: 5415 },
+      pendingTimePenalties: { d1: 10, d2: 0, d3: 5 },
+    })
+
+    applyRaceEndFold(state, undefined)
+
+    expect(state.cumulativeTimes.d1).toBe(5410)
+    expect(state.cumulativeTimes.d2).toBe(5402)
+    expect(state.cumulativeTimes.d3).toBe(5415)
+    expect(state.cumulativeTimes.d4).toBe(5415)
+    // Penalties are zeroed out so a re-fold is idempotent
+    expect(state.pendingTimePenalties.d1).toBe(0)
+    expect(state.pendingTimePenalties.d3).toBe(0)
+  })
+
+  it('re-sorts positions by cumulative time after the fold', () => {
+    const state = makeMinimalState({
+      positions: ['d1', 'd2', 'd3', 'd4'],
+      cumulativeTimes: { d1: 5400, d2: 5402, d3: 5410, d4: 5415 },
+      // d1 takes a 10s penalty that drops them behind d2
+      pendingTimePenalties: { d1: 10 },
+    })
+
+    applyRaceEndFold(state, undefined)
+
+    // d1 was leader at 5400, +10 = 5410 — now tied with d3 but d3's index
+    // came later, so the stable sort places d2 first, then d1, d3, d4.
+    expect(state.positions[0]).toBe('d2')
+    // d1 at 5410 vs d3 at 5410 — order is preserved as input order under
+    // stable sort, so d1 (was at index 0) comes before d3 (was at index 2).
+    expect(state.positions[1]).toBe('d1')
+    expect(state.positions[2]).toBe('d3')
+    expect(state.positions[3]).toBe('d4')
+  })
+
+  it('rewrites final-lap LapResult.position to match the post-penalty order', () => {
+    const state = makeMinimalState({
+      positions: ['d1', 'd2', 'd3', 'd4'],
+      cumulativeTimes: { d1: 5400, d2: 5402, d3: 5410, d4: 5415 },
+      pendingTimePenalties: { d1: 30 },
+    })
+    const finalLap: LapResult[] = [
+      lapResult('d1', 1),
+      lapResult('d2', 2),
+      lapResult('d3', 3),
+      lapResult('d4', 4),
+    ]
+
+    applyRaceEndFold(state, finalLap)
+
+    // After +30s, d1 (5430) is last. New order: d2, d3, d4, d1.
+    expect(state.positions).toEqual(['d2', 'd3', 'd4', 'd1'])
+    const byId = Object.fromEntries(finalLap.map(r => [r.driverId, r.position]))
+    expect(byId.d2).toBe(1)
+    expect(byId.d3).toBe(2)
+    expect(byId.d4).toBe(3)
+    expect(byId.d1).toBe(4)
+  })
+
+  it('is a no-op for the position list when there are no pending penalties', () => {
+    const state = makeMinimalState({
+      positions: ['d1', 'd2', 'd3', 'd4'],
+      cumulativeTimes: { d1: 5400, d2: 5402, d3: 5410, d4: 5415 },
+      pendingTimePenalties: {},
+    })
+
+    applyRaceEndFold(state, undefined)
+
+    expect(state.positions).toEqual(['d1', 'd2', 'd3', 'd4'])
+    expect(state.cumulativeTimes).toEqual({ d1: 5400, d2: 5402, d3: 5410, d4: 5415 })
   })
 })

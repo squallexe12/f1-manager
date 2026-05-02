@@ -695,32 +695,10 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     }
   }
 
-  // Race-end fold: any pendingTimePenalties not yet served at a pit stop
-  // are added to cumulative time on the final lap. Re-sort positions and
-  // rewrite the final-lap LapResult.position values so the emitted data
-  // reflects post-penalty ordering.
-  for (const driverId of Object.keys(state.pendingTimePenalties)) {
-    const seconds = state.pendingTimePenalties[driverId]
-    if (seconds > 0) {
-      state.cumulativeTimes[driverId] = (state.cumulativeTimes[driverId] ?? 0) + seconds
-      state.pendingTimePenalties[driverId] = 0
-    }
-  }
-  const newPositions = [...state.positions].sort(
-    (a, b) => (state.cumulativeTimes[a] ?? 0) - (state.cumulativeTimes[b] ?? 0),
-  )
-  state.positions = newPositions
-
-  // Rewrite final-lap LapResult.position so consumers reading it see the
-  // post-penalty grid. Earlier laps stay as historical data.
-  const finalLapResults = allLapData[allLapData.length - 1]
-  if (finalLapResults) {
-    for (let i = 0; i < newPositions.length; i++) {
-      const driverId = newPositions[i]
-      const lr = finalLapResults.find((r) => r.driverId === driverId)
-      if (lr) lr.position = i + 1
-    }
-  }
+  // Race-end fold: penalty fold + position re-sort + final-lap position rewrite.
+  // Shared with the worker path via `applyRaceEndFold` so the two call sites
+  // cannot drift.
+  applyRaceEndFold(state, allLapData[allLapData.length - 1])
 
   return {
     finalPositions: [...state.positions],
@@ -728,5 +706,46 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     commentary: allCommentary,
     incidents: allIncidents,
     fastestLap,
+  }
+}
+
+/**
+ * Race-end fold: applies any residual pendingTimePenalties to cumulative
+ * times, re-sorts positions by cumulative time, and rewrites the final-lap
+ * LapResult.position values so consumers see post-penalty ordering.
+ *
+ * Called from both `simulateRace` (the in-process path used by tests) and
+ * `simulateNextLap` in the worker (production path). Keep the two call
+ * sites identical by going through this helper.
+ *
+ * @param state - the SimRaceState (mutated in place)
+ * @param finalLapResults - the last lap's LapResult array (mutated in place)
+ */
+export function applyRaceEndFold(
+  state: SimRaceState,
+  finalLapResults: LapResult[] | undefined,
+): void {
+  // Penalty fold
+  for (const driverId of Object.keys(state.pendingTimePenalties)) {
+    const seconds = state.pendingTimePenalties[driverId]
+    if (seconds > 0) {
+      state.cumulativeTimes[driverId] = (state.cumulativeTimes[driverId] ?? 0) + seconds
+      state.pendingTimePenalties[driverId] = 0
+    }
+  }
+
+  // Position re-sort by cumulative time
+  const newPositions = [...state.positions].sort(
+    (a, b) => (state.cumulativeTimes[a] ?? 0) - (state.cumulativeTimes[b] ?? 0),
+  )
+  state.positions = newPositions
+
+  // Rewrite final-lap position so emitted data reflects post-penalty grid
+  if (finalLapResults) {
+    for (let i = 0; i < newPositions.length; i++) {
+      const driverId = newPositions[i]
+      const lr = finalLapResults.find((r) => r.driverId === driverId)
+      if (lr) lr.position = i + 1
+    }
   }
 }

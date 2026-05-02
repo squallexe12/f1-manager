@@ -2,7 +2,7 @@ import type {
   WorkerInMessage, WorkerOutMessage, WorkerOutEvent, SimSpeed,
   TireState, TireCompound, RaceStrategy,
 } from '@/types/race'
-import { simulateLap, type SimRaceState } from '@/engine/race/race-simulator'
+import { simulateLap, applyRaceEndFold, type SimRaceState } from '@/engine/race/race-simulator'
 import { bootstrapRace } from '@/engine/race/race-bootstrap'
 import { applyCommandEnvelopeToSim } from '@/engine/race/race-command-apply'
 import { WeatherEngine } from '@/engine/race/weather'
@@ -49,26 +49,10 @@ function simulateNextLap(): void {
   if (raceState.currentLap >= raceState.totalLaps) {
     // Race-end fold: residual pendingTimePenalties → cumulativeTimes,
     // re-sort positions, rewrite final-lap LapResult.position values.
-    // Capture into a const so TypeScript narrows through the sort callback.
+    // Shared with simulateRace via `applyRaceEndFold`.
     const state = raceState
-    for (const driverId of Object.keys(state.pendingTimePenalties)) {
-      const seconds = state.pendingTimePenalties[driverId]
-      if (seconds > 0) {
-        state.cumulativeTimes[driverId] = (state.cumulativeTimes[driverId] ?? 0) + seconds
-        state.pendingTimePenalties[driverId] = 0
-      }
-    }
-    const newPositions = [...state.positions].sort(
-      (a, b) => (state.cumulativeTimes[a] ?? 0) - (state.cumulativeTimes[b] ?? 0),
-    )
-    state.positions = newPositions
-
     const lastResults = state.results[state.results.length - 1] ?? []
-    for (let i = 0; i < newPositions.length; i++) {
-      const driverId = newPositions[i]
-      const lr = lastResults.find((r) => r.driverId === driverId)
-      if (lr) lr.position = i + 1
-    }
+    applyRaceEndFold(state, lastResults)
 
     let fastestLap = { driverId: '', time: Infinity }
     for (const lapResults of state.results) {
