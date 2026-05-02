@@ -2,27 +2,9 @@
 
 import { useMemo } from 'react'
 import { sumActivePoints } from '@/engine/drivers/penalty-points'
-import type { AppliedPenalty, OffenceType, SanctionType } from '@/types/race'
+import type { AppliedPenalty } from '@/types/race'
 import type { Driver } from '@/types/driver'
-
-// ─── Label maps ───────────────────────────────────────────────────────────────
-
-const OFFENCE_LABELS: Record<OffenceType, string> = {
-  'collision-minor':   'Collision (minor)',
-  'collision-serious': 'Collision (serious)',
-  'forcing-off':       'Forcing Off',
-  'illegal-defending': 'Illegal Defending',
-}
-
-const SANCTION_LABELS: Record<SanctionType, string> = {
-  'reprimand':      'Reprimand',
-  'fine':           'Fine',
-  '5s':             '+5s',
-  '10s':            '+10s',
-  'drive-through':  'Drive-Through',
-  'stop-go':        'Stop-and-Go',
-  'grid-drop':      'Grid Drop',
-}
+import { OFFENCE_LABELS, SANCTION_LABELS } from './penalty-labels'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

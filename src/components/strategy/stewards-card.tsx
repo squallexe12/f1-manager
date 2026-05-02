@@ -3,15 +3,7 @@
 import { useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { RaceIncident, OffenceType } from '@/types/race'
-
-// ─── Offence label map ────────────────────────────────────────────────────────
-
-const OFFENCE_LABELS: Record<OffenceType, string> = {
-  'collision-minor':   'Collision (minor)',
-  'collision-serious': 'Collision (serious)',
-  'forcing-off':       'Forcing Off',
-  'illegal-defending': 'Illegal Defending',
-}
+import { OFFENCE_LABELS } from './penalty-labels'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -2,24 +2,17 @@
 
 import { useMemo } from 'react'
 import type { Driver } from '@/types/driver'
-import type { OffenceType } from '@/types/race'
 import {
   expirePenaltyPoints,
   sumActivePoints,
 } from '@/engine/drivers/penalty-points'
+import { OFFENCE_LABELS } from '@/components/strategy/penalty-labels'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const WARNINGS_THRESHOLD = 5
 const BAN_THRESHOLD = 12
 const ROUNDS_PER_SEASON = 22
-
-const OFFENCE_LABELS: Record<OffenceType, string> = {
-  'collision-minor':   'Collision (minor)',
-  'collision-serious': 'Collision (serious)',
-  'forcing-off':       'Forcing Off',
-  'illegal-defending': 'Illegal Defending',
-}
 
 // ─── Risk colour helpers ──────────────────────────────────────────────────────
 
