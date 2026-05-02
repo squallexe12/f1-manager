@@ -4,24 +4,24 @@ import { useMemo } from 'react'
 import { sumActivePoints } from '@/engine/drivers/penalty-points'
 import type { AppliedPenalty } from '@/types/race'
 import type { Driver } from '@/types/driver'
-import { OFFENCE_LABELS, SANCTION_LABELS } from './penalty-labels'
+import {
+  OFFENCE_LABELS, SANCTION_LABELS,
+  bandForPoints, colorForBand,
+} from './penalty-labels'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Colour band for active penalty-point total. */
-function pointsBandClass(total: number): string {
-  if (total >= 12) return 'text-sig-red font-bold'
-  if (total >= 9)  return 'text-[var(--sig-amber,#ffb800)] font-bold'
-  if (total >= 5)  return 'text-[var(--sig-amber,#ffb800)]'
-  return 'text-ink-dim'
-}
-
-/** Short dot-indicator colour for the point-totals list. */
-function pointsDotColor(total: number): string {
-  if (total >= 12) return 'var(--sig-red,#e10600)'
-  if (total >= 9)  return 'var(--sig-amber,#ffb800)'
-  if (total >= 5)  return 'var(--sig-amber,#ffb800)'
-  return 'var(--sig-green,#39d353)'
+/**
+ * Inline-style colour + bold flag for active penalty-point total.
+ * Routes through the shared `bandForPoints`/`colorForBand` helpers so this
+ * panel and the Driver Office penalty record stay in sync.
+ */
+function pointsBandStyle(total: number): { color: string; bold: boolean } {
+  const band = bandForPoints(total)
+  return {
+    color: band === 'clean' ? 'var(--ink-dim)' : colorForBand(band),
+    bold: band === 'warning' || band === 'critical',
+  }
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -271,7 +271,7 @@ export function StewardsDecisionsPanel({
                       {/* Colour dot */}
                       <span
                         className="w-[6px] h-[6px] rounded-full shrink-0"
-                        style={{ background: pointsDotColor(d.total) }}
+                        style={{ background: colorForBand(bandForPoints(d.total)) }}
                         aria-hidden
                       />
                       <span className="font-display font-bold text-[12px] text-ink-hi tracking-[0.04em] uppercase truncate">
@@ -289,23 +289,32 @@ export function StewardsDecisionsPanel({
                         </span>
                       )}
                     </div>
-                    <span className={`tabular-nums ${pointsBandClass(d.total)}`}>
-                      {d.total}
-                      <span className="text-ink-dim font-normal">/12</span>
-                    </span>
+                    {(() => {
+                      const { color, bold } = pointsBandStyle(d.total)
+                      return (
+                        <span
+                          className="tabular-nums"
+                          style={{ color, fontWeight: bold ? 700 : undefined }}
+                        >
+                          {d.total}
+                          <span className="text-ink-dim font-normal">/12</span>
+                        </span>
+                      )
+                    })()}
                   </div>
                 )
               })}
             </div>
           )}
 
-          {/* Legend */}
+          {/* Legend — bands match `bandForPoints` in penalty-labels.ts */}
           <div className="px-3 py-2 border-t border-line-hair flex flex-wrap gap-x-3 gap-y-1">
             {(
               [
-                { color: 'var(--sig-green,#39d353)',   label: '0–4' },
-                { color: 'var(--sig-amber,#ffb800)',   label: '5–11' },
-                { color: 'var(--sig-red,#e10600)',     label: '12 (ban)' },
+                { color: colorForBand('clean'),       label: '0–4' },
+                { color: colorForBand('approaching'), label: '5–8' },
+                { color: colorForBand('warning'),     label: '9–11' },
+                { color: colorForBand('critical'),    label: '12 (ban)' },
               ] as const
             ).map(({ color, label }) => (
               <div key={label} className="flex items-center gap-1">

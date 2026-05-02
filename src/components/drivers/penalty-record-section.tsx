@@ -6,29 +6,15 @@ import {
   expirePenaltyPoints,
   sumActivePoints,
 } from '@/engine/drivers/penalty-points'
-import { OFFENCE_LABELS } from '@/components/strategy/penalty-labels'
+import {
+  OFFENCE_LABELS,
+  bandForPoints, colorForBand, labelForBand,
+} from '@/components/strategy/penalty-labels'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const WARNINGS_THRESHOLD = 5
-const BAN_THRESHOLD = 12
 const ROUNDS_PER_SEASON = 22
-
-// ─── Risk colour helpers ──────────────────────────────────────────────────────
-
-function riskColor(total: number): string {
-  if (total >= BAN_THRESHOLD) return 'var(--accent-red)'
-  if (total >= 9)             return 'var(--accent-red)'
-  if (total >= 5)             return 'var(--accent-amber)'
-  return '#4ADE80' // --sig-green
-}
-
-function riskLabel(total: number): string {
-  if (total >= BAN_THRESHOLD) return 'BANNED'
-  if (total >= 9)             return 'CRITICAL'
-  if (total >= 5)             return 'WARNING'
-  return 'CLEAN'
-}
 
 // ─── Expiry computation ───────────────────────────────────────────────────────
 
@@ -98,8 +84,9 @@ export function PenaltyRecordSection({
 
   if (isClean) return null
 
-  const color  = riskColor(total)
-  const label  = riskLabel(total)
+  const band  = bandForPoints(total)
+  const color = colorForBand(band)
+  const label = labelForBand(band)
   const isBanned = driver.banUntilRound !== null
 
   // Rounds until ban lifted (if banned)
@@ -164,17 +151,16 @@ export function PenaltyRecordSection({
           </span>
         </div>
 
-        {/* Risk bar */}
+        {/* Risk bar — segments paint in band-distinct colours so the
+            "approaching ban" tier is visually different from "banned". */}
         <div className="ml-auto flex items-center gap-1">
-          {[3, 6, 9, 12].map((threshold, i) => {
+          {([
+            { threshold:  3, color: colorForBand('clean')       },
+            { threshold:  6, color: colorForBand('approaching') },
+            { threshold:  9, color: colorForBand('warning')     },
+            { threshold: 12, color: colorForBand('critical')    },
+          ] as const).map(({ threshold, color: segColor }) => {
             const filled = total >= threshold
-            const segColor = i === 0
-              ? '#4ADE80'
-              : i === 1
-                ? 'var(--accent-amber)'
-                : i === 2
-                  ? 'var(--accent-red)'
-                  : 'var(--accent-red)'
             return (
               <div
                 key={threshold}
