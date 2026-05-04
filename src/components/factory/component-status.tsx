@@ -27,8 +27,11 @@ export function ComponentStatus({ components, className = '' }: ComponentStatusP
         Power Unit Allocation
       </h3>
       {components.map((comp) => {
-        const color = getColor(comp.used, comp.limit)
-        const atRisk = comp.used >= comp.limit
+        // `used` is a fractional wear accumulator; floor it for the
+        // displayed swap-count and atRisk gate (matches PowerUnitCard).
+        const usedFloor = Math.floor(comp.used)
+        const color = getColor(usedFloor, comp.limit)
+        const atRisk = usedFloor >= comp.limit
 
         return (
           <div key={comp.element}>
@@ -37,7 +40,7 @@ export function ComponentStatus({ components, className = '' }: ComponentStatusP
                 {ELEMENT_LABELS[comp.element] ?? comp.element}
               </span>
               <span className="text-[10px] font-mono" style={{ color }}>
-                {comp.used}/{comp.limit}
+                {usedFloor}/{comp.limit}
               </span>
             </div>
             <ProgressBar

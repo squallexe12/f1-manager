@@ -14,13 +14,18 @@ export function useComponent(component: ComponentAllocation): ComponentAllocatio
 /**
  * Check if using a new component would exceed the allocation limit.
  * Returns the number of grid penalty positions (0 = no penalty).
+ *
+ * `used` is a fractional accumulator (passive wear ticks 0.4/race per
+ * `tickComponentWear`); floor it before excess math so floating-point
+ * residue around integer boundaries doesn't drift the penalty value.
  */
 export function getGridPenalty(component: ComponentAllocation): number {
-  if (component.used < component.limit) return 0
+  const usedFloor = Math.floor(component.used)
+  if (usedFloor < component.limit) return 0
   // First excess: 10 places. Each subsequent: 5 places.
-  const excess = component.used - component.limit
+  const excess = usedFloor - component.limit
   if (excess === 0) return 10
-  return 10 + (excess) * 5
+  return 10 + excess * 5
 }
 
 /**

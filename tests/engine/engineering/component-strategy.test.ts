@@ -6,6 +6,7 @@ import {
   tickComponentWear,
   projectedGridLossIfElectedNow,
   componentSwapRows,
+  WEAR_PER_RACE,
 } from '@/engine/engineering/component-strategy'
 import type { Driver } from '@/types/driver'
 
@@ -243,14 +244,14 @@ describe('applyPendingSwaps', () => {
 })
 
 describe('tickComponentWear', () => {
-  it('increments every element by exactly 1', () => {
+  it('accumulates fractional wear (WEAR_PER_RACE = 1 / 2.5) on every element', () => {
     const team = makeTeam()
     const next = tickComponentWear(team)
-    expect(next.components.find((c) => c.element === 'ice')!.used).toBe(3)
-    expect(next.components.find((c) => c.element === 'turbo')!.used).toBe(2)
-    expect(next.components.find((c) => c.element === 'mgu-k')!.used).toBe(2)
-    expect(next.components.find((c) => c.element === 'ers-battery')!.used).toBe(2)
-    expect(next.components.find((c) => c.element === 'gearbox')!.used).toBe(3)
+    expect(next.components.find((c) => c.element === 'ice')!.used).toBeCloseTo(2 + WEAR_PER_RACE, 10)
+    expect(next.components.find((c) => c.element === 'turbo')!.used).toBeCloseTo(1 + WEAR_PER_RACE, 10)
+    expect(next.components.find((c) => c.element === 'mgu-k')!.used).toBeCloseTo(1 + WEAR_PER_RACE, 10)
+    expect(next.components.find((c) => c.element === 'ers-battery')!.used).toBeCloseTo(1 + WEAR_PER_RACE, 10)
+    expect(next.components.find((c) => c.element === 'gearbox')!.used).toBeCloseTo(2 + WEAR_PER_RACE, 10)
   })
 
   it('preserves all other team fields verbatim', () => {

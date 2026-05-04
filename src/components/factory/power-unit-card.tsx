@@ -28,13 +28,17 @@ const ELEMENT_LABELS: Record<string, string> = {
 }
 
 function PuRow({ element, used, limit }: ComponentAllocation) {
-  const warn = used >= limit - 1 && used < limit
-  const danger = used >= limit
-  const remaining = Math.max(0, limit - used)
+  // `used` is a fractional accumulator from passive wear (`tickComponentWear`
+  // ticks at 0.4/race); floor it for the displayed "X / Y USED" label and
+  // dot-bucket logic so the visible swap count stays whole-number.
+  const usedFloor = Math.floor(used)
+  const warn = usedFloor >= limit - 1 && usedFloor < limit
+  const danger = usedFloor >= limit
+  const remaining = Math.max(0, limit - usedFloor)
   const dots: React.ReactNode[] = []
   for (let i = 0; i < limit; i++) {
-    const isUsed = i < used
-    const cls = isUsed ? `used ${danger ? 'danger' : warn && i === used - 1 ? 'warn' : ''}`.trim() : ''
+    const isUsed = i < usedFloor
+    const cls = isUsed ? `used ${danger ? 'danger' : warn && i === usedFloor - 1 ? 'warn' : ''}`.trim() : ''
     dots.push(<span key={i} className={`pu-dot ${cls}`.trim()} />)
   }
   return (
@@ -48,7 +52,7 @@ function PuRow({ element, used, limit }: ComponentAllocation) {
         >
           {remaining}
           <span className="plim">
-            {used}/{limit} USED
+            {usedFloor}/{limit} USED
           </span>
         </span>
       </div>
@@ -67,9 +71,14 @@ export function PowerUnitCard({
   swapRows,
   onElectSwap,
 }: PowerUnitCardProps) {
-  const totalRemaining = components.reduce((acc, c) => acc + Math.max(0, c.limit - c.used), 0)
-  const hasDanger = components.some((c) => c.used >= c.limit)
-  const hasWarn = components.some((c) => c.used >= c.limit - 1)
+  // `used` is a fractional wear accumulator; floor before integer-bucket math
+  // so the hero "components remaining" stays whole-number and matches PuRow.
+  const totalRemaining = components.reduce(
+    (acc, c) => acc + Math.max(0, c.limit - Math.floor(c.used)),
+    0,
+  )
+  const hasDanger = components.some((c) => Math.floor(c.used) >= c.limit)
+  const hasWarn = components.some((c) => Math.floor(c.used) >= c.limit - 1)
   const health = hasDanger ? 'CRITICAL' : hasWarn ? 'AT RISK' : 'NOMINAL'
   const healthClass = hasDanger ? 'danger' : hasWarn ? 'warn' : ''
 
@@ -118,7 +127,7 @@ export function PowerUnitCard({
                 disabled={row.elected}
               >
                 <span className="pk">
-                  {row.driverShortName} · {(ELEMENT_LABELS[row.element] ?? row.element.toUpperCase())} · {row.used}/{row.limit} USED
+                  {row.driverShortName} · {(ELEMENT_LABELS[row.element] ?? row.element.toUpperCase())} · {Math.floor(row.used)}/{row.limit} USED
                 </span>
                 <span className="pv">
                   {row.elected

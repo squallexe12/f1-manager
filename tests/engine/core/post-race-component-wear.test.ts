@@ -2,9 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { processPostRace, type RaceResult } from '@/engine/core/post-race-processor'
 import { createPRNG } from '@/engine/core/prng'
 import { initializeGame } from '@/engine/core/state-manager'
+import { WEAR_PER_RACE } from '@/engine/engineering/component-strategy'
 
 describe('processPostRace — tickComponentWear', () => {
-  it('increments every element by 1 on every team after a race', () => {
+  it('accumulates fractional wear (WEAR_PER_RACE = 1 / 2.5) on every element', () => {
     const world = initializeGame('mclaren', 'golden-era', 1)
     const activeIds = world.drivers
       .filter((d) => d.teamId && !d.isReserve && !d.isF2)
@@ -23,7 +24,7 @@ describe('processPostRace — tickComponentWear', () => {
       const original = world.teams.find((t) => t.id === team.id)!
       for (const c of team.components) {
         const orig = original.components.find((oc) => oc.element === c.element)!
-        expect(c.used).toBe(orig.used + 1)
+        expect(c.used).toBeCloseTo(orig.used + WEAR_PER_RACE, 10)
       }
     }
   })

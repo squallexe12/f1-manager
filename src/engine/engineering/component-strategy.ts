@@ -104,16 +104,28 @@ export function applyPendingSwaps(
 }
 
 /**
- * Increment `used + 1` on every PU element. Called once per team per race
- * by the post-race processor — represents the wear of running every PU
- * element through one race weekend, regardless of which driver "used" it
- * (we model the PU pool as team-shared). Pure; does not trigger penalties
- * (only `applyPendingSwaps` ever increments `penaltiesTaken`).
+ * Per-race fractional wear applied to every PU element. Calibrated so the
+ * stock 4-race element wears down over ~10 races (1 / 2.5). Player
+ * elections (`applyPendingSwaps`) still increment by a full 1 — only the
+ * passive wear tick is fractional. UI and penalty math floor `used`
+ * before comparing to `limit`, so the persisted number is the canonical
+ * fractional accumulator and the displayed "X / Y USED" is the
+ * floor-rounded swap count.
+ */
+export const WEAR_PER_RACE = 1 / 2.5
+
+/**
+ * Increment every PU element's wear accumulator on each post-race tick.
+ * Called once per team per race by the post-race processor — represents
+ * the wear of running every PU element through one race weekend,
+ * regardless of which driver "used" it (we model the PU pool as
+ * team-shared). Pure; does not trigger penalties (only `applyPendingSwaps`
+ * ever increments `penaltiesTaken`).
  */
 export function tickComponentWear(team: Team): Team {
   return {
     ...team,
-    components: team.components.map((c) => ({ ...c, used: c.used + 1 })),
+    components: team.components.map((c) => ({ ...c, used: c.used + WEAR_PER_RACE })),
   }
 }
 
@@ -178,13 +190,16 @@ export function componentSwapRows(
 ): SwapRow[] {
   const rows: SwapRow[] = []
   for (const c of team.components) {
-    const projection = c.used + 1
+    // `used` accumulates fractionally from passive wear ticks; floor it
+    // before integer projection math so band semantics stay clean.
+    const usedFloor = Math.floor(c.used)
+    const projection = usedFloor + 1
     if (projection < c.limit) continue
     const band: SwapRow['band'] = projection === c.limit ? 'warning' : 'danger'
-    // PRE-INCREMENT penalty calculation, guarded by `c.used >= c.limit` so
-    // warning-band rows (`c.used == c.limit - 1`) report `projectedPenalty: 0`
+    // PRE-INCREMENT penalty calculation, guarded by `usedFloor >= c.limit` so
+    // warning-band rows (`usedFloor == c.limit - 1`) report `projectedPenalty: 0`
     // (their swap is the last free introduction and incurs no penalty).
-    const penalty = c.used >= c.limit ? getGridPenalty(c) : 0
+    const penalty = usedFloor >= c.limit ? getGridPenalty(c) : 0
     for (const drv of playerDrivers) {
       const elected = team.pendingComponentSwaps.some(
         (s) => s.driverId === drv.id && s.element === c.element,
