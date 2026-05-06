@@ -1,55 +1,82 @@
 'use client'
 
 import type { Driver } from '@/types/driver'
-import { Badge } from '@/components/ui/badge'
 
 interface ScoutPanelProps {
-  availableDrivers: Driver[]
-  className?: string
+  scouts: Driver[]
+  onApproach: (id: string) => void
+  onFileReport: (id: string) => void
 }
 
-export function ScoutPanel({ availableDrivers, className = '' }: ScoutPanelProps) {
-  const sorted = [...availableDrivers].sort((a, b) =>
-    (b.attributes.pace + b.attributes.developmentPotential) -
-    (a.attributes.pace + a.attributes.developmentPotential)
+function signalClass(signal: string): string {
+  switch (signal) {
+    case 'hot': return 'signal hot'
+    case 'tracking': return 'signal tracking'
+    default: return 'signal available'
+  }
+}
+
+export function ScoutPanel({ scouts, onApproach, onFileReport }: ScoutPanelProps) {
+  const sorted = [...scouts].sort(
+    (a, b) =>
+      (b.attributes.pace + b.attributes.developmentPotential) -
+      (a.attributes.pace + a.attributes.developmentPotential),
   )
 
+  const top = sorted[0] ?? null
+  const risingCount = scouts.filter(s => s.isF2).length
+  const vetCount = scouts.filter(s => !s.isF2 && s.age >= 30).length
+
   return (
-    <div className={`flex flex-col gap-3 ${className}`}>
-      <h3 className="text-xs font-heading uppercase tracking-wider text-[var(--text-muted)]">
-        Available Drivers ({sorted.length})
-      </h3>
-      <div className="flex flex-col gap-2">
-        {sorted.map((driver) => (
-          <div
-            key={driver.id}
-            className="bg-[var(--bg-surface)] border border-[var(--border-default)] rounded-lg p-3 hover:border-[var(--border-hover)] transition-colors duration-150"
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-sm font-heading font-semibold text-[var(--text-primary)]">
-                {driver.firstName} {driver.lastName}
+    <div>
+      <div className="drv-section-head">
+        <div>
+          <div className="st">Scout Pool</div>
+          <div className="ss">
+            {sorted.length} AVAILABLE · {risingCount} RISING · {vetCount} VETERAN
+          </div>
+        </div>
+        {top && (
+          <div className="rt">
+            RECOMMENDED · <span className="b">{top.lastName.toUpperCase()} · {top.scoutingReports} SCOUTING REPORTS</span>
+          </div>
+        )}
+      </div>
+      <div className="scout-grid">
+        <div className="scout-row head">
+          <div>CODE</div>
+          <div>DRIVER</div>
+          <div>PAC</div>
+          <div>RCR</div>
+          <div>POT</div>
+          <div>SALARY</div>
+          <div>STATUS</div>
+        </div>
+        {sorted.map(s => (
+          <div key={s.id} className="scout-row">
+            <div className="sc-code">
+              {s.shortName}
+              <span className="scn">#{s.scoutingReports}</span>
+            </div>
+            <div className="sc-name">
+              <span className="nm">{s.firstName} {s.lastName}</span>
+              <span className="meta">
+                {s.isF2 && <span className="badge">F2</span>}
+                {!s.isF2 && <span className="badge cyan">FREE AGENT</span>}
+                {s.nationality} · AGE {s.age}
               </span>
-              <Badge variant={driver.isF2 ? 'purple' : 'cyan'}>
-                {driver.isF2 ? 'F2' : 'Reserve'}
-              </Badge>
             </div>
-            <div className="flex gap-3 text-[10px] text-[var(--text-muted)] mb-2">
-              <span>{driver.nationality}</span>
-              <span>Age {driver.age}</span>
+            <div className="sc-stat"><span className="sk">PAC</span>{s.attributes.pace}</div>
+            <div className="sc-stat"><span className="sk">RCR</span>{s.attributes.racecraft}</div>
+            <div className="sc-stat pot"><span className="sk">POT</span>{s.attributes.developmentPotential}</div>
+            <div className="sc-salary">
+              <span className="sk">ASKING</span>
+              {s.contract ? `$${(s.contract.salary / 1_000_000).toFixed(s.contract.salary >= 10_000_000 ? 0 : 1)}M` : '—'}
             </div>
-            <div className="grid grid-cols-3 gap-1 text-[10px] font-mono">
-              <div>
-                <span className="text-[var(--text-dim)]">PAC </span>
-                <span className="text-[var(--text-secondary)]">{driver.attributes.pace}</span>
-              </div>
-              <div>
-                <span className="text-[var(--text-dim)]">RCR </span>
-                <span className="text-[var(--text-secondary)]">{driver.attributes.racecraft}</span>
-              </div>
-              <div>
-                <span className="text-[var(--text-dim)]">POT </span>
-                <span className="text-[var(--accent-lime)]">{driver.attributes.developmentPotential}</span>
-              </div>
+            <div className="sc-action">
+              <span className={signalClass(s.scoutSignal)}>{s.scoutSignal.toUpperCase()}</span>
+              <button className="approach-btn" onClick={() => onApproach(s.id)}>Approach</button>
+              <button className="approach-btn" onClick={() => onFileReport(s.id)}>File Report</button>
             </div>
           </div>
         ))}
