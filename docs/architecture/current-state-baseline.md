@@ -291,3 +291,12 @@ These boundaries must be respected by all subsequent implementation phases:
 - `FullGameState` is the canonical world state type (defined in `state-manager.ts`).
 - `RaceResult` and `SeasonEndResult` are the canonical result types.
 - All types must remain JSON-serializable.
+
+---
+
+## Known stubs (IP-09b)
+
+These store actions are intentional stubs added during the IP-09b Drivers page UI rebuild. They provide type-safe signatures for UI components without wiring game logic, which ships in a later phase.
+
+- `gameStore.approachDriver(driverId)` — fires `console.info` only; no world mutation. Will be replaced when the free-agent negotiation flow ships.
+- `gameStore.openContractNegotiation(driverId)` — same shape as above. Will be replaced when the contract renegotiation flow ships.

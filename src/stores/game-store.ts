@@ -92,6 +92,18 @@ interface GameStore {
    * drivers (teamId !== null && !isF2) to prevent scout spam on active grid.
    */
   fileScoutingReport: (driverId: string) => void
+  /**
+   * STUB (IP-09b) — initiate a free-agent approach for the given driver.
+   * No world mutation; logs intent only. Will be replaced when the
+   * free-agent negotiation flow ships.
+   */
+  approachDriver: (driverId: string) => void
+  /**
+   * STUB (IP-09b) — open the contract renegotiation modal for the given
+   * driver. No world mutation; logs intent only. Will be replaced when the
+   * contract renegotiation flow ships.
+   */
+  openContractNegotiation: (driverId: string) => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -436,6 +448,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     }
   }),
+
+  approachDriver: (driverId) => {
+    // STUB — IP-09b: free-agent negotiation flow not yet implemented.
+    // Tracked in docs/architecture/current-state-baseline.md §Known stubs (IP-09b).
+    console.info('[stub] approachDriver', driverId)
+    // Does NOT mutate world — autosave will not fire.
+  },
+
+  openContractNegotiation: (driverId) => {
+    // STUB — IP-09b: contract renegotiation flow not yet implemented.
+    // Tracked in docs/architecture/current-state-baseline.md §Known stubs (IP-09b).
+    console.info('[stub] openContractNegotiation', driverId)
+    // Does NOT mutate world — autosave will not fire.
+  },
 
   applyRaceWorkerEvent: (event) => {
     set((state) => ({ raceRuntime: reduceWorkerEvent(state.raceRuntime, event) }))
