@@ -63,7 +63,7 @@ export default function DriversPage() {
 
       {/* Content */}
       {activeTab === 'scout' ? (
-        <ScoutPanel availableDrivers={freeAgents} />
+        <ScoutPanel scouts={freeAgents} onApproach={() => {}} onFileReport={() => {}} />
       ) : currentDriver ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <DriverProfile driver={currentDriver} teamColor={playerTeam.color} />
