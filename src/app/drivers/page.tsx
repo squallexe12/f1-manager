@@ -1,90 +1,108 @@
 'use client'
 
+import type { CSSProperties } from 'react'
 import { useState } from 'react'
-import { useRequireGame } from '@/hooks/use-require-game'
 import { PageShell } from '@/components/layout/page-shell'
-import { DriverProfile } from '@/components/drivers/driver-profile'
-import { MoodTracker } from '@/components/drivers/mood-tracker'
-import { ContractPanel } from '@/components/drivers/contract-panel'
+import { useDriversPageData } from '@/hooks/use-drivers-page-data'
+import { PageHeader } from '@/components/drivers/page-header'
+import { DriverTabs, type TabId } from '@/components/drivers/driver-tabs'
+import { DriverHero } from '@/components/drivers/driver-hero'
+import { AttributesCard } from '@/components/drivers/attributes-card'
+import { MoodCard } from '@/components/drivers/mood-card'
+import { ContractCard } from '@/components/drivers/contract-card'
+import { PenaltyCard } from '@/components/drivers/penalty-card'
 import { ScoutPanel } from '@/components/drivers/scout-panel'
-import { PenaltyRecordSection } from '@/components/drivers/penalty-record-section'
-import { Button } from '@/components/ui/button'
-
-type Tab = 'car-01' | 'car-02' | 'reserve' | 'scout'
 
 export default function DriversPage() {
-  const world = useRequireGame()
-  const [activeTab, setActiveTab] = useState<Tab>('car-01')
+  const data = useDriversPageData()
+  const [activeTab, setActiveTab] = useState<TabId>('CAR-01')
 
-  if (!world) return null
+  if (!data) return null
 
-  const playerTeam = world.teams.find((t) => t.id === world.gameState.playerTeamId)!
-  const playerDrivers = world.drivers.filter(d => d.teamId === playerTeam.id && !d.isReserve)
-  const reserveDriver = world.drivers.find(d => d.teamId === playerTeam.id && d.isReserve)
-  const freeAgents = world.drivers.filter(d => !d.teamId)
+  const driver =
+    activeTab === 'CAR-01' ? data.roster.car01 :
+    activeTab === 'CAR-02' ? data.roster.car02 :
+    activeTab === 'RESERVE' ? data.roster.reserve : null
 
-  const TABS: { id: Tab; label: string }[] = [
-    { id: 'car-01', label: `Car 01 — ${playerDrivers[0]?.shortName ?? ''}` },
-    { id: 'car-02', label: `Car 02 — ${playerDrivers[1]?.shortName ?? ''}` },
-    { id: 'reserve', label: 'Reserve' },
-    { id: 'scout', label: 'Scout' },
-  ]
-
-  const getDriver = () => {
-    if (activeTab === 'car-01') return playerDrivers[0]
-    if (activeTab === 'car-02') return playerDrivers[1]
-    if (activeTab === 'reserve') return reserveDriver
-    return null
+  // Team color is set on the page root so all nested CSS custom-property
+  // references resolve. colorDark is not on the Team type yet — fall back
+  // to the primary color to derive a usable dark tint via CSS opacity.
+  const teamStyle: CSSProperties = {
+    ['--team' as string]: data.playerTeam.color,
+    ['--team-dark' as string]: data.playerTeam.color,
   }
 
-  const currentDriver = getDriver()
-
   return (
-    <PageShell>
-      {/* Tabs */}
-      <div className="flex gap-1 mb-6 overflow-x-auto">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`
-              px-4 py-2 text-xs font-heading font-semibold uppercase tracking-wider
-              rounded-md transition-colors duration-150 whitespace-nowrap
-              ${activeTab === tab.id
-                ? 'bg-[var(--accent-lime)]/10 text-[var(--accent-lime)] border border-[var(--accent-lime)]/30'
-                : 'text-[var(--text-dim)] hover:text-[var(--text-secondary)] border border-transparent'
-              }
-            `}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content */}
-      {activeTab === 'scout' ? (
-        <ScoutPanel scouts={freeAgents} onApproach={() => {}} onFileReport={() => {}} />
-      ) : currentDriver ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <DriverProfile driver={currentDriver} teamColor={playerTeam.color} />
-          <div className="flex flex-col gap-4">
-            <MoodTracker mood={currentDriver.mood} />
-            <ContractPanel
-              contract={currentDriver.contract}
-              driverName={`${currentDriver.firstName} ${currentDriver.lastName}`}
+    <PageShell theme="broadcast">
+      <div className="drv-wrap" style={teamStyle}>
+        <PageHeader
+          teamName={data.playerTeam.name}
+          season={data.season}
+          round={data.currentRound}
+          nextRound={data.nextRound}
+          constructorPos={data.constructorPosition}
+          rosterCount={data.rosterCount}
+        />
+        <DriverTabs
+          roster={data.roster}
+          scoutCount={data.freeAgents.length}
+          teamColor={data.playerTeam.color}
+          active={activeTab}
+          onChange={setActiveTab}
+        />
+        {activeTab === 'SCOUT' ? (
+          <ScoutPanel
+            scouts={data.freeAgents}
+            onApproach={data.approachDriver}
+            onFileReport={data.fileScoutingReport}
+          />
+        ) : driver ? (
+          <>
+            <DriverHero
+              driver={driver}
+              team={data.playerTeam}
+              championshipPosition={data.championshipPositionByDriverId[driver.id] ?? null}
+              championshipGap={data.championshipGapByDriverId[driver.id] ?? null}
             />
-            <PenaltyRecordSection
-              driver={currentDriver}
-              currentSeason={world.gameState.season}
-              currentRound={world.gameState.currentRound}
-            />
+            <div className="drv-grid">
+              <AttributesCard
+                driver={driver}
+                peer={data.peerAttributes}
+                teamColor={data.playerTeam.color}
+              />
+              <MoodCard
+                driver={driver}
+                rivalryIndex={data.rivalryIndex}
+              />
+              <ContractCard
+                driver={driver}
+                currentSeason={data.season}
+                onNegotiate={() => data.openContractNegotiation(driver.id)}
+                onRelease={() => { /* free-agent release flow — future */ }}
+              />
+            </div>
+            <div className="drv-grid" style={{ marginTop: 14, gridTemplateColumns: '1fr' }}>
+              <PenaltyCard
+                driver={driver}
+                currentSeason={data.season}
+                currentRound={data.currentRound}
+              />
+            </div>
+          </>
+        ) : (
+          <div style={{
+            padding: 48,
+            textAlign: 'center',
+            color: 'var(--ink-dim)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            letterSpacing: '0.16em',
+            textTransform: 'uppercase',
+          }}>
+            No driver assigned to this slot
           </div>
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-sm text-[var(--text-dim)]">No driver assigned to this slot.</p>
-        </div>
-      )}
+        )}
+      </div>
     </PageShell>
   )
 }
