@@ -107,6 +107,12 @@
   color: var(--ink-body);
 }
 .drivers-broadcast .drv-tab:hover { background: var(--bg-raised); }
+.drivers-broadcast .drv-tab:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 2px;
+  z-index: 1;
+}
+.drivers-broadcast .drv-tab:active { transform: translateY(1px); }
 .drivers-broadcast .drv-tab.active { background: var(--bg-raised); }
 .drivers-broadcast .drv-tab .t-bar {
   width: 4px;
@@ -923,8 +929,18 @@
   transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .drivers-broadcast .cact-btn:hover { background: var(--bg-hi); border-color: var(--line-strong); }
+.drivers-broadcast .cact-btn:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 2px;
+}
+.drivers-broadcast .cact-btn:active { transform: translateY(1px); }
 .drivers-broadcast .cact-btn.primary { background: var(--sig-cyan); color: var(--bg-void); border-color: var(--sig-cyan); }
 .drivers-broadcast .cact-btn.primary:hover { filter: brightness(1.1); }
+.drivers-broadcast .cact-btn.primary:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 2px;
+}
+.drivers-broadcast .cact-btn.primary:active { transform: translateY(1px); }
 
 /* penalty */
 .drivers-broadcast .penalty-clean {
@@ -1301,6 +1317,11 @@
   transition: background 0.12s, border-color 0.12s, color 0.12s;
 }
 .drivers-broadcast .approach-btn:hover { background: var(--sig-cyan); color: var(--bg-void); border-color: var(--sig-cyan); }
+.drivers-broadcast .approach-btn:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 2px;
+}
+.drivers-broadcast .approach-btn:active { transform: translateY(1px); }
 
 @keyframes drivers-broadcast-pulse {
   0%, 100% { opacity: 1; }

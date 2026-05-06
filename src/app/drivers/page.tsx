@@ -61,6 +61,7 @@ export default function DriversPage() {
             <DriverHero
               driver={driver}
               team={data.playerTeam}
+              currentSeason={data.season}
               championshipPosition={data.championshipPositionByDriverId[driver.id] ?? null}
               championshipGap={data.championshipGapByDriverId[driver.id] ?? null}
             />

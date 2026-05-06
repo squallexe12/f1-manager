@@ -82,6 +82,7 @@ describe('<DriverHero>', () => {
       <DriverHero
         driver={mkDriver({ worldTitles: 4 })}
         team={mkTeam()}
+        currentSeason={2026}
         championshipPosition={2}
         championshipGap={-14}
       />
@@ -96,6 +97,7 @@ describe('<DriverHero>', () => {
       <DriverHero
         driver={mkDriver({ worldTitles: 0 })}
         team={mkTeam()}
+        currentSeason={2026}
         championshipPosition={2}
         championshipGap={-14}
       />
@@ -109,6 +111,7 @@ describe('<DriverHero>', () => {
       <DriverHero
         driver={mkDriver({ careerStarts: 218, careerWins: 64, careerPodiums: 116 })}
         team={mkTeam()}
+        currentSeason={2026}
         championshipPosition={2}
         championshipGap={-14}
       />
@@ -123,6 +126,7 @@ describe('<DriverHero>', () => {
       <DriverHero
         driver={mkDriver({ careerStarts: 0 })}
         team={mkTeam()}
+        currentSeason={2026}
         championshipPosition={2}
         championshipGap={-14}
       />
@@ -135,11 +139,12 @@ describe('<DriverHero>', () => {
       <DriverHero
         driver={mkDriver({ isReserve: false })}
         team={mkTeam()}
+        currentSeason={2026}
         championshipPosition={2}
         championshipGap={-14}
       />
     )
-    expect(screen.getByText("DRIVERS' STANDING")).toBeInTheDocument()
+    expect(screen.getByText("DRIVERS’ STANDING")).toBeInTheDocument()
     expect(screen.getByText(/SEASON PULSE/)).toBeInTheDocument()
   })
 
@@ -148,12 +153,27 @@ describe('<DriverHero>', () => {
       <DriverHero
         driver={mkDriver({ isReserve: true, pulse: { headline: 'Reserve ready', detail: 'Sim pace strong' } })}
         team={mkTeam()}
+        currentSeason={2026}
         championshipPosition={null}
         championshipGap={null}
       />
     )
     expect(screen.getByText('RESERVE STATUS')).toBeInTheDocument()
-    expect(screen.queryByText("DRIVERS' STANDING")).toBeNull()
+    expect(screen.queryByText("DRIVERS’ STANDING")).toBeNull()
+  })
+
+  it('renders contract expiry as absolute season (currentSeason + termEndSeason - 1)', () => {
+    render(
+      <DriverHero
+        driver={mkDriver({ contract: { salary: 55000000, termEndSeason: 3, performanceBonuses: [], releaseClause: null } })}
+        team={mkTeam()}
+        currentSeason={2026}
+        championshipPosition={2}
+        championshipGap={-14}
+      />
+    )
+    // 2026 + 3 - 1 = 2028
+    expect(screen.getByText('S2028')).toBeInTheDocument()
   })
 
   it('renders 8-column stats grid with correct values', () => {
@@ -163,6 +183,7 @@ describe('<DriverHero>', () => {
           seasonStats: { points: 168, wins: 4, podiums: 6, poles: 3, dnfs: 1, penalties: 1, bestFinish: 1, averageFinish: 2.4, lastProcessedRound: 8 },
         })}
         team={mkTeam()}
+        currentSeason={2026}
         championshipPosition={2}
         championshipGap={-14}
       />

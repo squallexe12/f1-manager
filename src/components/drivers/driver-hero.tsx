@@ -9,11 +9,12 @@ import { FormBars } from '@/components/drivers/form-bars'
 interface DriverHeroProps {
   driver: Driver
   team: Team
+  currentSeason: number
   championshipPosition: number | null
   championshipGap: number | null
 }
 
-export function DriverHero({ driver, team, championshipPosition, championshipGap }: DriverHeroProps) {
+export function DriverHero({ driver, team, currentSeason, championshipPosition, championshipGap }: DriverHeroProps) {
   const ovr = computeDriverOvr(driver.attributes)
   const stats = driver.seasonStats
   const hasCareer = driver.careerStarts > 0
@@ -59,7 +60,7 @@ export function DriverHero({ driver, team, championshipPosition, championshipGap
               <span className="it"><span className="k">NAT</span> <span className="v">{driver.nationality}</span></span>
               <span className="it"><span className="k">AGE</span> <span className="v">{driver.age}</span></span>
               {driver.contract && (
-                <span className="it"><span className="k">CONTRACT</span> <span className="v">S{driver.contract.termEndSeason}</span></span>
+                <span className="it"><span className="k">CONTRACT</span> <span className="v">S{currentSeason + driver.contract.termEndSeason - 1}</span></span>
               )}
             </div>
           </div>
@@ -73,7 +74,7 @@ export function DriverHero({ driver, team, championshipPosition, championshipGap
         {championshipPosition !== null && (
           <div className="drv-champ">
             <div className="dc-pos">
-              <span className="k">DRIVERS' STANDING</span>
+              <span className="k">DRIVERS{'’'} STANDING</span>
               <span className="v">P{championshipPosition}<span className="of">/22</span></span>
             </div>
             <div className="dc-gap">

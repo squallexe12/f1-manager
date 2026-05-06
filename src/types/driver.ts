@@ -17,6 +17,12 @@ export interface Mood {
 
 export interface Contract {
   salary: number
+  /**
+   * Seasons remaining until contract end (relative). The absolute end
+   * season is `currentSeason + termEndSeason - 1`. Decrements at season
+   * end via `processSeasonEnd`. A value of 1 means contract expires at
+   * end of current season ("EOS").
+   */
   termEndSeason: number
   performanceBonuses: { condition: string; value: number }[]
   releaseClause: number | null
