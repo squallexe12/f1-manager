@@ -117,6 +117,5 @@ export function useDriversPageData(): DriversPageData | null {
       approachDriver,
       openContractNegotiation,
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slice])
 }
