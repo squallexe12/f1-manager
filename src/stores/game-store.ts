@@ -27,6 +27,7 @@ import {
   boostSponsorSatisfaction,
   reduceDriverFrustration,
 } from '@/engine/delegation/recommendation-helpers'
+import { applyScoutingReport } from '@/engine/drivers/apply-scouting-report'
 import type { Recommendation, StagedStrategies } from '@/types/delegation'
 import {
   createInitialRaceRuntime,
@@ -85,6 +86,12 @@ interface GameStore {
    * exactly once per race-start so the penalty is not double-applied on retry.
    */
   consumeGridDrops: (driverIds: string[]) => void
+  /**
+   * File one scouting report on a free-agent or F2 driver. Increments
+   * `scoutingReports` and recomputes `scoutSignal`. No-ops on contracted
+   * drivers (teamId !== null && !isF2) to prevent scout spam on active grid.
+   */
+  fileScoutingReport: (driverId: string) => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -413,6 +420,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     )
     set({ world: { ...world, drivers } })
   },
+
+  fileScoutingReport: (driverId) => set(state => {
+    if (!state.world) return state
+    const driver = state.world.drivers.find(d => d.id === driverId)
+    if (!driver) return state
+    // Eligibility gate: free agent or F2 only
+    if (driver.teamId !== null && !driver.isF2) return state
+    const updated = applyScoutingReport(driver)
+    return {
+      ...state,
+      world: {
+        ...state.world,
+        drivers: state.world.drivers.map(d => d.id === driverId ? updated : d),
+      },
+    }
+  }),
 
   applyRaceWorkerEvent: (event) => {
     set((state) => ({ raceRuntime: reduceWorkerEvent(state.raceRuntime, event) }))

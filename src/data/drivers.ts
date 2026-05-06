@@ -12,6 +12,19 @@ const emptyStats = () => ({
   bestFinish: 99, averageFinish: 0, lastProcessedRound: 0,
 })
 
+/**
+ * Career stats and world titles seeded from public records as of end-of-2025
+ * season (statsf1.com / wikipedia). Values within ±5 on careerStarts for
+ * drivers below 50 starts are rounded to nearest 5. NPC drivers (no
+ * real-world counterpart) seed to 0/0/0/0.
+ *
+ * `pulse`, `scoutSignal`, `scoutingReports` are placeholder values that the
+ * orchestrator overwrites on first observation (see state-manager.ts and
+ * post-race-processor.ts).
+ *
+ * See `docs/superpowers/specs/2026-05-06-drivers-page-redesign-design.md`
+ * §3.6 for the full audit table.
+ */
 export const DRIVERS: DriverData[] = [
   // --- McLaren ---
   {
@@ -22,6 +35,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 30_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Win', value: 500_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 5, careerPodiums: 25, careerStarts: 137, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'piastri', firstName: 'Oscar', lastName: 'Piastri', shortName: 'PIA',
@@ -31,6 +46,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 15_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Podium', value: 200_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 2, careerPodiums: 10, careerStarts: 56, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Red Bull ---
   {
@@ -41,6 +58,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 55_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'WDC', value: 10_000_000 }], releaseClause: 200_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 64, careerPodiums: 116, careerStarts: 218, worldTitles: 4,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'hadjar', firstName: 'Isack', lastName: 'Hadjar', shortName: 'HAD',
@@ -50,6 +69,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 2_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 10_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 23, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Ferrari ---
   {
@@ -60,6 +81,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 40_000_000, termEndSeason: 4, performanceBonuses: [{ condition: 'Win', value: 1_000_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 8, careerPodiums: 44, careerStarts: 158, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'hamilton', firstName: 'Lewis', lastName: 'Hamilton', shortName: 'HAM',
@@ -69,6 +92,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 50_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'WDC', value: 15_000_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 32, declineRate: 1.2, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 105, careerPodiums: 202, careerStarts: 356, worldTitles: 7,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Mercedes ---
   {
@@ -79,6 +104,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 25_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Podium', value: 300_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 4, careerPodiums: 18, careerStarts: 137, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'antonelli', firstName: 'Kimi', lastName: 'Antonelli', shortName: 'ANT',
@@ -88,6 +115,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 3_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 15_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 23, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Williams ---
   {
@@ -98,6 +127,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 10_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: 20_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 2, careerStarts: 119, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'sainz', firstName: 'Carlos', lastName: 'Sainz', shortName: 'SAI',
@@ -107,6 +138,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 18_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Podium', value: 500_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.6, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 4, careerPodiums: 27, careerStarts: 217, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Racing Bulls ---
   {
@@ -117,6 +150,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 4_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: 12_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 16, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'lindblad', firstName: 'Arvid', lastName: 'Lindblad', shortName: 'LIN',
@@ -126,6 +161,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 1_500_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 8_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Aston Martin ---
   {
@@ -136,6 +173,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 20_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Podium', value: 500_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 32, careerPodiums: 106, careerStarts: 406, worldTitles: 2,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'stroll', firstName: 'Lance', lastName: 'Stroll', shortName: 'STR',
@@ -145,6 +184,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 10_000_000, termEndSeason: 4, performanceBonuses: [], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 3, careerStarts: 184, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Haas ---
   {
@@ -155,6 +196,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 8_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: 15_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 1, careerPodiums: 4, careerStarts: 167, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'bearman', firstName: 'Oliver', lastName: 'Bearman', shortName: 'BEA',
@@ -164,6 +207,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 2_500_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 50_000 }], releaseClause: 10_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 12, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Alpine ---
   {
@@ -174,6 +219,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 12_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: 20_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 1, careerPodiums: 5, careerStarts: 167, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'colapinto', firstName: 'Franco', lastName: 'Colapinto', shortName: 'COL',
@@ -183,6 +230,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 2_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 8_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 32, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Cadillac ---
   {
@@ -193,6 +242,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 8_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 10, careerPodiums: 67, careerStarts: 246, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'perez', firstName: 'Sergio', lastName: 'Perez', shortName: 'PER',
@@ -202,6 +253,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 10_000_000, termEndSeason: 1, performanceBonuses: [{ condition: 'Points', value: 100_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 6, careerPodiums: 39, careerStarts: 281, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Audi ---
   {
@@ -212,6 +265,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 6_000_000, termEndSeason: 2, performanceBonuses: [{ condition: 'Points', value: 80_000 }], releaseClause: null },
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 0.8, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 1, careerStarts: 230, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'bortoleto', firstName: 'Gabriel', lastName: 'Bortoleto', shortName: 'BOR',
@@ -221,6 +276,8 @@ export const DRIVERS: DriverData[] = [
     contract: { salary: 2_000_000, termEndSeason: 3, performanceBonuses: [{ condition: 'Points', value: 40_000 }], releaseClause: 10_000_000 },
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 23, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
 
   // === Reserve / F2 Drivers ===
@@ -232,6 +289,8 @@ export const DRIVERS: DriverData[] = [
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: true, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'oward', firstName: 'Pato', lastName: "O'Ward", shortName: 'OWA',
@@ -241,6 +300,8 @@ export const DRIVERS: DriverData[] = [
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: true, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'doohan', firstName: 'Jack', lastName: 'Doohan', shortName: 'DOO',
@@ -250,6 +311,8 @@ export const DRIVERS: DriverData[] = [
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: true, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'maini', firstName: 'Kush', lastName: 'Maini', shortName: 'MAI',
@@ -259,6 +322,8 @@ export const DRIVERS: DriverData[] = [
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: false, isF2: true,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'aron', firstName: 'Paul', lastName: 'Aron', shortName: 'ARO',
@@ -268,6 +333,8 @@ export const DRIVERS: DriverData[] = [
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: true,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'barnard', firstName: 'Zak', lastName: "O'Sullivan", shortName: 'OSU',
@@ -277,5 +344,7 @@ export const DRIVERS: DriverData[] = [
     contract: null,
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: true,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
+    careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
   },
 ]

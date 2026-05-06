@@ -6,6 +6,9 @@ import { applyAging } from '@/engine/drivers/aging'
 import { calculatePrizeMoney, checkCapBreach } from '@/engine/finance/budget-engine'
 import { applySeasonRegulations } from '@/engine/regulations/regulation-engine'
 import { RND_TREE } from '@/data/rnd-tree'
+import { applySeasonEndCareerDeltas } from '@/engine/drivers/career-stats'
+import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
+import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 
 export interface SeasonEndResult {
   teams: Team[]
@@ -129,8 +132,8 @@ export function processSeasonEnd(
       },
       // Reset rolling form window per season; continuity across seasons
       // would mislead the Paddock sparkline.
-      form: [],
-      lastRaceResult: null,
+      form: [] as number[],
+      lastRaceResult: null as number | null,
     }
   })
 
@@ -200,6 +203,29 @@ export function processSeasonEnd(
   const regResult = applySeasonRegulations(updatedTeams, updatedFinance, nextSeason)
   updatedTeams = regResult.teams
   const finalFinance = regResult.finance
+
+  // 6. Award world titles based on final Drivers' Championship standings.
+  const sortedByPoints = [...updatedDrivers]
+    .filter(d => !d.isReserve && d.teamId !== null)
+    .sort((a, b) => b.seasonStats.points - a.seasonStats.points)
+  updatedDrivers = updatedDrivers.map(d => {
+    const finalStanding = sortedByPoints.findIndex(s => s.id === d.id) + 1 || updatedDrivers.length
+    return applySeasonEndCareerDeltas(d, finalStanding)
+  })
+
+  // 7. Recompute pulse + scoutSignal for the new season opener.
+  const pulseCtx: PulseContext = {
+    championshipPositionByDriverId: {}, // new season — no positions yet
+    championshipGapByDriverId: {},
+    totalDriversInChampionship: updatedDrivers.length,
+    currentRound: 0,
+    currentSeason: nextSeason,
+  }
+  updatedDrivers = updatedDrivers.map(d => ({
+    ...d,
+    pulse: derivePulse(d, pulseCtx),
+    scoutSignal: computeScoutSignal(d),
+  }))
 
   return {
     teams: updatedTeams,

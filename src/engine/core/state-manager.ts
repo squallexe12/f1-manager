@@ -14,6 +14,8 @@ import { SPONSORS } from '@/data/sponsors'
 import { getAvailableSponsors, signSponsor } from '@/engine/finance/sponsor-engine'
 import { generateTalentPool, DEFAULT_STAFF_POOL_SIZE } from '@/engine/staff/talent-pool'
 import type { DepartmentHead } from '@/types/team'
+import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
+import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 
 /**
  * Default contract window (in seasons) applied to each department head at
@@ -201,10 +203,24 @@ export function initializeGame(
     return buildTeam(teamData, startingSeason)
   })
 
-  const drivers: Driver[] = DRIVERS.map(d => ({
+  const driversWithRuntime: Driver[] = DRIVERS.map(d => ({
     ...d,
     form: [],
     lastRaceResult: null,
+  }))
+  // Synthetic first-init pulse + scoutSignal pass. Career stats are
+  // pre-seeded in `data/drivers.ts`; we do not synthesize them here.
+  const initCtx: PulseContext = {
+    championshipPositionByDriverId: {},
+    championshipGapByDriverId: {},
+    totalDriversInChampionship: driversWithRuntime.length,
+    currentRound: 1,
+    currentSeason: 1,
+  }
+  const drivers: Driver[] = driversWithRuntime.map(d => ({
+    ...d,
+    pulse: derivePulse(d, initCtx),
+    scoutSignal: computeScoutSignal(d),
   }))
 
   const finance: Record<string, FinanceState> = {}

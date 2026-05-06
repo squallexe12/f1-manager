@@ -5,13 +5,15 @@ import {
   DEFAULT_WT_HOURS_PER_CYCLE,
   DEFAULT_CFD_RUNS_PER_CYCLE,
 } from '@/data/rnd-tree'
+import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
+import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 
 const DB_NAME = 'mission-control-f1'
 const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -318,6 +320,68 @@ export const MIGRATIONS: Record<number, Migration> = {
     staffMarket: data.staffMarket ?? { chiefs: [], members: [], lastRefreshedSeason: 0 },
     poachingAttempts: data.poachingAttempts ?? [],
   }),
+  /**
+   * v12 → v13 (IP-09a Drivers redesign): Adds career stats (`careerWins`,
+   * `careerPodiums`, `careerStarts`, `worldTitles`), narrative `pulse`,
+   * `portraitUrl`, `scoutSignal`, and `scoutingReports` on every driver.
+   * All counters default to 0 (existing saves do not retroactively get
+   * real-world numbers — only fresh games seeded via `data/drivers.ts`).
+   * After defaulting, runs `derivePulse` and `computeScoutSignal` so
+   * loaded saves render correctly without waiting for the next
+   * post-race tick. See spec §3.4.
+   */
+  12: (data) => {
+    // Hydrate drivers with defaults first, including safe fallbacks for
+    // older fixture fields that may be absent in pre-v8 saves that are
+    // migrating all the way up to v13 in a single chain run.
+    const drivers = data.drivers.map((d: any) => ({
+      ...d,
+      // Safe fallbacks for fields that earlier migrations may not have
+      // ensured are present (e.g. form was added in v2→v3, penaltyPoints
+      // in v7→v8, attributes always present but guard for test fixtures).
+      attributes: d.attributes ?? { pace: 70, racecraft: 70, experience: 50, mentality: 70, marketability: 50, developmentPotential: 50 },
+      form: d.form ?? [],
+      penaltyPoints: d.penaltyPoints ?? [],
+      seasonStats: d.seasonStats ?? { points: 0, wins: 0, podiums: 0, poles: 0, dnfs: 0, penalties: 0, bestFinish: 99, averageFinish: 0, lastProcessedRound: 0 },
+      mood: d.mood ?? { motivation: 70, frustration: 30, confidence: 70 },
+      // New IP-09a fields
+      careerWins: 0,
+      careerPodiums: 0,
+      careerStarts: 0,
+      worldTitles: 0,
+      pulse: { headline: '', detail: '' },
+      portraitUrl: null,
+      scoutSignal: 'available' as const,
+      scoutingReports: 0,
+    }))
+    // Compute championship summary so pulse can branch on position/gap.
+    const sorted = [...drivers]
+      .filter((d: any) => !d.isReserve && d.teamId !== null)
+      .sort((a: any, b: any) => b.seasonStats.points - a.seasonStats.points)
+    const positionById: Record<string, number> = {}
+    const gapById: Record<string, number> = {}
+    const leaderPts = sorted[0]?.seasonStats.points ?? 0
+    const p2Pts = sorted[1]?.seasonStats.points ?? 0
+    sorted.forEach((d: any, i: number) => {
+      positionById[d.id] = i + 1
+      gapById[d.id] = i === 0 ? leaderPts - p2Pts : d.seasonStats.points - leaderPts
+    })
+    const ctx: PulseContext = {
+      championshipPositionByDriverId: positionById,
+      championshipGapByDriverId: gapById,
+      totalDriversInChampionship: drivers.length,
+      currentRound: data.gameState?.currentRound ?? 1,
+      currentSeason: data.gameState?.season ?? 1,
+    }
+    return {
+      ...data,
+      drivers: drivers.map((d: any) => ({
+        ...d,
+        pulse: derivePulse(d, ctx),
+        scoutSignal: computeScoutSignal(d),
+      })),
+    }
+  },
   3: (data) => {
     const currentRound = Math.max(0, (data.gameState?.currentRound ?? 1) - 1)
     // Modern F1: P1=25 + FL bonus 1, P2=18. Team max per race = 44.

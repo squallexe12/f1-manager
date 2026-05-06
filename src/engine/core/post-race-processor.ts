@@ -14,6 +14,9 @@ import { calculatePrestigeScore, scoreToRating } from '@/engine/finance/prestige
 import { generateEvents, resolveExpiredEvents, type GameContext } from '@/engine/narrative/event-generator'
 import { expirePenaltyPoints, sumActivePoints, wipeContributingPoints } from '@/engine/drivers/penalty-points'
 import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
+import { applyRaceCareerDeltas } from '@/engine/drivers/career-stats'
+import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
+import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 
 // Points per position (standard race)
 const RACE_POINTS: Record<number, number> = {
@@ -145,7 +148,7 @@ export function processPostRace(
     }
 
     const formSample = result.dnf ? FORM_DNF : result.position
-    return {
+    const updatedFromRace = {
       ...driver,
       seasonStats: stats,
       form: pushForm(driver.form, formSample),
@@ -155,6 +158,7 @@ export function processPostRace(
       nextRaceGridDrop,
       banUntilRound,
     }
+    return applyRaceCareerDeltas(updatedFromRace, result.position)
   })
 
   // 2. Update driver moods
@@ -299,6 +303,23 @@ export function processPostRace(
   const { newEvents, updatedCooldowns } = generateEvents(ctx, resolved, eventCooldowns, rng)
   const allEvents = [...resolved.filter(e => !e.resolved || e.triggeredAtRound >= currentRound - 3), ...newEvents]
 
+  // Recompute per-driver narrative pulse and scout signal after all
+  // mutations have settled. Both are pure derivations from observable state;
+  // running them last ensures they reflect the final post-race world.
+  const championship = computeChampionshipSummary(updatedDrivers)
+  const pulseCtx: PulseContext = {
+    championshipPositionByDriverId: championship.positionById,
+    championshipGapByDriverId: championship.gapById,
+    totalDriversInChampionship: updatedDrivers.length,
+    currentRound,
+    currentSeason,
+  }
+  updatedDrivers = updatedDrivers.map(driver => ({
+    ...driver,
+    pulse: derivePulse(driver, pulseCtx),
+    scoutSignal: computeScoutSignal(driver),
+  }))
+
   return {
     teams: updatedTeams,
     drivers: updatedDrivers,
@@ -306,6 +327,28 @@ export function processPostRace(
     narrativeEvents: allEvents,
     eventCooldowns: updatedCooldowns,
   }
+}
+
+function computeChampionshipSummary(drivers: Driver[]): {
+  positionById: Record<string, number>
+  gapById: Record<string, number>
+} {
+  const sorted = [...drivers]
+    .filter(d => !d.isReserve && d.teamId !== null)
+    .sort((a, b) => b.seasonStats.points - a.seasonStats.points)
+  const positionById: Record<string, number> = {}
+  const gapById: Record<string, number> = {}
+  const leaderPts = sorted[0]?.seasonStats.points ?? 0
+  const p2Pts = sorted[1]?.seasonStats.points ?? 0
+  sorted.forEach((d, i) => {
+    positionById[d.id] = i + 1
+    if (i === 0) {
+      gapById[d.id] = leaderPts - p2Pts // leader's gap = points clear of P2
+    } else {
+      gapById[d.id] = d.seasonStats.points - leaderPts // negative = behind
+    }
+  })
+  return { positionById, gapById }
 }
 
 function estimatePrizeMoney(position: number): number {

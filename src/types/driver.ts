@@ -63,6 +63,15 @@ export interface PenaltyPointEntry {
   raceId: string
 }
 
+export interface DriverPulse {
+  /** Short status, target ≤ 32 chars. Empty string before first init. */
+  headline: string
+  /** Factual one-liner assembled from current-season state. Empty string before first init. */
+  detail: string
+}
+
+export type ScoutSignal = 'hot' | 'tracking' | 'available'
+
 export interface Driver {
   id: string
   firstName: string
@@ -111,4 +120,44 @@ export interface Driver {
    * start of post-race processing for the round equal to this value.
    */
   banUntilRound: number | null
+  /**
+   * Running total of career race wins across all seasons. Incremented by
+   * `applyRaceCareerDeltas` in `processPostRace` when finishing P1.
+   * Pre-seeded from real-world EOS-2025 values for the 2026 grid; existing
+   * saves default to 0 via the v12→v13 migration.
+   */
+  careerWins: number
+  /** Career podiums (P1–P3). See `careerWins` for accumulation model. */
+  careerPodiums: number
+  /** Career race starts (every finished or DNF'd race counts). */
+  careerStarts: number
+  /**
+   * Drivers' Championship titles won. Incremented by
+   * `applySeasonEndCareerDeltas` when this driver finishes P1 in the final
+   * standings.
+   */
+  worldTitles: number
+  /**
+   * Per-driver narrative status, regenerated each round and on game init by
+   * `derivePulse`. See `src/engine/drivers/pulse.ts` for the 13-branch table.
+   */
+  pulse: DriverPulse
+  /**
+   * Optional URL to a driver portrait image. Null = render the stripe SVG
+   * placeholder. UI is responsible for image hosting; engine treats this as
+   * an opaque string.
+   */
+  portraitUrl: string | null
+  /**
+   * Scout pool signal — derived from observable state by `computeScoutSignal`.
+   * Semantically meaningful when teamId === null OR isF2; computed for every
+   * driver so the field is always populated.
+   */
+  scoutSignal: ScoutSignal
+  /**
+   * Count of player-filed scouting reports on this driver. Persists across
+   * seasons. High counts upgrade `scoutSignal` per `computeScoutSignal`.
+   * Incremented only via the `fileScoutingReport` store action.
+   */
+  scoutingReports: number
 }

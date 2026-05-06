@@ -67,6 +67,14 @@ function makeDriver(id: string, frustration: number): Driver {
     warningsThisSeason: 0,
     nextRaceGridDrop: 0,
     banUntilRound: null,
+    careerWins: 0,
+    careerPodiums: 0,
+    careerStarts: 0,
+    worldTitles: 0,
+    pulse: { headline: '', detail: '' },
+    portraitUrl: null,
+    scoutSignal: 'available' as const,
+    scoutingReports: 0,
   }
 }
 
