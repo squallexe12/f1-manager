@@ -1,11 +1,8 @@
 import type { Driver } from '@/types/driver'
+import { FORM_DNF } from '@/engine/drivers/form-history'
 
-/**
- * DNF sentinel value used by the form/result pipeline. Any position >= 21 is
- * treated as a DNF (matches `FORM_DNF` in `form-history.ts`). DNFs still
- * count as a career start.
- */
-const DNF_THRESHOLD = 21
+// Re-export so consumers don't need to know about form-history.
+export { FORM_DNF }
 
 /**
  * Update career counters after a single race finish.
@@ -13,22 +10,25 @@ const DNF_THRESHOLD = 21
  * Pure: returns a new Driver, does not mutate input.
  *
  * - `careerStarts` always increments (DNFs count as starts).
- * - `careerWins` increments iff finishingPosition === 1.
- * - `careerPodiums` increments iff 1 ≤ finishingPosition ≤ 3.
+ * - `careerWins` increments iff `!dnf && finishingPosition === 1`.
+ * - `careerPodiums` increments iff `!dnf && 1 ≤ finishingPosition ≤ 3`.
+ *
+ * The caller passes `dnf` explicitly — `processPostRace` already has
+ * `result.dnf: boolean` from the race worker; relying on it avoids duplicating
+ * the position-sentinel inference here.
  *
  * Idempotency is the caller's responsibility: `processPostRace` already
  * gates per-driver updates on `seasonStats.lastProcessedRound`. This helper
  * is invoked from inside that guard so it cannot double-count.
  */
-export function applyRaceCareerDeltas(driver: Driver, finishingPosition: number): Driver {
-  const isDnf = finishingPosition >= DNF_THRESHOLD
+export function applyRaceCareerDeltas(driver: Driver, finishingPosition: number, dnf: boolean): Driver {
   return {
     ...driver,
     careerStarts: driver.careerStarts + 1,
-    careerWins: !isDnf && finishingPosition === 1
+    careerWins: !dnf && finishingPosition === 1
       ? driver.careerWins + 1
       : driver.careerWins,
-    careerPodiums: !isDnf && finishingPosition >= 1 && finishingPosition <= 3
+    careerPodiums: !dnf && finishingPosition >= 1 && finishingPosition <= 3
       ? driver.careerPodiums + 1
       : driver.careerPodiums,
   }

@@ -7,6 +7,7 @@ import {
 } from '@/data/rnd-tree'
 import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
 import { computeScoutSignal } from '@/engine/drivers/scout-signal'
+import { computeChampionshipSummary } from '@/engine/drivers/championship-summary'
 
 const DB_NAME = 'mission-control-f1'
 const DB_VERSION = 1
@@ -355,20 +356,13 @@ export const MIGRATIONS: Record<number, Migration> = {
       scoutingReports: 0,
     }))
     // Compute championship summary so pulse can branch on position/gap.
-    const sorted = [...drivers]
-      .filter((d: any) => !d.isReserve && d.teamId !== null)
-      .sort((a: any, b: any) => b.seasonStats.points - a.seasonStats.points)
-    const positionById: Record<string, number> = {}
-    const gapById: Record<string, number> = {}
-    const leaderPts = sorted[0]?.seasonStats.points ?? 0
-    const p2Pts = sorted[1]?.seasonStats.points ?? 0
-    sorted.forEach((d: any, i: number) => {
-      positionById[d.id] = i + 1
-      gapById[d.id] = i === 0 ? leaderPts - p2Pts : d.seasonStats.points - leaderPts
-    })
+    // drivers is typed as any[] at this point (pre-migration fixture shape),
+    // but computeChampionshipSummary only reads .isReserve / .teamId /
+    // .seasonStats.points — all of which were present before v13.
+    const championship = computeChampionshipSummary(drivers as Parameters<typeof computeChampionshipSummary>[0])
     const ctx: PulseContext = {
-      championshipPositionByDriverId: positionById,
-      championshipGapByDriverId: gapById,
+      championshipPositionByDriverId: championship.positionById,
+      championshipGapByDriverId: championship.gapById,
       totalDriversInChampionship: drivers.length,
       currentRound: data.gameState?.currentRound ?? 1,
       currentSeason: data.gameState?.season ?? 1,

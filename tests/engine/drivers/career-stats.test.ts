@@ -23,31 +23,38 @@ const baseDriver = (overrides: Partial<Driver> = {}): Driver => ({
 
 describe('applyRaceCareerDeltas', () => {
   it('increments careerStarts on every result (P1)', () => {
-    const result = applyRaceCareerDeltas(baseDriver(), 1)
+    const result = applyRaceCareerDeltas(baseDriver(), 1, false)
     expect(result.careerStarts).toBe(101)
   })
 
-  it('increments careerStarts on a DNF (position 21 sentinel)', () => {
-    const result = applyRaceCareerDeltas(baseDriver(), 21)
+  it('increments careerStarts on a DNF (explicit dnf=true)', () => {
+    const result = applyRaceCareerDeltas(baseDriver(), 21, true)
     expect(result.careerStarts).toBe(101)
     expect(result.careerWins).toBe(10)
     expect(result.careerPodiums).toBe(25)
   })
 
   it('increments careerWins and careerPodiums on P1', () => {
-    const result = applyRaceCareerDeltas(baseDriver(), 1)
+    const result = applyRaceCareerDeltas(baseDriver(), 1, false)
     expect(result.careerWins).toBe(11)
     expect(result.careerPodiums).toBe(26)
   })
 
   it('increments careerPodiums but not careerWins on P3', () => {
-    const result = applyRaceCareerDeltas(baseDriver(), 3)
+    const result = applyRaceCareerDeltas(baseDriver(), 3, false)
     expect(result.careerWins).toBe(10)
     expect(result.careerPodiums).toBe(26)
   })
 
   it('increments only careerStarts on P10', () => {
-    const result = applyRaceCareerDeltas(baseDriver(), 10)
+    const result = applyRaceCareerDeltas(baseDriver(), 10, false)
+    expect(result.careerStarts).toBe(101)
+    expect(result.careerWins).toBe(10)
+    expect(result.careerPodiums).toBe(25)
+  })
+
+  it('does not credit win/podium when dnf=true even at P1 position value', () => {
+    const result = applyRaceCareerDeltas(baseDriver(), 1, true)
     expect(result.careerStarts).toBe(101)
     expect(result.careerWins).toBe(10)
     expect(result.careerPodiums).toBe(25)
@@ -55,7 +62,7 @@ describe('applyRaceCareerDeltas', () => {
 
   it('returns a new object (no mutation)', () => {
     const driver = baseDriver()
-    const result = applyRaceCareerDeltas(driver, 1)
+    const result = applyRaceCareerDeltas(driver, 1, false)
     expect(result).not.toBe(driver)
     expect(driver.careerWins).toBe(10) // unchanged
   })

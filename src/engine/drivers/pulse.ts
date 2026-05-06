@@ -1,6 +1,5 @@
 import type { Driver, DriverPulse } from '@/types/driver'
-
-const DNF_THRESHOLD = 21
+import { FORM_DNF } from '@/engine/drivers/form-history'
 const DETAIL_MAX = 96
 
 export interface PulseContext {
@@ -23,7 +22,7 @@ export function derivePulse(driver: Driver, ctx: PulseContext): DriverPulse {
   const gap = ctx.championshipGapByDriverId[driver.id]
   const stats = driver.seasonStats
   const round = ctx.currentRound
-  const dnfsRecent = driver.form.slice(-2).filter(p => p >= DNF_THRESHOLD).length
+  const dnfsRecent = driver.form.slice(-2).filter(p => p >= FORM_DNF).length
   const podiumsLast4 = driver.form.slice(-4).filter(p => p >= 1 && p <= 3).length
   const activePts = driver.penaltyPoints.reduce((s, e) => s + e.points, 0)
 
@@ -69,7 +68,7 @@ export function derivePulse(driver: Driver, ctx: PulseContext): DriverPulse {
   // Branch 7: DNF in last 2 races
   if (dnfsRecent >= 1 && stats.dnfs >= 1) {
     const lastFormEntry = driver.form.length > 0 ? driver.form[driver.form.length - 1] : null
-    const lastWasDnf = lastFormEntry !== null && lastFormEntry >= DNF_THRESHOLD
+    const lastWasDnf = lastFormEntry !== null && lastFormEntry >= FORM_DNF
     const lastResult = lastWasDnf ? 'DNF' : (driver.lastRaceResult !== null ? `P${driver.lastRaceResult}` : 'DNF')
     return finalize(
       'Reliability under fire',

@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { MIGRATIONS, SCHEMA_VERSION } from '@/engine/core/save-system'
+import type { Driver } from '@/types/driver'
+import type { FullGameState } from '@/engine/core/state-manager'
 
 describe('migration v12 → v13', () => {
   it('SCHEMA_VERSION is 13', () => {
@@ -26,7 +28,7 @@ describe('migration v12 → v13', () => {
   it('populates pulse and scoutSignal via helpers (deterministic)', () => {
     const v12Save = makeV12SaveWithChampionshipLeader('verstappen')
     const v13 = MIGRATIONS[12](v12Save)
-    const verstappen = v13.drivers.find((d: any) => d.id === 'verstappen')!
+    const verstappen = v13.drivers.find((d: Pick<Driver, 'id'>) => d.id === 'verstappen')!
     // Branch #4 (championship leader): "Leading the championship"
     expect(verstappen.pulse.headline).toBe('Leading the championship')
     expect(verstappen.scoutSignal).toBe('available') // contracted driver
@@ -40,10 +42,12 @@ describe('migration v12 → v13', () => {
   })
 })
 
-function makeV12Save() {
-  // Minimal fixture: gameState + drivers without the new fields.
+function makeV12Save(): FullGameState {
+  // Minimal fixture: gameState + one driver without the new v13 fields.
+  // Cast to FullGameState — the driver omits v13-only fields intentionally;
+  // the migration under test is responsible for adding them.
   return {
-    gameState: { season: 1, currentRound: 5, phase: 'management', playerTeamId: 't1', scenario: 'standard', seed: 42, totalRaces: 22 },
+    gameState: { season: 1, currentRound: 5, phase: 'management', playerTeamId: 't1', scenario: 'rebuild', seed: 42, totalRaces: 22 },
     teams: [],
     drivers: [
       {
@@ -56,11 +60,20 @@ function makeV12Save() {
         peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
         form: [3, 5, 1, 8], lastRaceResult: 8,
         penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
-      },
+        // v13 fields are intentionally absent here — migration must add them.
+        // TypeScript is satisfied via the cast below; the fields are present
+        // at runtime after MIGRATIONS[12] runs, which the tests verify.
+      } as unknown as Driver,
     ],
-    calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
-    recommendations: [], stagedStrategies: {}, staffMarket: [], poachingAttempts: [],
-  } as any
+    calendar: [],
+    finance: {},
+    narrativeEvents: [],
+    storyArcs: [],
+    recommendations: [],
+    stagedStrategies: {},
+    staffMarket: { chiefs: [], members: [], lastRefreshedSeason: 0 },
+    poachingAttempts: [],
+  }
 }
 
 function makeV12SaveWithChampionshipLeader(driverId: string) {
