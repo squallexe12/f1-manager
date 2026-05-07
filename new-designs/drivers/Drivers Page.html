@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="broadcast">
+<head>
+<meta charset="UTF-8"/>
+<title>Drivers — Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css"/>
+<link rel="stylesheet" href="drivers.css"/>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="drivers-data.js"></script>
+
+<script type="text/babel">
+const { useState, useMemo } = React;
+const D = window.DRIVERS_DATA;
+const TEAM = D.team;
+
+/* ─── Helpers ─── */
+const computeOVR = (a) => Math.round(
+  (a.pace * 1.3 + a.racecraft * 1.2 + a.experience * 0.8 +
+   a.mentality * 0.7 + a.marketability * 0.3 + a.developmentPotential * 0.2) / 4.5
+);
+
+const formatM = (n) => `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
+
+const moodTone = (key, v) => {
+  if (key === "frustration") {
+    if (v <= 30) return "good";
+    if (v <= 60) return "warn";
+    return "bad";
+  }
+  if (v >= 75) return "good";
+  if (v >= 45) return "warn";
+  return "bad";
+};
+const moodLabel = (key, v) => {
+  if (key === "frustration") {
+    if (v <= 25) return "CALM";
+    if (v <= 50) return "BUILDING";
+    if (v <= 70) return "AGITATED";
+    return "CRITICAL";
+  }
+  if (v >= 80) return "PEAK";
+  if (v >= 60) return "STRONG";
+  if (v >= 40) return "STEADY";
+  return "LOW";
+};
+
+const bandForPoints = (n) => {
+  if (n >= 12) return "critical";
+  if (n >= 9) return "warning";
+  if (n >= 6) return "approaching";
+  return "clean";
+};
+const labelForBand = (b) => ({clean:"CLEAN", approaching:"APPROACHING", warning:"WARNING ZONE", critical:"BAN PENDING"})[b];
+
+/* ─── Driver portrait placeholder ─── */
+function DriverPortrait({ d, color }) {
+  return (
+    <div className="portrait-frame">
+      <svg className="portrait-stripes" viewBox="0 0 100 120" preserveAspectRatio="none">
+        <defs>
+          <pattern id={`stripes-${d.shortName}`} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(35)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(255,255,255,0.06)" strokeWidth="2"/>
+          </pattern>
+        </defs>
+        <rect width="100" height="120" fill={color} fillOpacity="0.12"/>
+        <rect width="100" height="120" fill={`url(#stripes-${d.shortName})`}/>
+      </svg>
+      <div className="portrait-label">
+        <span className="pl-tag">PORTRAIT</span>
+        <span className="pl-id">{d.firstName.toUpperCase()} {d.lastName.toUpperCase()}</span>
+        <span className="pl-meta">DROP IMAGE · 3:4 RECOMMENDED</span>
+      </div>
+      <div className="portrait-corner tl"/>
+      <div className="portrait-corner tr"/>
+      <div className="portrait-corner bl"/>
+      <div className="portrait-corner br"/>
+    </div>
+  );
+}
+
+/* ─── Radar (driver attributes) ─── */
+function AttrRadar({ attrs, peer, color }) {
+  const labels = ["PAC","RCR","EXP","MEN","MKT","POT"];
+  const keys = ["pace","racecraft","experience","mentality","marketability","developmentPotential"];
+  const size = 220, cx = size/2, cy = size/2, R = 86;
+  const n = keys.length;
+  const pt = (i, r) => {
+    const a = (Math.PI*2 * i/n) - Math.PI/2;
+    return [cx + Math.cos(a)*r, cy + Math.sin(a)*r];
+  };
+  const ringPath = (r) => Array.from({length:n},(_,i)=>pt(i,r))
+    .map(([x,y],i)=>`${i===0?"M":"L"} ${x} ${y}`).join(" ") + " Z";
+  const valPath = keys.map((k,i) => pt(i, (attrs[k]/100)*R))
+    .map(([x,y],i)=>`${i===0?"M":"L"} ${x} ${y}`).join(" ") + " Z";
+  const peerPath = keys.map((k,i) => pt(i, (peer[k]/100)*R))
+    .map(([x,y],i)=>`${i===0?"M":"L"} ${x} ${y}`).join(" ") + " Z";
+  return (
+    <svg viewBox={`-30 -30 ${size+60} ${size+60}`}>
+      <defs>
+        <radialGradient id="arf" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.4"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0.06"/>
+        </radialGradient>
+      </defs>
+      {[0.25,0.5,0.75,1].map(r => (
+        <path key={r} d={ringPath(R*r)} fill="none" stroke="var(--line-hair)" strokeWidth="1" strokeDasharray={r===1?"none":"2 3"}/>
+      ))}
+      {keys.map((_,i) => {
+        const [x,y] = pt(i, R);
+        return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="var(--line-hair)" strokeWidth="1"/>;
+      })}
+      <path d={peerPath} fill="none" stroke="var(--sig-amber)" strokeWidth="1.5" strokeDasharray="3 3" opacity="0.7"/>
+      <path d={valPath} fill="url(#arf)" stroke={color} strokeWidth="2"/>
+      {keys.map((k,i) => {
+        const [lx,ly] = pt(i, R + 22);
+        const [vx,vy] = pt(i, (attrs[k]/100)*R);
+        return (
+          <g key={i}>
+            <text x={lx} y={ly-3} textAnchor="middle" dominantBaseline="middle" style={{
+              fontFamily:"var(--font-mono)",fontSize:8.5,letterSpacing:"0.18em",fill:"var(--ink-dim)",fontWeight:700
+            }}>{labels[i]}</text>
+            <text x={lx} y={ly+9} textAnchor="middle" dominantBaseline="middle" style={{
+              fontFamily:"var(--font-display)",fontSize:13,fontWeight:800,fill:"var(--ink-hi)",letterSpacing:"-0.02em"
+            }}>{attrs[k]}</text>
+            <circle cx={vx} cy={vy} r="3.5" fill={color} stroke="var(--bg-void)" strokeWidth="1.5"/>
+          </g>
+        );
+      })}
+      <circle cx={cx} cy={cy} r="2" fill="var(--ink-dim)"/>
+    </svg>
+  );
+}
+
+/* ─── Tab bar ─── */
+function Tabs({ active, setActive }) {
+  const items = D.roster.map(d => ({
+    id: d.slot, slot: d.slot, name: `${d.firstName.toUpperCase()} ${d.lastName.toUpperCase()}`,
+    ovr: computeOVR(d.attributes)
+  }));
+  items.push({ id: "SCOUT", slot: "DIVISION", name: "SCOUT POOL", ovr: D.scouts.length });
+  return (
+    <div className="drv-tabs">
+      {items.map(it => {
+        const isScout = it.id === "SCOUT";
+        const isActive = active === it.id;
+        return (
+          <button key={it.id} className={`drv-tab ${isActive ? "active" : ""}`} onClick={() => setActive(it.id)}
+                  style={{"--team": isScout ? "var(--sig-cyan)" : TEAM.color}}>
+            <span className="t-bar"/>
+            <span className="t-body">
+              <span className="t-slot">{it.slot}</span>
+              <span className="t-name">{it.name}</span>
+            </span>
+            <span className="t-stat">
+              <span className="ovr">{it.ovr}</span>
+              {isScout ? "AVAILABLE" : "OVR"}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── Driver hero card ─── */
+function DriverHero({ d }) {
+  const ovr = computeOVR(d.attributes);
+  const stats = d.seasonStats;
+  const hasCareer = d.careerWins !== undefined;
+  return (
+    <div className="drv-hero" style={{"--team": TEAM.color, "--team-dark": TEAM.dark}}>
+      <div className="drv-helm">
+        {d.worldTitles > 0 && (
+          <div className="drv-helm-titles">
+            {Array.from({length: Math.min(d.worldTitles, 5)}).map((_, i) => <span key={i} className="star">★</span>)}
+            <span className="tlbl">{d.worldTitles}× WORLD CHAMPION</span>
+          </div>
+        )}
+        <div className="drv-helm-shape">
+          <DriverPortrait d={d} color={TEAM.color}/>
+        </div>
+        <div className="drv-helm-num">{d.raceNumber}</div>
+        <div className="drv-helm-code">{d.shortName}</div>
+        <div className="drv-helm-tag">{d.slot} · {TEAM.name}</div>
+        {hasCareer && (
+          <div className="drv-helm-career">
+            <div className="cw-cell"><span className="k">CAREER WINS</span><span className="v">{d.careerWins}</span></div>
+            <div className="cw-cell"><span className="k">PODIUMS</span><span className="v">{d.careerPodiums}</span></div>
+            <div className="cw-cell"><span className="k">STARTS</span><span className="v">{d.careerStarts}</span></div>
+          </div>
+        )}
+      </div>
+      <div className="drv-id">
+        <div className="drv-id-top">
+          <div>
+            <div className="drv-id-name">
+              <span className="drv-id-first">{d.firstName}</span>
+              <span className="drv-id-last">{d.lastName.toUpperCase()}</span>
+            </div>
+            <div className="drv-id-meta">
+              <span className="it"><span className="k">NAT</span> <span className="v">{d.natCode}</span></span>
+              <span className="it"><span className="k">AGE</span> <span className="v">{d.age}</span></span>
+              <span className="it"><span className="k">#</span> <span className="v">{d.raceNumber}</span></span>
+              <span className="it"><span className="k">CONTRACT</span> <span className="v">{2026 + d.contract.termEndSeason - 1}</span></span>
+            </div>
+          </div>
+          <div className="drv-id-ovr">
+            <span className="k">OVR</span>
+            <span className="v">{ovr}</span>
+            <span className="d">CAREER</span>
+          </div>
+        </div>
+
+        {(d.championshipPosition !== null && d.championshipPosition !== undefined) && (
+          <div className="drv-champ">
+            <div className="dc-pos">
+              <span className="k">DRIVERS' STANDING</span>
+              <span className="v">P{d.championshipPosition}<span className="of">/22</span></span>
+            </div>
+            <div className="dc-gap">
+              <span className="k">GAP TO {d.championshipPosition === 1 ? "P2" : "LEADER"}</span>
+              <span className={`v ${d.championshipGap === 0 ? "" : d.championshipGap > 0 ? "green" : "amber"}`}>
+                {d.championshipGap > 0 ? "+" : ""}{d.championshipGap} PTS
+              </span>
+            </div>
+            <div className="dc-pulse">
+              <span className="k">SEASON PULSE</span>
+              <span className="hl">{d.pulse.headline}</span>
+              <span className="dt">{d.pulse.detail}</span>
+            </div>
+          </div>
+        )}
+        {d.championshipPosition === null && d.pulse && (
+          <div className="drv-champ reserve">
+            <div className="dc-pulse">
+              <span className="k">RESERVE STATUS</span>
+              <span className="hl">{d.pulse.headline}</span>
+              <span className="dt">{d.pulse.detail}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="drv-stats">
+          <div className="drv-stat"><span className="k">PTS</span><span className="v">{stats.points}</span></div>
+          <div className="drv-stat"><span className="k">WINS</span><span className={`v ${stats.wins>0?"green":"dim"}`}>{stats.wins}</span></div>
+          <div className="drv-stat"><span className="k">PODS</span><span className={`v ${stats.podiums>0?"green":"dim"}`}>{stats.podiums}</span></div>
+          <div className="drv-stat"><span className="k">POLES</span><span className={`v ${stats.poles>0?"":"dim"}`}>{stats.poles}</span></div>
+          <div className="drv-stat"><span className="k">DNF</span><span className={`v ${stats.dnfs>1?"red":"dim"}`}>{stats.dnfs}</span></div>
+          <div className="drv-stat"><span className="k">PEN</span><span className={`v ${stats.penalties>0?"amber":"dim"}`}>{stats.penalties}</span></div>
+          <div className="drv-stat"><span className="k">BEST</span><span className="v">{stats.bestFinish || "—"}</span></div>
+          <div className="drv-stat"><span className="k">AVG</span><span className="v">{stats.averageFinish.toFixed(1)}</span></div>
+        </div>
+      </div>
+
+      {/* form strip across full width — bottom */}
+      <div className="drv-form" style={{gridColumn: "1 / -1"}}>
+        <span className="fk">FORM · LAST {d.form.length} ROUNDS</span>
+        <div className="form-bars">
+          {d.form.map((pos, i) => {
+            const isDNF = pos >= 21;
+            const cls = isDNF ? "back" : pos <= 3 ? "podium" : pos <= 10 ? "points" : pos <= 15 ? "midfield" : "back";
+            const h = isDNF ? 100 : Math.max(8, ((21 - pos) / 21) * 100);
+            return (
+              <div key={i} className={`fb ${cls}`}>
+                <div className="fb-bar" style={{height: 24}}>
+                  <div className="fb-fill" style={{height: `${h}%`}}/>
+                </div>
+                <span className="fb-pos">{isDNF ? "DNF" : `P${pos}`}</span>
+              </div>
+            );
+          })}
+          {d.form.length === 0 && (
+            <span style={{fontFamily:"var(--font-mono)",fontSize:10,letterSpacing:"0.16em",color:"var(--ink-dim)",textTransform:"uppercase"}}>
+              NO RACE STARTS THIS SEASON
+            </span>
+          )}
+        </div>
+        <div className="last">
+          <span className="lk">LAST RACE</span>
+          {d.lastRaceResult === null ? "—" : d.lastRaceResult >= 21 ? "DNF" : `P${d.lastRaceResult}`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Attributes card ─── */
+function AttributesCard({ d }) {
+  const labels = {pace:"PACE", racecraft:"RACECRAFT", experience:"EXPERIENCE", mentality:"MENTALITY", marketability:"MARKETABILITY", developmentPotential:"POTENTIAL"};
+  const keys = ["pace","racecraft","experience","mentality","marketability","developmentPotential"];
+  return (
+    <div className="drv-card attrs">
+      <div className="drv-card-head">
+        <span className="t">Attributes</span>
+        <span className="s">vs Grid Peer Average</span>
+      </div>
+      <div className="drv-card-body">
+        <div className="attr-radar-row">
+          <div className="attr-radar"><AttrRadar attrs={d.attributes} peer={d.peerAttributes} color={TEAM.color}/></div>
+          <div className="attr-bars">
+            {keys.map(k => {
+              const v = d.attributes[k], p = d.peerAttributes[k];
+              const delta = v - p;
+              return (
+                <div key={k} className="attr-row" style={{"--peer": `${p}%`}}>
+                  <span className="ak">{labels[k]}</span>
+                  <div className="attr-bar"><div className="fill" style={{transform:`scaleX(${v/100})`}}/></div>
+                  <span className="av">
+                    {v}
+                    <span className={`delta ${delta >= 0 ? "up" : "dn"}`}>{delta >= 0 ? "+" : ""}{delta}</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Mood + rivalries ─── */
+function MoodCard({ d }) {
+  const mk = ["motivation","confidence","frustration"];
+  const lbl = {motivation:"MOTIVATION", confidence:"CONFIDENCE", frustration:"FRUSTRATION"};
+  return (
+    <div className="drv-card">
+      <div className="drv-card-head">
+        <span className="t">Mood &amp; Head-state</span>
+        <span className="s">Live Telemetry</span>
+      </div>
+      <div className="drv-card-body">
+        <div className="mood-strip">
+          {mk.map(k => {
+            const v = d.mood[k];
+            return (
+              <div key={k} className={`mood-cell ${moodTone(k,v)}`}>
+                <span className="mk">{lbl[k]}</span>
+                <span className="mv">{v}</span>
+                <span className="mlbl">{moodLabel(k,v)}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mood-rivalries">
+          <div style={{fontFamily:"var(--font-mono)",fontSize:9,letterSpacing:"0.2em",color:"var(--ink-dim)",textTransform:"uppercase",marginBottom:2}}>Active Rivalries</div>
+          {d.rivalries.length === 0 ? (
+            <div className="no-rivalry">No active rivalries logged</div>
+          ) : d.rivalries.map((r,i) => (
+            <div key={i} className="rivalry-row">
+              <div className="rcode">{r.code}<span className="rk">{r.team.toUpperCase()}</span></div>
+              <div>
+                <div className="rname">{r.name}</div>
+                <div className="rcause">{r.cause}</div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-end"}}>
+                <div className="rint"><div className="ifill" style={{width:`${r.intensity}%`}}/></div>
+                <div className="rinum">{r.intensity}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Contract card ─── */
+function ContractCard({ d }) {
+  const c = d.contract;
+  if (!c) return (
+    <div className="drv-card">
+      <div className="drv-card-head"><span className="t">Contract</span><span className="s">—</span></div>
+      <div className="drv-card-body"><p style={{fontFamily:"var(--font-mono)",fontSize:11,color:"var(--ink-dim)"}}>FREE AGENT — NO ACTIVE CONTRACT</p></div>
+    </div>
+  );
+  const expiringSoon = c.termEndSeason <= 1;
+  return (
+    <div className="drv-card">
+      <div className="drv-card-head">
+        <span className="t">Contract</span>
+        <span className="s">{c.termEndSeason} SEASON{c.termEndSeason!==1?"S":""} REMAINING</span>
+      </div>
+      <div className="drv-card-body">
+        <div className="contract-hero">
+          <div>
+            <div className="ck">Annual Salary</div>
+            <div className="cv">{formatM(c.salary)}<span className="u">/ YR</span></div>
+          </div>
+          <div className={`cterm ${expiringSoon ? "expiring" : ""}`}>
+            <span className="tk">Expires</span>
+            <span className="tv">{expiringSoon ? "EOS" : `S${TEAM.season + c.termEndSeason - 1}`}</span>
+          </div>
+        </div>
+        <div className="contract-rows">
+          <div className="contract-row">
+            <span className="k">Release Clause</span>
+            <span className={`v ${c.releaseClause ? "" : "muted"}`}>{c.releaseClause ? formatM(c.releaseClause) : "None"}</span>
+          </div>
+          <div className="contract-row">
+            <span className="k">Signed Through</span>
+            <span className="v">S{TEAM.season + c.termEndSeason - 1}</span>
+          </div>
+        </div>
+        {c.performanceBonuses.length > 0 && (
+          <div className="contract-bonuses">
+            <div className="contract-bonus-head">Performance Bonuses</div>
+            {c.performanceBonuses.map((b,i) => (
+              <div key={i} className="bonus-row">
+                <span className="bcond">{b.condition}</span>
+                <span className="bval">+{formatM(b.value)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="contract-actions">
+          <button className="cact-btn primary">Open Negotiation</button>
+          <button className="cact-btn">Release Talks</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Penalty record card ─── */
+function PenaltyCard({ d }) {
+  const total = d.penaltyPoints.reduce((a,e) => a + e.points, 0);
+  const band = bandForPoints(total);
+  const label = labelForBand(band);
+  const isClean = total === 0 && d.warningsThisSeason === 0 && d.banUntilRound === null && d.nextRaceGridDrop === 0;
+  if (isClean) {
+    return (
+      <div className="drv-card">
+        <div className="drv-card-head"><span className="t">Steward Record</span><span className="s">22-Round Window</span></div>
+        <div className="drv-card-body">
+          <div className="penalty-clean">
+            <div className="check">✓</div>
+            <div className="ck">CLEAN RECORD</div>
+            <div className="cs">No active penalty points · No warnings</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  const segments = [
+    { threshold: 3, band: "clean" },
+    { threshold: 6, band: "approaching" },
+    { threshold: 9, band: "warning" },
+    { threshold: 12, band: "critical" },
+  ];
+  const wThresh = 5;
+  const wBand = d.warningsThisSeason >= wThresh ? "crit" : d.warningsThisSeason >= 3 ? "warn" : "";
+  return (
+    <div className="drv-card">
+      <div className="drv-card-head">
+        <span className="t">Steward Record</span>
+        <span className="s">22-Round Window</span>
+      </div>
+      <div className="drv-card-body">
+        {d.banUntilRound !== null && (
+          <div className="ban-banner">
+            BANNED · UNTIL R{String(d.banUntilRound).padStart(2,"0")}
+            <span className="bnote">{d.banUntilRound - TEAM.currentRound} race(s) away</span>
+          </div>
+        )}
+        <div className="penalty-hero">
+          <div className={`penalty-points ${band}`}>{total}</div>
+          <div className="penalty-points-meta">
+            <span className="pk">Penalty Points</span>
+            <span className={`plbl ${band}`} style={{color: band==="clean"?"var(--sig-green)":band==="approaching"?"var(--sig-amber)":band==="warning"?"oklch(0.72 0.22 35)":"var(--sig-red)"}}>{label}</span>
+          </div>
+          <div className="penalty-segs">
+            {segments.map((s,i) => (
+              <div key={i} className={`penalty-seg ${total >= s.threshold ? `f ${s.band}` : ""}`}/>
+            ))}
+          </div>
+        </div>
+        {d.penaltyPoints.length > 0 && (
+          <div className="penalty-entries">
+            <div style={{fontFamily:"var(--font-mono)",fontSize:9,letterSpacing:"0.2em",color:"var(--ink-dim)",textTransform:"uppercase",paddingBottom:4,borderBottom:"1px solid var(--line-hair)"}}>Active Entries</div>
+            {[...d.penaltyPoints].sort((a,b)=>b.issuedRound-a.issuedRound).map((e,i) => {
+              const expRound = ((e.issuedRound + 22 - 1) % 22) + 1;
+              const expSeason = e.issuedSeason + Math.floor((e.issuedRound + 22 - 1) / 22);
+              return (
+                <div key={i} className="penalty-entry">
+                  <div className="pp">+{e.points}</div>
+                  <div>
+                    <div className="poff">{D.offenceLabels[e.offenceType] || e.offenceType}</div>
+                    <div className="ptime">
+                      <span>S{e.issuedSeason} R{String(e.issuedRound).padStart(2,"0")}</span>
+                      <span style={{color:"var(--line-strong)"}}>·</span>
+                      <span>EXPIRES S{expSeason} R{String(expRound).padStart(2,"0")}</span>
+                    </div>
+                  </div>
+                  <div className="pexp">{(22 - (TEAM.currentRound - e.issuedRound))} R LEFT</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <div className="warnings-block">
+          <div className="w-head">
+            <span className="wk">Season Warnings</span>
+            <span className={`wv ${wBand}`}>{d.warningsThisSeason} / {wThresh}</span>
+          </div>
+          <div className="warning-track">
+            {Array.from({length: wThresh}).map((_,i) => (
+              <div key={i} className={`warning-seg ${i < d.warningsThisSeason ? `f ${wBand}` : ""}`}/>
+            ))}
+          </div>
+          {d.nextRaceGridDrop > 0 && (
+            <div className="grid-drop">⚠ −{d.nextRaceGridDrop} GRID PLACES PENDING NEXT QUALIFYING</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Scout panel ─── */
+function ScoutPanel() {
+  const sorted = [...D.scouts].sort((a,b) => (b.attributes.pace + b.attributes.developmentPotential) - (a.attributes.pace + a.attributes.developmentPotential));
+  const top = sorted[0];
+  const rising = D.scouts.filter(s => s.isF2).length;
+  const vets = D.scouts.filter(s => !s.isF2 && s.age >= 30).length;
+  return (
+    <div>
+      <div className="drv-section-head">
+        <div>
+          <div className="st">Scout Pool</div>
+          <div className="ss">{sorted.length} AVAILABLE · {rising} RISING · {vets} VETERAN</div>
+        </div>
+        <div className="rt">RECOMMENDED · <span className="b">{top.lastName.toUpperCase()} · {top.scouted} SCOUTING REPORTS</span></div>
+      </div>
+      <div className="scout-grid">
+        <div className="scout-row head">
+          <div>CODE</div><div>DRIVER</div><div>PAC</div><div>RCR</div><div>POT</div><div>SALARY</div><div>STATUS</div>
+        </div>
+        {sorted.map(s => (
+          <div key={s.id} className="scout-row">
+            <div className="sc-code">{s.shortName}<span className="scn">#{s.scouted}</span></div>
+            <div className="sc-name">
+              <span className="nm">{s.firstName} {s.lastName}</span>
+              <span className="meta">
+                {s.isF2 && <span className="badge">F2</span>}
+                {!s.isF2 && <span className="badge cyan">FREE AGENT</span>}
+                {s.nat} · AGE {s.age}
+              </span>
+            </div>
+            <div className="sc-stat"><span className="sk">PAC</span>{s.attributes.pace}</div>
+            <div className="sc-stat"><span className="sk">RCR</span>{s.attributes.racecraft}</div>
+            <div className="sc-stat pot"><span className="sk">POT</span>{s.attributes.developmentPotential}</div>
+            <div className="sc-salary"><span className="sk">ASKING</span>{formatM(s.askingSalary)}</div>
+            <div className="sc-action">
+              <span className={`signal ${s.signal}`}>{s.signal.toUpperCase()}</span>
+              <button className="approach-btn">Approach</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── App ─── */
+function App() {
+  const [active, setActive] = useState("CAR-01");
+  const driver = D.roster.find(r => r.slot === active);
+  const showScout = active === "SCOUT";
+
+  return (
+    <div className="drv-wrap">
+      <div className="drv-head">
+        <div>
+          <div className="label h-eyebrow">◉ DRIVERS · {TEAM.name} · S{TEAM.season} R{String(TEAM.currentRound).padStart(2,"0")}</div>
+          <div className="h-title">Driver Command</div>
+        </div>
+        <div className="h-meta">
+          <div><span className="k">NEXT EVENT</span><span className="v">{TEAM.nextRound.id} · {TEAM.nextRound.name}</span></div>
+          <div><span className="k">CONSTRUCTORS</span><span className="v amber">P{TEAM.constructorPosition}</span></div>
+          <div><span className="k">ROSTER</span><span className="v green">{D.roster.filter(r=>!r.isReserve).length}+{D.roster.filter(r=>r.isReserve).length}R</span></div>
+        </div>
+      </div>
+
+      <Tabs active={active} setActive={setActive}/>
+
+      {showScout ? (
+        <ScoutPanel/>
+      ) : driver ? (
+        <>
+          <DriverHero d={driver}/>
+          <div className="drv-grid">
+            <AttributesCard d={driver}/>
+            <MoodCard d={driver}/>
+            <ContractCard d={driver}/>
+          </div>
+          <div className="drv-grid" style={{marginTop:14, gridTemplateColumns: "1fr"}}>
+            <PenaltyCard d={driver}/>
+          </div>
+        </>
+      ) : (
+        <div style={{padding:48,textAlign:"center",color:"var(--ink-dim)",fontFamily:"var(--font-mono)",fontSize:12,letterSpacing:"0.16em",textTransform:"uppercase"}}>
+          No driver assigned to this slot
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
