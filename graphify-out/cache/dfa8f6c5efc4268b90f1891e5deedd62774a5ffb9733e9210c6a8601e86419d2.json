@@ -1,1 +1,0 @@
-{"nodes": [{"id": "templates", "label": "templates.ts", "file_type": "code", "source_file": "src\\data\\events\\templates.ts", "source_location": "L1"}], "edges": [{"source": "templates", "target": "narrative", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "src\\data\\events\\templates.ts", "source_location": "L1", "weight": 1.0}]}

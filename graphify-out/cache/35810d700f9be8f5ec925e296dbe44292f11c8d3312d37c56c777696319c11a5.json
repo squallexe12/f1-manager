@@ -1,1 +1,0 @@
-{"nodes": [{"id": "teams", "label": "teams.ts", "file_type": "code", "source_file": "src\\data\\teams.ts", "source_location": "L1"}], "edges": [{"source": "teams", "target": "team", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "src\\data\\teams.ts", "source_location": "L1", "weight": 1.0}]}

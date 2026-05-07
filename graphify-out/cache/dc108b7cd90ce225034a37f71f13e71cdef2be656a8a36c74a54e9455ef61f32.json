@@ -1,1 +1,0 @@
-{"nodes": [{"id": "circuits", "label": "circuits.ts", "file_type": "code", "source_file": "src\\data\\circuits.ts", "source_location": "L1"}], "edges": [{"source": "circuits", "target": "race", "relation": "imports_from", "confidence": "EXTRACTED", "source_file": "src\\data\\circuits.ts", "source_location": "L1", "weight": 1.0}]}
