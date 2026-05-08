@@ -163,7 +163,7 @@ export function signFreeAgent(
   const isReserveSlot = params.slotChoice === 'RESERVE'
   const newContract = {
     salary: params.offer.salary,
-    termEndSeason: params.offer.termYears as number,
+    termEndSeason: params.offer.termYears,
     performanceBonuses: [] as { condition: string; value: number }[],
     releaseClause: null as number | null,
   }

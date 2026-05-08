@@ -133,18 +133,21 @@ describe('signFreeAgent', () => {
   it('signs a free agent into an empty RESERVE slot', () => {
     const world = buildWorld()
     const playerTeamId = world.gameState.playerTeamId
-    // Pick a free agent from the seed
     const freeAgent = world.drivers.find(d => d.teamId === null && !d.isF2)!
     expect(freeAgent).toBeDefined()
-    // Confirm the player team currently has no reserve (or remove the existing reserve to set up the test)
+    // Set up a world where the player's reserve slot is empty (free the existing reserve if any)
     const reserveBefore = world.drivers.find(d => d.teamId === playerTeamId && d.isReserve)
-    if (reserveBefore) {
-      // Force the test scenario: clear the reserve slot first
-      world.drivers = world.drivers.map(d => d.id === reserveBefore.id ? { ...d, teamId: null, contract: null } : d)
-    }
+    const setupWorld: FullGameState = reserveBefore
+      ? {
+          ...world,
+          drivers: world.drivers.map(d =>
+            d.id === reserveBefore.id ? { ...d, teamId: null, contract: null, isReserve: false } : d
+          ),
+        }
+      : world
 
     const offer: OfferTerms = { salary: 10_000_000, termYears: 2 }
-    const result = signFreeAgent(world, playerTeamId, {
+    const result = signFreeAgent(setupWorld, playerTeamId, {
       driverId: freeAgent.id,
       offer,
       slotChoice: 'RESERVE',
