@@ -12,10 +12,15 @@ import { MoodCard } from '@/components/drivers/mood-card'
 import { ContractCard } from '@/components/drivers/contract-card'
 import { PenaltyCard } from '@/components/drivers/penalty-card'
 import { ScoutPanel } from '@/components/drivers/scout-panel'
+import { ApproachModal } from '@/components/drivers/approach-modal'
+import { useUIStore } from '@/stores/ui-store'
+import type { Driver } from '@/types/driver'
 
 export default function DriversPage() {
   const data = useDriversPageData()
+  const addNotification = useUIStore(s => s.addNotification)
   const [activeTab, setActiveTab] = useState<TabId>('CAR-01')
+  const [approachTarget, setApproachTarget] = useState<Driver | null>(null)
 
   if (!data) return null
 
@@ -53,7 +58,7 @@ export default function DriversPage() {
         {activeTab === 'SCOUT' ? (
           <ScoutPanel
             scouts={data.freeAgents}
-            onApproach={data.approachDriver}
+            onOpenApproach={setApproachTarget}
             onFileReport={data.fileScoutingReport}
           />
         ) : driver ? (
@@ -104,6 +109,27 @@ export default function DriversPage() {
           </div>
         )}
       </div>
+      {approachTarget && (
+        <ApproachModal
+          driver={approachTarget}
+          playerTeam={data.playerTeam}
+          rosterSlots={data.roster}
+          currentPhase={data.phase}
+          evaluate={(offer) => data.evaluateApproachOffer(approachTarget.id, offer)}
+          onClose={() => setApproachTarget(null)}
+          onSubmit={(offer, slotChoice, displaceDriverId) => {
+            const result = data.signFreeAgent(approachTarget.id, offer, slotChoice, displaceDriverId)
+            if (result.accepted) {
+              addNotification(
+                `Signed ${approachTarget.firstName} ${approachTarget.lastName} to ${slotChoice} on ${offer.termYears}-year deal`,
+                'success',
+              )
+              setApproachTarget(null)
+            }
+            // On reject the modal stays open with the rejection reason rendered by evaluate()
+          }}
+        />
+      )}
     </PageShell>
   )
 }

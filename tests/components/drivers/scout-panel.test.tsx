@@ -44,7 +44,7 @@ describe('<ScoutPanel>', () => {
       mkScout('beta', 90, 95),   // composite 185 — highest
       mkScout('gamma', 85, 80),  // composite 165
     ]
-    const { container } = render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={vi.fn()} />)
+    const { container } = render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={vi.fn()} />)
     const rows = container.querySelectorAll('.scout-row:not(.head)')
     expect(rows[0].textContent).toContain('BET') // beta shortName
     expect(rows[1].textContent).toContain('GAM') // gamma shortName
@@ -53,7 +53,7 @@ describe('<ScoutPanel>', () => {
 
   it('renders HOT signal pill for hot signal', () => {
     const scouts = [mkScout('yoshida', 86, 95, { scoutSignal: 'hot' })]
-    const { container } = render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={vi.fn()} />)
+    const { container } = render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={vi.fn()} />)
     const hotPill = container.querySelector('.signal.hot')
     expect(hotPill).toBeTruthy()
     expect(hotPill?.textContent).toBe('HOT')
@@ -61,7 +61,7 @@ describe('<ScoutPanel>', () => {
 
   it('renders TRACKING signal pill for tracking signal', () => {
     const scouts = [mkScout('novak', 80, 88, { scoutSignal: 'tracking' })]
-    const { container } = render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={vi.fn()} />)
+    const { container } = render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={vi.fn()} />)
     const trackPill = container.querySelector('.signal.tracking')
     expect(trackPill).toBeTruthy()
     expect(trackPill?.textContent).toBe('TRACKING')
@@ -69,7 +69,7 @@ describe('<ScoutPanel>', () => {
 
   it('renders AVAILABLE signal pill for available signal', () => {
     const scouts = [mkScout('ferrara', 82, 30, { scoutSignal: 'available' })]
-    const { container } = render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={vi.fn()} />)
+    const { container } = render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={vi.fn()} />)
     const availPill = container.querySelector('.signal.available')
     expect(availPill).toBeTruthy()
     expect(availPill?.textContent).toBe('AVAILABLE')
@@ -78,28 +78,28 @@ describe('<ScoutPanel>', () => {
   it('calls onFileReport with driver id when File Report is clicked', () => {
     const onFileReport = vi.fn()
     const scouts = [mkScout('yoshida', 86, 95, { id: 'yoshida' })]
-    render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={onFileReport} />)
+    render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={onFileReport} />)
     fireEvent.click(screen.getByText('File Report'))
     expect(onFileReport).toHaveBeenCalledWith('yoshida')
   })
 
-  it('calls onApproach with driver id when Approach is clicked', () => {
-    const onApproach = vi.fn()
+  it('calls onOpenApproach with full driver object when Approach is clicked', () => {
+    const onOpenApproach = vi.fn()
     const scouts = [mkScout('novak', 80, 88, { id: 'novak' })]
-    render(<ScoutPanel scouts={scouts} onApproach={onApproach} onFileReport={vi.fn()} />)
+    render(<ScoutPanel scouts={scouts} onOpenApproach={onOpenApproach} onFileReport={vi.fn()} />)
     fireEvent.click(screen.getByText('Approach'))
-    expect(onApproach).toHaveBeenCalledWith('novak')
+    expect(onOpenApproach).toHaveBeenCalledWith(expect.objectContaining({ id: 'novak' }))
   })
 
   it('renders F2 badge for F2 scouts', () => {
     const scouts = [mkScout('f2driver', 80, 90, { isF2: true })]
-    render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={vi.fn()} />)
+    render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={vi.fn()} />)
     expect(screen.getByText('F2')).toBeInTheDocument()
   })
 
   it('renders FREE AGENT badge for non-F2 scouts', () => {
     const scouts = [mkScout('veteran', 82, 30, { isF2: false, age: 33 })]
-    render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={vi.fn()} />)
+    render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={vi.fn()} />)
     expect(screen.getByText('FREE AGENT')).toBeInTheDocument()
   })
 
@@ -108,7 +108,7 @@ describe('<ScoutPanel>', () => {
       mkScout('alpha', 80, 70),
       mkScout('beta', 90, 95),
     ]
-    render(<ScoutPanel scouts={scouts} onApproach={vi.fn()} onFileReport={vi.fn()} />)
+    render(<ScoutPanel scouts={scouts} onOpenApproach={vi.fn()} onFileReport={vi.fn()} />)
     expect(screen.getByText(/RECOMMENDED/)).toBeInTheDocument()
     expect(screen.getByText(/BETA/)).toBeInTheDocument()
   })

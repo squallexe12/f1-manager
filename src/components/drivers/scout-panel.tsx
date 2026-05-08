@@ -4,7 +4,7 @@ import type { Driver } from '@/types/driver'
 
 interface ScoutPanelProps {
   scouts: Driver[]
-  onApproach: (id: string) => void
+  onOpenApproach: (driver: Driver) => void
   onFileReport: (id: string) => void
 }
 
@@ -16,7 +16,7 @@ function signalClass(signal: string): string {
   }
 }
 
-export function ScoutPanel({ scouts, onApproach, onFileReport }: ScoutPanelProps) {
+export function ScoutPanel({ scouts, onOpenApproach, onFileReport }: ScoutPanelProps) {
   const sorted = [...scouts].sort(
     (a, b) =>
       (b.attributes.pace + b.attributes.developmentPotential) -
@@ -75,7 +75,7 @@ export function ScoutPanel({ scouts, onApproach, onFileReport }: ScoutPanelProps
             </div>
             <div className="sc-action">
               <span className={signalClass(s.scoutSignal)}>{s.scoutSignal.toUpperCase()}</span>
-              <button className="approach-btn" onClick={() => onApproach(s.id)}>Approach</button>
+              <button className="approach-btn" onClick={() => onOpenApproach(s)}>Approach</button>
               <button className="approach-btn" onClick={() => onFileReport(s.id)}>File Report</button>
             </div>
           </div>

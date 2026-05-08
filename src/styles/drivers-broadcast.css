@@ -1327,3 +1327,286 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.7; }
 }
+
+/* ===== Approach Modal ===== */
+.drivers-broadcast .approach-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: oklch(0.05 0.005 250 / 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.drivers-broadcast .approach-modal {
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-paper);
+  border: 1px solid var(--line-sub);
+  border-top: 3px solid var(--team);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px;
+  font-family: var(--font-display);
+  color: var(--ink-body);
+}
+
+.drivers-broadcast .approach-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.drivers-broadcast .approach-modal-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.26em;
+  color: var(--team);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.drivers-broadcast .approach-modal-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--ink-hi);
+}
+
+.drivers-broadcast .approach-modal-name strong {
+  font-weight: 800;
+}
+
+.drivers-broadcast .approach-modal-close {
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 8px;
+  line-height: 1;
+}
+.drivers-broadcast .approach-modal-close:hover { color: var(--ink-hi); }
+.drivers-broadcast .approach-modal-close:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 2px;
+}
+
+.drivers-broadcast .approach-modal-stats {
+  display: flex;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-hair);
+}
+.drivers-broadcast .approach-modal-stats b {
+  color: var(--ink-hi);
+  font-weight: 700;
+  margin-right: 3px;
+}
+
+.drivers-broadcast .approach-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drivers-broadcast .approach-modal-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+
+.drivers-broadcast .approach-modal input[type="range"] {
+  width: 100%;
+  accent-color: var(--team);
+}
+.drivers-broadcast .approach-modal input[type="range"]:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 4px;
+}
+
+.drivers-broadcast .approach-modal-slider-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+}
+
+.drivers-broadcast .approach-modal-term-toggle,
+.drivers-broadcast .approach-modal-slot-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.drivers-broadcast .approach-modal-term-toggle button,
+.drivers-broadcast .approach-modal-slot-toggle button {
+  flex: 1;
+  background: var(--bg-base);
+  border: 1px solid var(--line-sub);
+  color: var(--ink-body);
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.drivers-broadcast .approach-modal-term-toggle button:hover,
+.drivers-broadcast .approach-modal-slot-toggle button:hover {
+  border-color: var(--line-strong);
+  color: var(--ink-hi);
+}
+.drivers-broadcast .approach-modal-term-toggle button.active,
+.drivers-broadcast .approach-modal-slot-toggle button.active {
+  background: var(--team);
+  border-color: var(--team);
+  color: var(--bg-void);
+}
+.drivers-broadcast .approach-modal-term-toggle button:focus-visible,
+.drivers-broadcast .approach-modal-slot-toggle button:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 2px;
+}
+.drivers-broadcast .approach-modal-term-toggle button:active,
+.drivers-broadcast .approach-modal-slot-toggle button:active {
+  transform: translateY(1px);
+}
+
+.drivers-broadcast .approach-modal-slot-readonly {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-hi);
+  padding: 8px 12px;
+  background: var(--bg-base);
+  border: 1px dashed var(--line-hair);
+}
+
+.drivers-broadcast .approach-modal-displace-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drivers-broadcast .approach-modal-displace-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--line-hair);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-body);
+}
+.drivers-broadcast .approach-modal-displace-row:hover {
+  border-color: var(--line-strong);
+}
+.drivers-broadcast .approach-modal-displace-row b {
+  color: var(--ink-hi);
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.drivers-broadcast .approach-modal-banner {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 10px 14px;
+  border: 1px solid;
+}
+.drivers-broadcast .approach-modal-banner.accept {
+  color: var(--sig-green);
+  border-color: var(--sig-green);
+  background: oklch(0.78 0.18 148 / 0.08);
+}
+.drivers-broadcast .approach-modal-banner.reject {
+  color: var(--sig-red);
+  border-color: var(--sig-red);
+  background: oklch(0.65 0.22 28 / 0.08);
+}
+
+.drivers-broadcast .approach-modal-cap {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+  padding: 10px 14px;
+  background: var(--bg-base);
+  border: 1px solid var(--line-hair);
+}
+.drivers-broadcast .approach-modal-cap strong {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink-hi);
+  letter-spacing: -0.02em;
+}
+
+.drivers-broadcast .approach-modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.drivers-broadcast .approach-modal-cancel,
+.drivers-broadcast .approach-modal-submit {
+  flex: 1;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.drivers-broadcast .approach-modal-cancel {
+  background: transparent;
+  border: 1px solid var(--line-sub);
+  color: var(--ink-body);
+}
+.drivers-broadcast .approach-modal-cancel:hover {
+  background: var(--bg-hi);
+  border-color: var(--line-strong);
+}
+.drivers-broadcast .approach-modal-submit {
+  background: var(--sig-cyan);
+  color: var(--bg-void);
+  border: 1px solid var(--sig-cyan);
+}
+.drivers-broadcast .approach-modal-submit:hover { filter: brightness(1.1); }
+.drivers-broadcast .approach-modal-submit:disabled {
+  background: var(--bg-base);
+  color: var(--ink-dim);
+  border-color: var(--line-sub);
+  cursor: not-allowed;
+}
+.drivers-broadcast .approach-modal-cancel:focus-visible,
+.drivers-broadcast .approach-modal-submit:focus-visible {
+  outline: 2px solid var(--sig-cyan);
+  outline-offset: 2px;
+}
+.drivers-broadcast .approach-modal-cancel:active,
+.drivers-broadcast .approach-modal-submit:not(:disabled):active {
+  transform: translateY(1px);
+}

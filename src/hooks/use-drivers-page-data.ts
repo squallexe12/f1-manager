@@ -31,6 +31,7 @@ export interface DriversPageData {
   nextRound: { id: string; name: string } | null
   constructorPosition: number
   rosterCount: { active: number; reserve: number }
+  phase: string
   fileScoutingReport: (driverId: string) => void
   evaluateApproachOffer: (driverId: string, offer: OfferTerms) => OfferResult | null
   signFreeAgent: (
@@ -64,6 +65,7 @@ export function useDriversPageData(): DriversPageData | null {
       playerTeamId: state.world.gameState.playerTeamId,
       season: state.world.gameState.season,
       currentRound: state.world.gameState.currentRound,
+      phase: state.world.gameState.phase,
       fileScoutingReport: state.fileScoutingReport,
       evaluateApproachOffer: state.evaluateApproachOffer,
       signFreeAgent: state.signFreeAgent,
@@ -76,7 +78,7 @@ export function useDriversPageData(): DriversPageData | null {
 
     const {
       drivers, teams, calendar, playerTeamId,
-      season, currentRound,
+      season, currentRound, phase,
       fileScoutingReport, evaluateApproachOffer, signFreeAgent, openContractNegotiation,
     } = slice
 
@@ -117,6 +119,7 @@ export function useDriversPageData(): DriversPageData | null {
       currentRound,
       nextRound,
       constructorPosition,
+      phase,
       rosterCount: {
         active: playerDrivers.length,
         reserve: reserveDriver ? 1 : 0,
