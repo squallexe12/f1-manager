@@ -476,7 +476,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!driver) return null
     if (driver.teamId !== null) return null
     const playerTeamId = state.world.gameState.playerTeamId
-    const prestige = state.world.finance[playerTeamId].prestige
+    const finance = state.world.finance[playerTeamId]
+    if (!finance) return null
+    const prestige = finance.prestige
     return evaluateOffer(driver, offer, prestige)
   },
 
@@ -493,15 +495,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
       return { accepted: false, floor: 0, reason: 'Driver is not a free agent' }
     }
     const playerTeamId = state.world.gameState.playerTeamId
-    const prestige = state.world.finance[playerTeamId].prestige
+    const finance = state.world.finance[playerTeamId]
+    if (!finance) {
+      return { accepted: false, floor: 0, reason: 'Team finance state missing' }
+    }
+    const prestige = finance.prestige
     const evaluation = evaluateOffer(driver, offer, prestige)
     if (!evaluation.accepted) return evaluation
 
-    const result = signFreeAgentEngine(state.world, playerTeamId, {
-      driverId, offer, slotChoice, displaceDriverId,
-    })
-    set({ world: result.world })
-    return evaluation
+    try {
+      const result = signFreeAgentEngine(state.world, playerTeamId, {
+        driverId, offer, slotChoice, displaceDriverId,
+      })
+      set({ world: result.world })
+      return evaluation
+    } catch (err) {
+      return {
+        accepted: false,
+        floor: evaluation.floor,
+        reason: err instanceof Error ? err.message : 'Sign-flow invariant violated',
+      }
+    }
   },
 
   openContractNegotiation: (driverId) => {

@@ -82,4 +82,21 @@ describe('signFreeAgent', () => {
     expect(result.accepted).toBe(false)
     expect(result.reason).toMatch(/management phase/i)
   })
+
+  it('returns a structured rejection when engine invariants throw', () => {
+    const beforeWorld = useGameStore.getState().world!
+    const fa = beforeWorld.drivers.find(d => d.teamId === null && !d.isF2)!
+    // CAR-01 is occupied by a non-reserve player driver — passing displaceDriverId=null
+    // while the slot is occupied triggers the engine invariant throw.
+    const result = useGameStore.getState().signFreeAgent(
+      fa.id,
+      { salary: 50_000_000, termYears: 2 },
+      'CAR-01',
+      null, // INVALID — CAR-01 is occupied
+    )
+    expect(result.accepted).toBe(false)
+    expect(result.reason).toBeDefined()
+    // World reference must be unchanged — no partial mutation on throw
+    expect(useGameStore.getState().world).toBe(beforeWorld)
+  })
 })
