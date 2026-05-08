@@ -32,6 +32,7 @@ export interface DriversPageData {
   constructorPosition: number
   rosterCount: { active: number; reserve: number }
   phase: string
+  remainingCap: number // budget.cap - budget.totalSpent for the player team
   fileScoutingReport: (driverId: string) => void
   evaluateApproachOffer: (driverId: string, offer: OfferTerms) => OfferResult | null
   signFreeAgent: (
@@ -62,6 +63,7 @@ export function useDriversPageData(): DriversPageData | null {
       drivers: state.world.drivers,
       teams: state.world.teams,
       calendar: state.world.calendar,
+      finance: state.world.finance,
       playerTeamId: state.world.gameState.playerTeamId,
       season: state.world.gameState.season,
       currentRound: state.world.gameState.currentRound,
@@ -77,13 +79,16 @@ export function useDriversPageData(): DriversPageData | null {
     if (!slice) return null
 
     const {
-      drivers, teams, calendar, playerTeamId,
+      drivers, teams, calendar, finance, playerTeamId,
       season, currentRound, phase,
       fileScoutingReport, evaluateApproachOffer, signFreeAgent, openContractNegotiation,
     } = slice
 
     const playerTeam = teams.find(t => t.id === playerTeamId)
     if (!playerTeam) return null
+
+    const playerFinance = finance[playerTeam.id]
+    const remainingCap = playerFinance ? Math.max(0, playerFinance.budget.cap - playerFinance.budget.totalSpent) : 0
 
     const playerDrivers = drivers.filter(d => d.teamId === playerTeam.id && !d.isReserve)
     const reserveDriver = drivers.find(d => d.teamId === playerTeam.id && d.isReserve) ?? null
@@ -120,6 +125,7 @@ export function useDriversPageData(): DriversPageData | null {
       nextRound,
       constructorPosition,
       phase,
+      remainingCap,
       rosterCount: {
         active: playerDrivers.length,
         reserve: reserveDriver ? 1 : 0,

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import type { Driver } from '@/types/driver'
-import type { Team } from '@/types/team'
 import {
   expectedSalary,
   type OfferTerms,
@@ -13,7 +12,7 @@ type RosterSlot = 'CAR-01' | 'CAR-02' | 'RESERVE'
 
 interface ApproachModalProps {
   driver: Driver
-  playerTeam: Team
+  remainingCap: number
   rosterSlots: { car01: Driver | null; car02: Driver | null; reserve: Driver | null }
   currentPhase: string
   onClose: () => void
@@ -28,7 +27,7 @@ const formatM = (n: number) =>
 
 export function ApproachModal({
   driver,
-  playerTeam,
+  remainingCap,
   rosterSlots,
   currentPhase,
   onClose,
@@ -49,8 +48,14 @@ export function ApproachModal({
   if (rosterSlots.car02 === null) openSlots.push('CAR-02')
   if (rosterSlots.reserve === null) openSlots.push('RESERVE')
   const allFull = openSlots.length === 0
-  const initialSlot: RosterSlot = openSlots[0] ?? 'CAR-02'
-  const [slotChoice, setSlotChoice] = useState<RosterSlot>(initialSlot)
+  const [slotChoice, setSlotChoice] = useState<RosterSlot>(() => {
+    // Compute the initial slot once at mount; don't re-derive on rerender.
+    const open: RosterSlot[] = []
+    if (rosterSlots.car01 === null) open.push('CAR-01')
+    if (rosterSlots.car02 === null) open.push('CAR-02')
+    if (rosterSlots.reserve === null) open.push('RESERVE')
+    return open[0] ?? 'CAR-02'
+  })
   const [displaceId, setDisplaceId] = useState<string | null>(null)
 
   // Live evaluation
@@ -77,9 +82,6 @@ export function ApproachModal({
   }
 
   const annualTotal = salary * termYears
-
-  // playerTeam is threaded through for future use (cap display, prestige hints)
-  void playerTeam
 
   return (
     <div
@@ -158,7 +160,7 @@ export function ApproachModal({
         {!allFull && openSlots.length === 1 && (
           <div className="approach-modal-section">
             <div className="approach-modal-label">SLOT</div>
-            <div className="approach-modal-slot-readonly">Filling: {initialSlot}</div>
+            <div className="approach-modal-slot-readonly">Filling: {openSlots[0]}</div>
           </div>
         )}
         {!allFull && openSlots.length > 1 && (
@@ -205,7 +207,7 @@ export function ApproachModal({
         <div className="approach-modal-cap">
           <span>TOTAL CONTRACT</span>
           <strong>{formatM(annualTotal)}</strong>
-          <span>over {termYears} season{termYears === 1 ? '' : 's'}</span>
+          <span>over {termYears} season{termYears === 1 ? '' : 's'}{remainingCap > 0 ? ` · ${Math.round((annualTotal / remainingCap) * 100)}% of remaining cap` : ''}</span>
         </div>
 
         {/* Actions */}

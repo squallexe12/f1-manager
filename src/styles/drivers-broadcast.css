@@ -1396,6 +1396,9 @@
   outline: 2px solid var(--sig-cyan);
   outline-offset: 2px;
 }
+.drivers-broadcast .approach-modal-close:active {
+  transform: translateY(1px);
+}
 
 .drivers-broadcast .approach-modal-stats {
   display: flex;

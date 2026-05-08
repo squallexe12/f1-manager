@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ApproachModal } from '@/components/drivers/approach-modal'
 import type { Driver } from '@/types/driver'
-import type { Team } from '@/types/team'
 import type { OfferTerms, OfferResult } from '@/engine/drivers/free-agent-signing'
 
 const mkDriver = (overrides: Partial<Driver> = {}): Driver => ({
@@ -21,8 +20,6 @@ const mkDriver = (overrides: Partial<Driver> = {}): Driver => ({
   ...overrides,
 })
 
-const mkTeam = (): Team => ({ id: 't1', name: 'Test Team', shortName: 'TST' } as Team)
-
 const mkAcceptOffer = () => vi.fn((offer: OfferTerms): OfferResult => ({
   accepted: offer.salary >= 7_000_000,
   floor: 7_000_000,
@@ -33,7 +30,7 @@ describe('<ApproachModal>', () => {
   it('renders driver name and the term toggle defaults to 2Y', () => {
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: null, car02: null, reserve: null }}
       currentPhase="management"
       evaluate={mkAcceptOffer()}
@@ -49,7 +46,7 @@ describe('<ApproachModal>', () => {
   it('shows accept banner when slider is above floor', () => {
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: null, car02: null, reserve: null }}
       currentPhase="management"
       evaluate={mkAcceptOffer()}
@@ -62,14 +59,14 @@ describe('<ApproachModal>', () => {
 
   it('shows rejection banner when offer is below floor', () => {
     // Use a mock that always rejects (floor higher than slider max) to test rejection state
-    const alwaysReject = vi.fn((_offer: OfferTerms): OfferResult => ({
+    const alwaysReject = vi.fn((): OfferResult => ({
       accepted: false,
       floor: 25_000_000,
       reason: 'Holding out for better terms — your offer is below market',
     }))
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: null, car02: null, reserve: null }}
       currentPhase="management"
       evaluate={alwaysReject}
@@ -82,7 +79,7 @@ describe('<ApproachModal>', () => {
   it('hides slot picker when only one slot is open (auto-fills)', () => {
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: mkDriver({ id: 'a' }), car02: mkDriver({ id: 'b' }), reserve: null }}
       currentPhase="management"
       evaluate={mkAcceptOffer()}
@@ -95,7 +92,7 @@ describe('<ApproachModal>', () => {
   it('shows displacement picker when no slots are open', () => {
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{
         car01: mkDriver({ id: 'a', firstName: 'Alpha' }),
         car02: mkDriver({ id: 'b', firstName: 'Bravo' }),
@@ -115,7 +112,7 @@ describe('<ApproachModal>', () => {
   it('disables Submit when phase is not management', () => {
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: null, car02: null, reserve: null }}
       currentPhase="race"
       evaluate={mkAcceptOffer()}
@@ -131,7 +128,7 @@ describe('<ApproachModal>', () => {
     // Only RESERVE is open — auto-fills with no picker shown
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: mkDriver({ id: 'a' }), car02: mkDriver({ id: 'b' }), reserve: null }}
       currentPhase="management"
       evaluate={mkAcceptOffer()}
@@ -150,7 +147,7 @@ describe('<ApproachModal>', () => {
     const onClose = vi.fn()
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: null, car02: null, reserve: null }}
       currentPhase="management"
       evaluate={mkAcceptOffer()}
@@ -165,7 +162,7 @@ describe('<ApproachModal>', () => {
     const onClose = vi.fn()
     render(<ApproachModal
       driver={mkDriver()}
-      playerTeam={mkTeam()}
+      remainingCap={150_000_000}
       rosterSlots={{ car01: null, car02: null, reserve: null }}
       currentPhase="management"
       evaluate={mkAcceptOffer()}

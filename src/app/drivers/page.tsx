@@ -1,7 +1,8 @@
 'use client'
 
 import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
 import { PageShell } from '@/components/layout/page-shell'
 import { useDriversPageData } from '@/hooks/use-drivers-page-data'
 import { PageHeader } from '@/components/drivers/page-header'
@@ -15,12 +16,29 @@ import { ScoutPanel } from '@/components/drivers/scout-panel'
 import { ApproachModal } from '@/components/drivers/approach-modal'
 import { useUIStore } from '@/stores/ui-store'
 import type { Driver } from '@/types/driver'
+import type { OfferTerms } from '@/engine/drivers/free-agent-signing'
 
 export default function DriversPage() {
   const data = useDriversPageData()
-  const addNotification = useUIStore(s => s.addNotification)
+  const { addNotification } = useUIStore(useShallow(s => ({ addNotification: s.addNotification })))
   const [activeTab, setActiveTab] = useState<TabId>('CAR-01')
   const [approachTarget, setApproachTarget] = useState<Driver | null>(null)
+
+  const handleSubmit = useCallback(
+    (offer: OfferTerms, slotChoice: 'CAR-01' | 'CAR-02' | 'RESERVE', displaceDriverId: string | null) => {
+      if (!approachTarget || !data) return
+      const result = data.signFreeAgent(approachTarget.id, offer, slotChoice, displaceDriverId)
+      if (result.accepted) {
+        addNotification(
+          `Signed ${approachTarget.firstName} ${approachTarget.lastName} to ${slotChoice} on ${offer.termYears}-year deal`,
+          'success',
+        )
+        setApproachTarget(null)
+      }
+      // On reject the modal stays open with the rejection reason rendered by evaluate()
+    },
+    [approachTarget, data, addNotification],
+  )
 
   if (!data) return null
 
@@ -112,22 +130,12 @@ export default function DriversPage() {
       {approachTarget && (
         <ApproachModal
           driver={approachTarget}
-          playerTeam={data.playerTeam}
+          remainingCap={data.remainingCap}
           rosterSlots={data.roster}
           currentPhase={data.phase}
           evaluate={(offer) => data.evaluateApproachOffer(approachTarget.id, offer)}
           onClose={() => setApproachTarget(null)}
-          onSubmit={(offer, slotChoice, displaceDriverId) => {
-            const result = data.signFreeAgent(approachTarget.id, offer, slotChoice, displaceDriverId)
-            if (result.accepted) {
-              addNotification(
-                `Signed ${approachTarget.firstName} ${approachTarget.lastName} to ${slotChoice} on ${offer.termYears}-year deal`,
-                'success',
-              )
-              setApproachTarget(null)
-            }
-            // On reject the modal stays open with the rejection reason rendered by evaluate()
-          }}
+          onSubmit={handleSubmit}
         />
       )}
     </PageShell>
