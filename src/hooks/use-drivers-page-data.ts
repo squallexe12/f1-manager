@@ -12,6 +12,7 @@ import {
 import type { Driver, DriverAttributes } from '@/types/driver'
 import type { Team } from '@/types/team'
 import type { RivalryDisplay } from '@/lib/utils/drivers-page'
+import type { OfferTerms, OfferResult } from '@/engine/drivers/free-agent-signing'
 
 export interface DriversPageData {
   playerTeam: Team
@@ -31,7 +32,13 @@ export interface DriversPageData {
   constructorPosition: number
   rosterCount: { active: number; reserve: number }
   fileScoutingReport: (driverId: string) => void
-  approachDriver: (driverId: string) => void
+  evaluateApproachOffer: (driverId: string, offer: OfferTerms) => OfferResult | null
+  signFreeAgent: (
+    driverId: string,
+    offer: OfferTerms,
+    slotChoice: 'CAR-01' | 'CAR-02' | 'RESERVE',
+    displaceDriverId: string | null,
+  ) => OfferResult
   openContractNegotiation: (driverId: string) => void
 }
 
@@ -58,7 +65,8 @@ export function useDriversPageData(): DriversPageData | null {
       season: state.world.gameState.season,
       currentRound: state.world.gameState.currentRound,
       fileScoutingReport: state.fileScoutingReport,
-      approachDriver: state.approachDriver,
+      evaluateApproachOffer: state.evaluateApproachOffer,
+      signFreeAgent: state.signFreeAgent,
       openContractNegotiation: state.openContractNegotiation,
     }
   }))
@@ -69,7 +77,7 @@ export function useDriversPageData(): DriversPageData | null {
     const {
       drivers, teams, calendar, playerTeamId,
       season, currentRound,
-      fileScoutingReport, approachDriver, openContractNegotiation,
+      fileScoutingReport, evaluateApproachOffer, signFreeAgent, openContractNegotiation,
     } = slice
 
     const playerTeam = teams.find(t => t.id === playerTeamId)
@@ -114,7 +122,8 @@ export function useDriversPageData(): DriversPageData | null {
         reserve: reserveDriver ? 1 : 0,
       },
       fileScoutingReport,
-      approachDriver,
+      evaluateApproachOffer,
+      signFreeAgent,
       openContractNegotiation,
     }
   }, [slice])

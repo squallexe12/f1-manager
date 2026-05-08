@@ -28,6 +28,12 @@ import {
   reduceDriverFrustration,
 } from '@/engine/delegation/recommendation-helpers'
 import { applyScoutingReport } from '@/engine/drivers/apply-scouting-report'
+import {
+  evaluateOffer,
+  signFreeAgent as signFreeAgentEngine,
+  type OfferTerms,
+  type OfferResult,
+} from '@/engine/drivers/free-agent-signing'
 import type { Recommendation, StagedStrategies } from '@/types/delegation'
 import {
   createInitialRaceRuntime,
@@ -93,11 +99,25 @@ interface GameStore {
    */
   fileScoutingReport: (driverId: string) => void
   /**
-   * STUB (IP-09b) — initiate a free-agent approach for the given driver.
-   * No world mutation; logs intent only. Will be replaced when the
-   * free-agent negotiation flow ships.
+   * Dry-run an offer evaluation without mutating world. The UI calls this on
+   * every slider tick to surface live "your offer is accepted / below market"
+   * feedback. Returns null when the driver is not a free agent or doesn't exist.
    */
-  approachDriver: (driverId: string) => void
+  evaluateApproachOffer: (driverId: string, offer: OfferTerms) => OfferResult | null
+  /**
+   * Submit a signed offer. Mutates world on accept (signs the driver, optionally
+   * displaces an existing roster driver). Returns the OfferResult so the UI can
+   * render "Signed!" or the rejection reason.
+   *
+   * Phase-gated: returns { accepted: false, reason: '... management phase ...' }
+   * when world.gameState.phase !== 'management'.
+   */
+  signFreeAgent: (
+    driverId: string,
+    offer: OfferTerms,
+    slotChoice: 'CAR-01' | 'CAR-02' | 'RESERVE',
+    displaceDriverId: string | null,
+  ) => OfferResult
   /**
    * STUB (IP-09b) — open the contract renegotiation modal for the given
    * driver. No world mutation; logs intent only. Will be replaced when the
@@ -449,11 +469,39 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   }),
 
-  approachDriver: (driverId) => {
-    // STUB — IP-09b: free-agent negotiation flow not yet implemented.
-    // Tracked in docs/architecture/current-state-baseline.md §Known stubs (IP-09b).
-    console.info('[stub] approachDriver', driverId)
-    // Does NOT mutate world — autosave will not fire.
+  evaluateApproachOffer: (driverId, offer) => {
+    const state = get()
+    if (!state.world) return null
+    const driver = state.world.drivers.find(d => d.id === driverId)
+    if (!driver) return null
+    if (driver.teamId !== null) return null
+    const playerTeamId = state.world.gameState.playerTeamId
+    const prestige = state.world.finance[playerTeamId].prestige
+    return evaluateOffer(driver, offer, prestige)
+  },
+
+  signFreeAgent: (driverId, offer, slotChoice, displaceDriverId) => {
+    const state = get()
+    if (!state.world) {
+      return { accepted: false, floor: 0, reason: 'No game in progress' }
+    }
+    if (state.world.gameState.phase !== 'management') {
+      return { accepted: false, floor: 0, reason: 'Available during management phase only' }
+    }
+    const driver = state.world.drivers.find(d => d.id === driverId)
+    if (!driver || driver.teamId !== null) {
+      return { accepted: false, floor: 0, reason: 'Driver is not a free agent' }
+    }
+    const playerTeamId = state.world.gameState.playerTeamId
+    const prestige = state.world.finance[playerTeamId].prestige
+    const evaluation = evaluateOffer(driver, offer, prestige)
+    if (!evaluation.accepted) return evaluation
+
+    const result = signFreeAgentEngine(state.world, playerTeamId, {
+      driverId, offer, slotChoice, displaceDriverId,
+    })
+    set({ world: result.world })
+    return evaluation
   },
 
   openContractNegotiation: (driverId) => {
