@@ -9,10 +9,9 @@ const mkDriver = (id: string, name: string, isReserve = false) => ({
 } as any)
 
 describe('<DriverTabs>', () => {
-  it('renders 4 tabs (CAR-01, CAR-02, RESERVE, SCOUT)', () => {
+  it('renders 3 tabs (CAR-01, CAR-02, RESERVE)', () => {
     render(<DriverTabs
       roster={{ car01: mkDriver('a', 'Alice'), car02: mkDriver('b', 'Bob'), reserve: mkDriver('c', 'Carl', true) }}
-      scoutCount={5}
       teamColor="oklch(0.62 0.20 265)"
       active="CAR-01"
       onChange={vi.fn()}
@@ -20,19 +19,17 @@ describe('<DriverTabs>', () => {
     expect(screen.getByText(/ALICE X/)).toBeInTheDocument()
     expect(screen.getByText(/BOB X/)).toBeInTheDocument()
     expect(screen.getByText(/CARL X/)).toBeInTheDocument()
-    expect(screen.getByText(/SCOUT POOL/)).toBeInTheDocument()
   })
 
   it('calls onChange with tab id on click', () => {
     const onChange = vi.fn()
     render(<DriverTabs
-      roster={{ car01: mkDriver('a', 'Alice'), car02: mkDriver('b', 'Bob'), reserve: null }}
-      scoutCount={0}
+      roster={{ car01: mkDriver('a', 'Alice'), car02: mkDriver('b', 'Bob'), reserve: mkDriver('c', 'Carl', true) }}
       teamColor="oklch(0.62 0.20 265)"
       active="CAR-01"
       onChange={onChange}
     />)
-    fireEvent.click(screen.getByText(/SCOUT POOL/))
-    expect(onChange).toHaveBeenCalledWith('SCOUT')
+    fireEvent.click(screen.getByText(/CARL X/).closest('button')!)
+    expect(onChange).toHaveBeenCalledWith('RESERVE')
   })
 })

@@ -3,7 +3,6 @@ import {
   computePeerAttributes,
   computeChampionshipSummary,
   buildRivalryIndex,
-  scoutScore,
 } from '@/lib/utils/drivers-page'
 import type { Driver, DriverAttributes } from '@/types/driver'
 import type { Team } from '@/types/team'
@@ -81,10 +80,3 @@ describe('buildRivalryIndex', () => {
   })
 })
 
-describe('scoutScore', () => {
-  it('higher pace + devPot ranks higher', () => {
-    const a = baseDriver('a', { attributes: { pace: 90, racecraft: 80, experience: 30, mentality: 70, marketability: 60, developmentPotential: 90 } })
-    const b = baseDriver('b', { attributes: { pace: 70, racecraft: 60, experience: 30, mentality: 70, marketability: 50, developmentPotential: 60 } })
-    expect(scoutScore(a) > scoutScore(b)).toBe(true)
-  })
-})

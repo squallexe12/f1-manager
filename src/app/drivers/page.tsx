@@ -1,8 +1,7 @@
 'use client'
 
 import type { CSSProperties } from 'react'
-import { useCallback, useState } from 'react'
-import { useShallow } from 'zustand/react/shallow'
+import { useState } from 'react'
 import { PageShell } from '@/components/layout/page-shell'
 import { useDriversPageData } from '@/hooks/use-drivers-page-data'
 import { PageHeader } from '@/components/drivers/page-header'
@@ -12,33 +11,10 @@ import { AttributesCard } from '@/components/drivers/attributes-card'
 import { MoodCard } from '@/components/drivers/mood-card'
 import { ContractCard } from '@/components/drivers/contract-card'
 import { PenaltyCard } from '@/components/drivers/penalty-card'
-import { ScoutPanel } from '@/components/drivers/scout-panel'
-import { ApproachModal } from '@/components/drivers/approach-modal'
-import { useUIStore } from '@/stores/ui-store'
-import type { Driver } from '@/types/driver'
-import type { OfferTerms } from '@/engine/drivers/free-agent-signing'
 
 export default function DriversPage() {
   const data = useDriversPageData()
-  const { addNotification } = useUIStore(useShallow(s => ({ addNotification: s.addNotification })))
   const [activeTab, setActiveTab] = useState<TabId>('CAR-01')
-  const [approachTarget, setApproachTarget] = useState<Driver | null>(null)
-
-  const handleSubmit = useCallback(
-    (offer: OfferTerms, slotChoice: 'CAR-01' | 'CAR-02' | 'RESERVE', displaceDriverId: string | null) => {
-      if (!approachTarget || !data) return
-      const result = data.signFreeAgent(approachTarget.id, offer, slotChoice, displaceDriverId)
-      if (result.accepted) {
-        addNotification(
-          `Signed ${approachTarget.firstName} ${approachTarget.lastName} to ${slotChoice} on ${offer.termYears}-year deal`,
-          'success',
-        )
-        setApproachTarget(null)
-      }
-      // On reject the modal stays open with the rejection reason rendered by evaluate()
-    },
-    [approachTarget, data, addNotification],
-  )
 
   if (!data) return null
 
@@ -68,18 +44,11 @@ export default function DriversPage() {
         />
         <DriverTabs
           roster={data.roster}
-          scoutCount={data.freeAgents.length}
           teamColor={data.playerTeam.color}
           active={activeTab}
           onChange={setActiveTab}
         />
-        {activeTab === 'SCOUT' ? (
-          <ScoutPanel
-            scouts={data.freeAgents}
-            onOpenApproach={setApproachTarget}
-            onFileReport={data.fileScoutingReport}
-          />
-        ) : driver ? (
+        {driver ? (
           <>
             <DriverHero
               driver={driver}
@@ -127,17 +96,6 @@ export default function DriversPage() {
           </div>
         )}
       </div>
-      {approachTarget && (
-        <ApproachModal
-          driver={approachTarget}
-          remainingCap={data.remainingCap}
-          rosterSlots={data.roster}
-          currentPhase={data.phase}
-          evaluate={(offer) => data.evaluateApproachOffer(approachTarget.id, offer)}
-          onClose={() => setApproachTarget(null)}
-          onSubmit={handleSubmit}
-        />
-      )}
     </PageShell>
   )
 }

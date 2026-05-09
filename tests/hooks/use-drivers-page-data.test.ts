@@ -33,18 +33,4 @@ describe('useDriversPageData', () => {
     expect(result.current).not.toBeNull()
     expect(result.current!.peerAttributes.pace).toBeGreaterThan(0)
   })
-
-  it('returns free agents sorted by composite scout score (desc)', async () => {
-    const { result } = renderHook(() => useDriversPageData())
-    await act(async () => {
-      useGameStore.getState().initGame('mclaren', 'golden-era', 42)
-    })
-    expect(result.current).not.toBeNull()
-    const fa = result.current!.freeAgents
-    for (let i = 1; i < fa.length; i++) {
-      const prev = fa[i - 1].attributes.pace + fa[i - 1].attributes.developmentPotential
-      const curr = fa[i].attributes.pace + fa[i].attributes.developmentPotential
-      expect(prev >= curr).toBe(true)
-    }
-  })
 })

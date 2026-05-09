@@ -27,13 +27,6 @@ import {
   boostSponsorSatisfaction,
   reduceDriverFrustration,
 } from '@/engine/delegation/recommendation-helpers'
-import { applyScoutingReport } from '@/engine/drivers/apply-scouting-report'
-import {
-  evaluateOffer,
-  signFreeAgent as signFreeAgentEngine,
-  type OfferTerms,
-  type OfferResult,
-} from '@/engine/drivers/free-agent-signing'
 import type { Recommendation, StagedStrategies } from '@/types/delegation'
 import {
   createInitialRaceRuntime,
@@ -92,32 +85,6 @@ interface GameStore {
    * exactly once per race-start so the penalty is not double-applied on retry.
    */
   consumeGridDrops: (driverIds: string[]) => void
-  /**
-   * File one scouting report on a free-agent or F2 driver. Increments
-   * `scoutingReports` and recomputes `scoutSignal`. No-ops on contracted
-   * drivers (teamId !== null && !isF2) to prevent scout spam on active grid.
-   */
-  fileScoutingReport: (driverId: string) => void
-  /**
-   * Dry-run an offer evaluation without mutating world. The UI calls this on
-   * every slider tick to surface live "your offer is accepted / below market"
-   * feedback. Returns null when the driver is not a free agent or doesn't exist.
-   */
-  evaluateApproachOffer: (driverId: string, offer: OfferTerms) => OfferResult | null
-  /**
-   * Submit a signed offer. Mutates world on accept (signs the driver, optionally
-   * displaces an existing roster driver). Returns the OfferResult so the UI can
-   * render "Signed!" or the rejection reason.
-   *
-   * Phase-gated: returns { accepted: false, reason: '... management phase ...' }
-   * when world.gameState.phase !== 'management'.
-   */
-  signFreeAgent: (
-    driverId: string,
-    offer: OfferTerms,
-    slotChoice: 'CAR-01' | 'CAR-02' | 'RESERVE',
-    displaceDriverId: string | null,
-  ) => OfferResult
   /**
    * STUB (IP-09b) — open the contract renegotiation modal for the given
    * driver. No world mutation; logs intent only. Will be replaced when the
@@ -451,71 +418,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : d,
     )
     set({ world: { ...world, drivers } })
-  },
-
-  fileScoutingReport: (driverId) => set(state => {
-    if (!state.world) return state
-    const driver = state.world.drivers.find(d => d.id === driverId)
-    if (!driver) return state
-    // Eligibility gate: free agent or F2 only
-    if (driver.teamId !== null && !driver.isF2) return state
-    const updated = applyScoutingReport(driver)
-    return {
-      ...state,
-      world: {
-        ...state.world,
-        drivers: state.world.drivers.map(d => d.id === driverId ? updated : d),
-      },
-    }
-  }),
-
-  evaluateApproachOffer: (driverId, offer) => {
-    const state = get()
-    if (!state.world) return null
-    const driver = state.world.drivers.find(d => d.id === driverId)
-    if (!driver) return null
-    if (driver.teamId !== null) return null
-    const playerTeamId = state.world.gameState.playerTeamId
-    const finance = state.world.finance[playerTeamId]
-    if (!finance) return null
-    const prestige = finance.prestige
-    return evaluateOffer(driver, offer, prestige)
-  },
-
-  signFreeAgent: (driverId, offer, slotChoice, displaceDriverId) => {
-    const state = get()
-    if (!state.world) {
-      return { accepted: false, floor: 0, reason: 'No game in progress' }
-    }
-    if (state.world.gameState.phase !== 'management') {
-      return { accepted: false, floor: 0, reason: 'Available during management phase only' }
-    }
-    const driver = state.world.drivers.find(d => d.id === driverId)
-    if (!driver || driver.teamId !== null) {
-      return { accepted: false, floor: 0, reason: 'Driver is not a free agent' }
-    }
-    const playerTeamId = state.world.gameState.playerTeamId
-    const finance = state.world.finance[playerTeamId]
-    if (!finance) {
-      return { accepted: false, floor: 0, reason: 'Team finance state missing' }
-    }
-    const prestige = finance.prestige
-    const evaluation = evaluateOffer(driver, offer, prestige)
-    if (!evaluation.accepted) return evaluation
-
-    try {
-      const result = signFreeAgentEngine(state.world, playerTeamId, {
-        driverId, offer, slotChoice, displaceDriverId,
-      })
-      set({ world: result.world })
-      return evaluation
-    } catch (err) {
-      return {
-        accepted: false,
-        floor: evaluation.floor,
-        reason: err instanceof Error ? err.message : 'Sign-flow invariant violated',
-      }
-    }
   },
 
   openContractNegotiation: (driverId) => {

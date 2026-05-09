@@ -90,10 +90,3 @@ export function buildRivalryIndex(drivers: Driver[], teams: Team[]): Record<stri
   return idx
 }
 
-/**
- * Composite score for sorting the scout pool. Higher = more interesting.
- * Pure presentation — does not affect engine state.
- */
-export function scoutScore(driver: Driver): number {
-  return driver.attributes.pace + driver.attributes.developmentPotential
-}

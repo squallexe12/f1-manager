@@ -7,12 +7,10 @@ import {
   computePeerAttributes,
   computeChampionshipSummary,
   buildRivalryIndex,
-  scoutScore,
 } from '@/lib/utils/drivers-page'
 import type { Driver, DriverAttributes } from '@/types/driver'
 import type { Team } from '@/types/team'
 import type { RivalryDisplay } from '@/lib/utils/drivers-page'
-import type { OfferTerms, OfferResult } from '@/engine/drivers/free-agent-signing'
 
 export interface DriversPageData {
   playerTeam: Team
@@ -21,7 +19,6 @@ export interface DriversPageData {
     car02: Driver | null
     reserve: Driver | null
   }
-  freeAgents: Driver[]
   peerAttributes: DriverAttributes
   championshipPositionByDriverId: Record<string, number>
   championshipGapByDriverId: Record<string, number>
@@ -32,15 +29,6 @@ export interface DriversPageData {
   constructorPosition: number
   rosterCount: { active: number; reserve: number }
   phase: string
-  remainingCap: number // budget.cap - budget.totalSpent for the player team
-  fileScoutingReport: (driverId: string) => void
-  evaluateApproachOffer: (driverId: string, offer: OfferTerms) => OfferResult | null
-  signFreeAgent: (
-    driverId: string,
-    offer: OfferTerms,
-    slotChoice: 'CAR-01' | 'CAR-02' | 'RESERVE',
-    displaceDriverId: string | null,
-  ) => OfferResult
   openContractNegotiation: (driverId: string) => void
 }
 
@@ -63,14 +51,10 @@ export function useDriversPageData(): DriversPageData | null {
       drivers: state.world.drivers,
       teams: state.world.teams,
       calendar: state.world.calendar,
-      finance: state.world.finance,
       playerTeamId: state.world.gameState.playerTeamId,
       season: state.world.gameState.season,
       currentRound: state.world.gameState.currentRound,
       phase: state.world.gameState.phase,
-      fileScoutingReport: state.fileScoutingReport,
-      evaluateApproachOffer: state.evaluateApproachOffer,
-      signFreeAgent: state.signFreeAgent,
       openContractNegotiation: state.openContractNegotiation,
     }
   }))
@@ -79,16 +63,13 @@ export function useDriversPageData(): DriversPageData | null {
     if (!slice) return null
 
     const {
-      drivers, teams, calendar, finance, playerTeamId,
+      drivers, teams, calendar, playerTeamId,
       season, currentRound, phase,
-      fileScoutingReport, evaluateApproachOffer, signFreeAgent, openContractNegotiation,
+      openContractNegotiation,
     } = slice
 
     const playerTeam = teams.find(t => t.id === playerTeamId)
     if (!playerTeam) return null
-
-    const playerFinance = finance[playerTeam.id]
-    const remainingCap = playerFinance ? Math.max(0, playerFinance.budget.cap - playerFinance.budget.totalSpent) : 0
 
     const playerDrivers = drivers.filter(d => d.teamId === playerTeam.id && !d.isReserve)
     const reserveDriver = drivers.find(d => d.teamId === playerTeam.id && d.isReserve) ?? null
@@ -96,9 +77,6 @@ export function useDriversPageData(): DriversPageData | null {
     const peerAttributes = computePeerAttributes(drivers)
     const championship = computeChampionshipSummary(drivers)
     const rivalryIndex = buildRivalryIndex(drivers, teams)
-    const freeAgents = drivers
-      .filter(d => d.teamId === null)
-      .sort((a, b) => scoutScore(b) - scoutScore(a))
 
     const constructorPosition = playerTeam.constructorPosition
 
@@ -115,7 +93,6 @@ export function useDriversPageData(): DriversPageData | null {
         car02: playerDrivers[1] ?? null,
         reserve: reserveDriver,
       },
-      freeAgents,
       peerAttributes,
       championshipPositionByDriverId: championship.positionById,
       championshipGapByDriverId: championship.gapById,
@@ -125,14 +102,10 @@ export function useDriversPageData(): DriversPageData | null {
       nextRound,
       constructorPosition,
       phase,
-      remainingCap,
       rosterCount: {
         active: playerDrivers.length,
         reserve: reserveDriver ? 1 : 0,
       },
-      fileScoutingReport,
-      evaluateApproachOffer,
-      signFreeAgent,
       openContractNegotiation,
     }
   }, [slice])
