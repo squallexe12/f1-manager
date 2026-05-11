@@ -14,7 +14,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -86,6 +86,11 @@ export interface SlotInfo {
  * its season limit; the named driver in the queued swap pays the grid
  * penalty via the existing Tier A `driver.nextRaceGridDrop` channel.
  * Both fields reset at season end.
+ *
+ * v13 → v14 (IP-10 — Press Conference & Media Management): Adds
+ * `world.media: { pendingPress: null, transcripts: [] }`. Defaults are
+ * empty; pressers fire on the next `management → practice` transition
+ * and the next `processPostRacePhase` call. No existing data is touched.
  */
 /**
  * Back-fill map for `team.headquarters` when migrating a save from v4 → v5.
@@ -376,6 +381,18 @@ export const MIGRATIONS: Record<number, Migration> = {
       })),
     }
   },
+  /**
+   * v13 → v14 (IP-10 — Press Conference & Media Management): Adds the top-level
+   * `media` slice to existing saves. The default is an empty pending-press
+   * slot and an empty transcript history. Pressers fire on the next
+   * `management → practice` transition and on `processPostRacePhase`; the
+   * migration just ensures the field exists so the UI and engine can
+   * unconditionally read `state.media` without optional-chaining guards.
+   */
+  13: (state) => ({
+    ...state,
+    media: state.media ?? { pendingPress: null, transcripts: [] },
+  }),
   3: (data) => {
     const currentRound = Math.max(0, (data.gameState?.currentRound ?? 1) - 1)
     // Modern F1: P1=25 + FL bonus 1, P2=18. Team max per race = 44.

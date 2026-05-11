@@ -4,8 +4,8 @@ import type { Driver } from '@/types/driver'
 import type { FullGameState } from '@/engine/core/state-manager'
 
 describe('migration v12 → v13', () => {
-  it('SCHEMA_VERSION is 13', () => {
-    expect(SCHEMA_VERSION).toBe(13)
+  it('SCHEMA_VERSION is 14', () => {
+    expect(SCHEMA_VERSION).toBe(14)
   })
 
   it('MIGRATIONS[12] exists', () => {
@@ -73,6 +73,7 @@ function makeV12Save(): FullGameState {
     stagedStrategies: {},
     staffMarket: { chiefs: [], members: [], lastRefreshedSeason: 0 },
     poachingAttempts: [],
+    media: { pendingPress: null, transcripts: [] },
   }
 }
 
