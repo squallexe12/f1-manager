@@ -1,4 +1,4 @@
-import type { Driver } from '@/types/driver'
+﻿import type { Driver } from '@/types/driver'
 
 /**
  * Fields hydrated by `initializeGame()` / `processSeasonEnd()`, not by the
@@ -36,7 +36,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 5, careerPodiums: 25, careerStarts: 137, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/norris.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'piastri', firstName: 'Oscar', lastName: 'Piastri', shortName: 'PIA',
@@ -47,7 +47,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 2, careerPodiums: 10, careerStarts: 56, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/piastri.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Red Bull ---
   {
@@ -59,7 +59,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 64, careerPodiums: 116, careerStarts: 218, worldTitles: 4,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/verstappen.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'hadjar', firstName: 'Isack', lastName: 'Hadjar', shortName: 'HAD',
@@ -70,7 +70,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 0, careerStarts: 23, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/hadjar.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Ferrari ---
   {
@@ -82,7 +82,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 8, careerPodiums: 44, careerStarts: 158, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/leclerc.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'hamilton', firstName: 'Lewis', lastName: 'Hamilton', shortName: 'HAM',
@@ -93,7 +93,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 32, declineRate: 1.2, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 105, careerPodiums: 202, careerStarts: 356, worldTitles: 7,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/hamilton.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Mercedes ---
   {
@@ -105,7 +105,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 4, careerPodiums: 18, careerStarts: 137, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/russell.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'antonelli', firstName: 'Kimi', lastName: 'Antonelli', shortName: 'ANT',
@@ -116,7 +116,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 0, careerStarts: 23, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/antonelli.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Williams ---
   {
@@ -128,7 +128,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 2, careerStarts: 119, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/albon.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'sainz', firstName: 'Carlos', lastName: 'Sainz', shortName: 'SAI',
@@ -139,7 +139,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 29, declineRate: 0.6, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 4, careerPodiums: 27, careerStarts: 217, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/sainz.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Racing Bulls ---
   {
@@ -151,7 +151,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 0, careerStarts: 16, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/lawson.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'lindblad', firstName: 'Arvid', lastName: 'Lindblad', shortName: 'LIN',
@@ -162,7 +162,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 0, careerStarts: 0, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/lindblad.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Aston Martin ---
   {
@@ -174,7 +174,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 32, careerPodiums: 106, careerStarts: 406, worldTitles: 2,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/alonso.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'stroll', firstName: 'Lance', lastName: 'Stroll', shortName: 'STR',
@@ -185,7 +185,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 3, careerStarts: 184, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/stroll.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Haas ---
   {
@@ -197,7 +197,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 1, careerPodiums: 4, careerStarts: 167, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/ocon.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'bearman', firstName: 'Oliver', lastName: 'Bearman', shortName: 'BEA',
@@ -208,7 +208,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 0, careerStarts: 12, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/bearman.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Alpine ---
   {
@@ -220,7 +220,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 28, declineRate: 0.5, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 1, careerPodiums: 5, careerStarts: 167, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/gasly.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'colapinto', firstName: 'Franco', lastName: 'Colapinto', shortName: 'COL',
@@ -231,7 +231,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.4, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 0, careerStarts: 32, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/colapinto.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Cadillac ---
   {
@@ -243,7 +243,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 10, careerPodiums: 67, careerStarts: 246, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/bottas.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'perez', firstName: 'Sergio', lastName: 'Perez', shortName: 'PER',
@@ -254,7 +254,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 1.0, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 6, careerPodiums: 39, careerStarts: 281, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/perez.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   // --- Audi ---
   {
@@ -266,7 +266,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 30, declineRate: 0.8, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 1, careerStarts: 230, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/hulkenberg.webp', scoutSignal: 'available', scoutingReports: 0,
   },
   {
     id: 'bortoleto', firstName: 'Gabriel', lastName: 'Bortoleto', shortName: 'BOR',
@@ -277,7 +277,7 @@ export const DRIVERS: DriverData[] = [
     seasonStats: emptyStats(), rivalries: [], peakAge: 27, declineRate: 0.3, isReserve: false, isF2: false,
     penaltyPoints: [], warningsThisSeason: 0, nextRaceGridDrop: 0, banUntilRound: null,
     careerWins: 0, careerPodiums: 0, careerStarts: 23, worldTitles: 0,
-    pulse: { headline: '', detail: '' }, portraitUrl: null, scoutSignal: 'available', scoutingReports: 0,
+    pulse: { headline: '', detail: '' }, portraitUrl: '/drivers/bortoleto.webp', scoutSignal: 'available', scoutingReports: 0,
   },
 
   // === Reserve / F2 Drivers ===
