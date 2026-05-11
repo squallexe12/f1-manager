@@ -1,6 +1,7 @@
 import type { FullGameState } from './state-manager'
 import { advancePhase } from './state-manager'
 import { createPRNG } from './prng'
+import { buildPressEvent, skipPressEvent } from '@/engine/media/press-engine'
 import { processRnDCycle } from '@/engine/engineering/rnd-engine'
 import { processAllAITeams } from '@/engine/ai/ai-team-engine'
 import { processPostRace, type RaceResult } from './post-race-processor'
@@ -158,6 +159,19 @@ export function advanceGamePhase(world: FullGameState): FullGameState {
     next = drainPendingSwaps(next)
   }
 
+  // IP-10 — Thursday FIA driver presser fires on management → practice for
+  // every race weekend. If a stale pending press from a prior weekend was
+  // never answered, force-resolve it as skipped (full penalty) before
+  // injecting the new event.
+  if (prevPhase === 'management' && next.gameState.phase === 'practice') {
+    if (next.media.pendingPress !== null) {
+      const skipRng = createPRNG(next.gameState.seed + next.gameState.currentRound + 0x4D)
+      next = skipPressEvent(next, skipRng)
+    }
+    const buildRng = createPRNG(next.gameState.seed + next.gameState.currentRound + 0x1A)
+    next = { ...next, media: { ...next.media, pendingPress: buildPressEvent(next, 'thursday-fia', buildRng) } }
+  }
+
   return next
 }
 
@@ -208,14 +222,22 @@ export function processPostRacePhase(
     rng,
   )
 
+  let nextWorld: FullGameState = {
+    ...world,
+    teams: update.teams,
+    drivers: update.drivers,
+    finance: update.finance,
+    narrativeEvents: update.narrativeEvents,
+  }
+
+  // IP-10 — Post-race interview. Speaker = driver with highest narrative
+  // score from actual results (podium/DNF), else TP.
+  const pressRng = createPRNG(world.gameState.seed + world.gameState.currentRound + 0x2B)
+  const postRaceEvent = buildPressEvent(nextWorld, 'post-race', pressRng, results)
+  nextWorld = { ...nextWorld, media: { ...nextWorld.media, pendingPress: postRaceEvent } }
+
   return {
-    world: {
-      ...world,
-      teams: update.teams,
-      drivers: update.drivers,
-      finance: update.finance,
-      narrativeEvents: update.narrativeEvents,
-    },
+    world: nextWorld,
     eventCooldowns: update.eventCooldowns,
   }
 }
