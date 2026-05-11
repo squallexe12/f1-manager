@@ -549,3 +549,292 @@
     transform: none;
   }
 }
+
+/* ─── UpcomingMediaWidget ────────────────────────────────── */
+
+.media-widget {
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.media-widget--pending {
+  border-color: rgba(0, 229, 255, 0.2);
+}
+
+.media-widget--recap {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.media-widget--empty {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.media-widget__surface {
+  display: inline-block;
+  align-self: flex-start;
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.media-widget__surface--cyan {
+  color: var(--accent-cyan, #00E5FF);
+  border-color: rgba(0, 229, 255, 0.3);
+}
+
+.media-widget__surface--lime {
+  color: var(--accent-lime, #CCFF00);
+  border-color: rgba(204, 255, 0, 0.3);
+}
+
+.media-widget__portrait {
+  width: 56px;
+  height: 72px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  align-self: center;
+}
+
+.media-widget__head {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--text-dim, #555);
+}
+
+.media-widget__speaker {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text-primary, #fff);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.media-widget__outlets {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+}
+
+.media-widget__cta {
+  margin-top: 4px;
+  align-self: flex-start;
+  background: var(--accent-cyan, #00E5FF);
+  color: #0A0A0A;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 6px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: opacity 150ms, transform 150ms;
+}
+
+.media-widget__cta:hover {
+  opacity: 0.88;
+  transform: scale(1.02);
+}
+
+.media-widget__cta:focus-visible {
+  outline: 2px solid var(--accent-lime, #CCFF00);
+  outline-offset: 2px;
+}
+
+.media-widget__cta:active {
+  transform: scale(0.98);
+}
+
+.media-widget__excerpt {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary, #aaa);
+  margin: 0;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.media-widget__excerpt--skipped {
+  color: var(--text-dim, #555);
+  font-style: normal;
+}
+
+.media-widget__placeholder {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  color: var(--text-dim, #555);
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .media-widget__cta:hover {
+    transform: none;
+  }
+
+  .media-widget__cta:active {
+    transform: none;
+  }
+}
+
+/* ─── PressBadge (nav top-bar) ───────────────────────────── */
+
+@keyframes press-badge-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+
+.press-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 20px;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  text-decoration: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-cyan, #00E5FF);
+  transition: background 150ms, border-color 150ms, transform 150ms;
+}
+
+.press-badge:hover {
+  background: rgba(0, 229, 255, 0.14);
+  border-color: rgba(0, 229, 255, 0.45);
+}
+
+.press-badge:focus-visible {
+  outline: 2px solid var(--accent-lime, #CCFF00);
+  outline-offset: 2px;
+}
+
+.press-badge:active {
+  transform: scale(0.97);
+}
+
+.press-badge__dot {
+  font-size: 8px;
+  line-height: 1;
+  animation: press-badge-pulse 1.6s ease-in-out infinite;
+  color: var(--accent-cyan, #00E5FF);
+}
+
+.press-badge__label {
+  letter-spacing: 0.14em;
+}
+
+.press-badge__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-cyan, #00E5FF);
+  color: #0A0A0A;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press-badge__dot {
+    animation: none;
+  }
+
+  .press-badge:active {
+    transform: none;
+  }
+}
+
+/* ─── PressTranscriptToast ───────────────────────────────── */
+
+@keyframes press-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.press-toast {
+  position: fixed;
+  bottom: 80px; /* clears the NavBar bottom bar */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 14px 20px;
+  border-radius: 12px;
+  min-width: 260px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: press-toast-in 250ms ease-out both;
+  border-color: rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+
+.press-toast__head {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-primary, #fff);
+  letter-spacing: -0.01em;
+}
+
+.press-toast__deltas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.press-toast__delta--pos {
+  color: #4ADE80;
+}
+
+.press-toast__delta--neg {
+  color: var(--accent-red, #FF3B30);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press-toast {
+    animation: none;
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
