@@ -1,0 +1,422 @@
+[
+  {
+    "id": "q-season-opener",
+    "contextTags": ["season-opener"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "{driverName}, it's the start of the season at {circuit}. What are your goals for {teamName} this year?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-season-opener-a1",
+        "text": "We're aiming for wins and the championship.",
+        "tone": "aggressive",
+        "delta": { "driverMood": 2, "prestige": 1 }
+      },
+      {
+        "id": "q-season-opener-a2",
+        "text": "We'll take it race by race and see where we end up.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": 1 }
+      },
+      {
+        "id": "q-season-opener-a3",
+        "text": "The car is looking strong, I'm optimistic.",
+        "tone": "modest",
+        "delta": { "sponsorKPI": 1 }
+      },
+      {
+        "id": "q-season-opener-a4",
+        "text": "It's too early to say anything definitive.",
+        "tone": "evasive",
+        "delta": { "driverMood": -1, "prestige": -1 }
+      }
+    ]
+  },
+  {
+    "id": "q-after-podium",
+    "contextTags": ["after-podium"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Jake Humphrey",
+    "template": "{driverName}, you finished P{position} at {circuit}. How does it feel?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-after-podium-a1",
+        "text": "It feels incredible. The team did a brilliant job.",
+        "tone": "modest",
+        "delta": { "driverMood": 5, "prestige": 1, "sponsorKPI": 2 }
+      },
+      {
+        "id": "q-after-podium-a2",
+        "text": "We deserved it. We've been the fastest car all weekend.",
+        "tone": "aggressive",
+        "delta": { "driverMood": 3, "prestige": 2 }
+      },
+      {
+        "id": "q-after-podium-a3",
+        "text": "Brilliant result. {teammateName} pushed me hard.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": 4, "teammateMood": 2 }
+      },
+      {
+        "id": "q-after-podium-a4",
+        "text": "A podium is a podium. We keep pushing.",
+        "tone": "defiant",
+        "delta": { "driverMood": 2 }
+      }
+    ]
+  },
+  {
+    "id": "q-after-dnf",
+    "contextTags": ["after-dnf"],
+    "speaker": "driver",
+    "outlet": "F1 TV",
+    "journalist": "Will Buxton",
+    "template": "{driverName}, you had a DNF at {circuit}. What happened?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-after-dnf-a1",
+        "text": "Mechanical failure. Nothing we could do.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": -3 }
+      },
+      {
+        "id": "q-after-dnf-a2",
+        "text": "We'll investigate and come back stronger.",
+        "tone": "defiant",
+        "delta": { "driverMood": -2, "prestige": -1 }
+      },
+      {
+        "id": "q-after-dnf-a3",
+        "text": "It's a disaster. {teamName} needs to fix these reliability issues.",
+        "tone": "aggressive",
+        "delta": { "driverMood": -5, "prestige": -2, "teammateMood": -3 }
+      },
+      {
+        "id": "q-after-dnf-a4",
+        "text": "Not ideal. We'll analyse and move forward.",
+        "tone": "evasive",
+        "delta": { "driverMood": -1 }
+      }
+    ]
+  },
+  {
+    "id": "q-after-zero-points",
+    "contextTags": ["after-zero-points"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Lawrence Barretto",
+    "template": "{teamName} scored no points at {circuit}. Where did things go wrong?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-after-zero-points-a1",
+        "text": "We lacked pace all weekend. We need to understand why.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": -2, "prestige": -1 }
+      },
+      {
+        "id": "q-after-zero-points-a2",
+        "text": "Strategy was wrong. We should have pitted earlier.",
+        "tone": "aggressive",
+        "delta": { "driverMood": -4, "prestige": -2 }
+      },
+      {
+        "id": "q-after-zero-points-a3",
+        "text": "We fought hard but conditions weren't on our side.",
+        "tone": "evasive",
+        "delta": { "driverMood": -1 }
+      },
+      {
+        "id": "q-after-zero-points-a4",
+        "text": "We'll bounce back. One bad race doesn't define a season.",
+        "tone": "defiant",
+        "delta": { "driverMood": 1 }
+      }
+    ]
+  },
+  {
+    "id": "q-home-race",
+    "contextTags": ["home-race"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Martin Brundle",
+    "template": "{driverName}, racing in front of your home crowd at {circuit}. How special is this?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-home-race-a1",
+        "text": "It's incredibly special. The fans give me so much energy.",
+        "tone": "modest",
+        "delta": { "driverMood": 4, "sponsorKPI": 2, "prestige": 1 }
+      },
+      {
+        "id": "q-home-race-a2",
+        "text": "I want to deliver a result they deserve.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": 3 }
+      },
+      {
+        "id": "q-home-race-a3",
+        "text": "The pressure is real but I thrive on it.",
+        "tone": "aggressive",
+        "delta": { "driverMood": 2 }
+      },
+      {
+        "id": "q-home-race-a4",
+        "text": "Home race, just another race. I stay focused.",
+        "tone": "evasive",
+        "delta": {}
+      }
+    ]
+  },
+  {
+    "id": "q-driver-mood-low",
+    "contextTags": ["driver-mood-low"],
+    "speaker": "driver",
+    "outlet": "RaceFans",
+    "journalist": "Dieter Rencken",
+    "template": "{driverName}, you seem frustrated lately. How is the situation at {teamName}?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-driver-mood-low-a1",
+        "text": "I'm not frustrated. I just want the car to perform better.",
+        "tone": "evasive",
+        "delta": { "driverMood": 1 }
+      },
+      {
+        "id": "q-driver-mood-low-a2",
+        "text": "Yes, it's been tough. But I believe in {teamName}.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": 2, "sponsorKPI": 1 }
+      },
+      {
+        "id": "q-driver-mood-low-a3",
+        "text": "The team isn't giving me what I need. It's been a difficult period.",
+        "tone": "aggressive",
+        "delta": { "driverMood": -3, "prestige": -2, "teammateMood": -2 }
+      },
+      {
+        "id": "q-driver-mood-low-a4",
+        "text": "Every champion goes through tough spells. I'll come back.",
+        "tone": "defiant",
+        "delta": { "driverMood": 3 }
+      }
+    ]
+  },
+  {
+    "id": "q-contract-expiring",
+    "contextTags": ["contract-expiring"],
+    "speaker": "driver",
+    "outlet": "Formula1.com",
+    "journalist": "Chris Medland",
+    "template": "{driverName}, your contract at {teamName} expires at season end. What are your plans?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-contract-expiring-a1",
+        "text": "I'm in discussions with the team. I hope to stay.",
+        "tone": "diplomatic",
+        "delta": { "sponsorKPI": 1 }
+      },
+      {
+        "id": "q-contract-expiring-a2",
+        "text": "Nothing to announce right now. Focus is on racing.",
+        "tone": "evasive",
+        "delta": {}
+      },
+      {
+        "id": "q-contract-expiring-a3",
+        "text": "I'm open to all opportunities. The market will determine my future.",
+        "tone": "aggressive",
+        "delta": { "driverMood": 1, "prestige": 1 }
+      },
+      {
+        "id": "q-contract-expiring-a4",
+        "text": "I'm committed to {teamName} and excited about what we can achieve.",
+        "tone": "modest",
+        "delta": { "driverMood": 2, "teammateMood": 1 }
+      }
+    ]
+  },
+  {
+    "id": "q-tp-default",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "Motorsport.com",
+    "journalist": "Giorgio Piola",
+    "template": "How is {teamName} approaching the {circuit} weekend?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-tp-default-a1",
+        "text": "We're fully prepared. The data from last race is promising.",
+        "tone": "diplomatic",
+        "delta": { "prestige": 1, "sponsorKPI": 1 }
+      },
+      {
+        "id": "q-tp-default-a2",
+        "text": "{circuit} suits our car well. We're targeting the top five.",
+        "tone": "aggressive",
+        "delta": { "prestige": 2 }
+      },
+      {
+        "id": "q-tp-default-a3",
+        "text": "It will be challenging but we're ready.",
+        "tone": "modest",
+        "delta": {}
+      },
+      {
+        "id": "q-tp-default-a4",
+        "text": "We focus on our own preparation, not the competition.",
+        "tone": "evasive",
+        "delta": { "prestige": -1 }
+      }
+    ]
+  },
+  {
+    "id": "q-filler-driver-1",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "{driverName}, how do you assess your performance this weekend at {circuit}?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-filler-driver-1-a1",
+        "text": "I gave everything. The car felt good in some sectors.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": 1 }
+      },
+      {
+        "id": "q-filler-driver-1-a2",
+        "text": "Not my best weekend but we still scored points.",
+        "tone": "modest",
+        "delta": {}
+      },
+      {
+        "id": "q-filler-driver-1-a3",
+        "text": "I was on it from lap one. Satisfied with the result.",
+        "tone": "aggressive",
+        "delta": { "driverMood": 2 }
+      },
+      {
+        "id": "q-filler-driver-1-a4",
+        "text": "There are areas to improve. We'll look at the data.",
+        "tone": "evasive",
+        "delta": {}
+      }
+    ]
+  },
+  {
+    "id": "q-filler-driver-2",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Jennie Gow",
+    "template": "{teammateName} has been strong recently. How does that motivate you, {driverName}?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-filler-driver-2-a1",
+        "text": "A fast teammate makes you better. It pushes me every day.",
+        "tone": "diplomatic",
+        "delta": { "driverMood": 1, "teammateMood": 2 }
+      },
+      {
+        "id": "q-filler-driver-2-a2",
+        "text": "I'm focused on my own performance. The results speak for themselves.",
+        "tone": "evasive",
+        "delta": {}
+      },
+      {
+        "id": "q-filler-driver-2-a3",
+        "text": "It drives me to push harder. I want to be the best.",
+        "tone": "aggressive",
+        "delta": { "driverMood": 2 }
+      },
+      {
+        "id": "q-filler-driver-2-a4",
+        "text": "We both want to win for {teamName}.",
+        "tone": "modest",
+        "delta": { "teammateMood": 1 }
+      }
+    ]
+  },
+  {
+    "id": "q-filler-tp-1",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "Autosport",
+    "journalist": "Adam Cooper",
+    "template": "How is the development programme progressing at {teamName}?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-filler-tp-1-a1",
+        "text": "We're making great strides. The factory is working flat out.",
+        "tone": "aggressive",
+        "delta": { "prestige": 1, "sponsorKPI": 1 }
+      },
+      {
+        "id": "q-filler-tp-1-a2",
+        "text": "Good progress but there's always more work to do.",
+        "tone": "diplomatic",
+        "delta": {}
+      },
+      {
+        "id": "q-filler-tp-1-a3",
+        "text": "We're on schedule with our targets.",
+        "tone": "modest",
+        "delta": { "prestige": 1 }
+      },
+      {
+        "id": "q-filler-tp-1-a4",
+        "text": "Development is a continuous process. We don't discuss specifics.",
+        "tone": "evasive",
+        "delta": {}
+      }
+    ]
+  },
+  {
+    "id": "q-filler-tp-2",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "F1 TV",
+    "journalist": "Lawrence Barretto",
+    "template": "What are {teamName}'s ambitions for the rest of the season?",
+    "weight": 1,
+    "answers": [
+      {
+        "id": "q-filler-tp-2-a1",
+        "text": "We want to fight for every podium available.",
+        "tone": "aggressive",
+        "delta": { "prestige": 2 }
+      },
+      {
+        "id": "q-filler-tp-2-a2",
+        "text": "We're aiming to consolidate our position in the standings.",
+        "tone": "diplomatic",
+        "delta": { "sponsorKPI": 1 }
+      },
+      {
+        "id": "q-filler-tp-2-a3",
+        "text": "Race by race. We don't look too far ahead.",
+        "tone": "evasive",
+        "delta": {}
+      },
+      {
+        "id": "q-filler-tp-2-a4",
+        "text": "Our drivers and the car are in good shape. Expect strong results.",
+        "tone": "modest",
+        "delta": { "prestige": 1, "sponsorKPI": 1 }
+      }
+    ]
+  }
+]
