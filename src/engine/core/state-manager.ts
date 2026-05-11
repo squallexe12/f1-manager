@@ -5,6 +5,7 @@ import type { Race } from '@/types/race'
 import type { FinanceState, PrestigeRating } from '@/types/finance'
 import type { NarrativeEvent, StoryArc } from '@/types/narrative'
 import type { Recommendation, StagedStrategies } from '@/types/delegation'
+import type { MediaSlice } from '@/types/media'
 import { TEAMS, type TeamData } from '@/data/teams'
 import { DRIVERS } from '@/data/drivers'
 import { CALENDAR } from '@/data/calendar'
@@ -58,6 +59,8 @@ export interface FullGameState {
   staffMarket: import('@/types/staff').StaffMarket
   /** Tier B v2 — open / resolved poaching attempts (logic ships IP-B3). */
   poachingAttempts: import('@/types/staff').PoachingAttempt[]
+  /** IP-10 — Press conference + media management. Pending event + capped transcript history. */
+  media: MediaSlice
 }
 
 function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARIOS['find']>, startingSeason: number): Team {
@@ -256,6 +259,7 @@ export function initializeGame(
     // the engine module exists (Task 6). For IP-B2 init this is the stub.
     staffMarket: generateTalentPool(seed, 1, DEFAULT_STAFF_POOL_SIZE),
     poachingAttempts: [],
+    media: { pendingPress: null, transcripts: [] },
   }
 }
 
