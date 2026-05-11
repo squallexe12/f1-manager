@@ -459,22 +459,27 @@ function applyDeltas(
  *
  * Deterministic: identical world + surface + rng seed → identical event.
  *
- * @param world   - Full game world.
- * @param surface - Which press conference surface.
- * @param rng     - Seeded PRNG (caller must namespace the seed).
- *                  Recommended: createPRNG(world.gameState.seed + world.gameState.currentRound + PRNG_NS.thursday/postRace)
+ * @param world            - Full game world.
+ * @param surface          - Which press conference surface.
+ * @param rng              - Seeded PRNG (caller must namespace the seed).
+ *                           Recommended: createPRNG(world.gameState.seed + world.gameState.currentRound + PRNG_NS.thursday/postRace)
+ * @param lastRaceResults  - Optional race results. When provided AND surface is
+ *                           'post-race', used to select the speaker by narrative
+ *                           score. Callers with access to session-scoped results
+ *                           (e.g. the orchestrator) should pass them here.
  */
 export function buildPressEvent(
   world: FullGameState,
   surface: PressSurface,
   rng: PRNG,
+  lastRaceResults?: RaceResult[],
 ): PressEvent {
   const { currentRound, season } = world.gameState
 
   // 1. Determine speaker
   const speaker =
     surface === 'post-race'
-      ? selectPostRaceSpeaker(world, []) // no session results available from pure world
+      ? selectPostRaceSpeaker(world, lastRaceResults ?? [])
       : selectThursdaySpeaker(world)
 
   // 2. Derive context tags

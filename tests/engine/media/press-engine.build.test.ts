@@ -216,6 +216,49 @@ describe('buildPressEvent — answeredAnswerIds initialization', () => {
 })
 
 // ---------------------------------------------------------------------------
+// Test 7b: optional lastRaceResults parameter (IP-10 Task 8)
+// ---------------------------------------------------------------------------
+describe('buildPressEvent — optional lastRaceResults parameter', () => {
+  it('post-race with lastRaceResults P3 → speaker is the player driver with that result', () => {
+    const world = baseWorld()
+    const [d1] = playerDriverIds(world)
+    // Inject a P3 finish for d1 via lastRaceResults so the narrative score
+    // picks d1 as the highest-interest speaker.
+    const raceResults = [
+      { driverId: d1, position: 3, dnf: false, fastestLap: false },
+    ]
+    const rng = createPRNG(0xAB1)
+    const event = buildPressEvent(world, 'post-race', rng, raceResults)
+    expect(event.speakerKind).toBe('driver')
+    expect(event.speakerDriverId).toBe(d1)
+  })
+
+  it('post-race WITHOUT lastRaceResults → falls back to TP speaker when no lastRaceResult on drivers', () => {
+    // Use a world where both player drivers have null lastRaceResult (fresh game),
+    // and pass no lastRaceResults argument. narrativeScore → 0 for both, so
+    // availableMain picks first available driver (not TP) — but if both are
+    // banned the fallback is TP. Use a banned world to guarantee TP fallback.
+    const world = bannedDriverWorld(0)
+    // Also ban the second driver to force TP path
+    const [, d2] = playerDriverIds(world)
+    const currentRound = world.gameState.currentRound
+    const allBannedWorld = {
+      ...world,
+      drivers: world.drivers.map(d =>
+        d.id === d2
+          ? { ...d, banUntilRound: currentRound + 1 }
+          : d,
+      ),
+    }
+    const rng = createPRNG(0xAB2)
+    const event = buildPressEvent(allBannedWorld, 'post-race', rng)
+    // No lastRaceResults passed, all main drivers banned → TP speaks
+    expect(event.speakerKind).toBe('team-principal')
+    expect(event.speakerDriverId).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Test 8: Event fields
 // ---------------------------------------------------------------------------
 describe('buildPressEvent — event structure', () => {
