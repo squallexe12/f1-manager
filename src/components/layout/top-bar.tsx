@@ -3,6 +3,7 @@
 import { useGameStore } from '@/stores/game-store'
 import { useShallow } from 'zustand/react/shallow'
 import type { SimSpeed } from '@/types/race'
+import { PressBadge } from '@/components/nav/PressBadge'
 
 const SIM_SPEEDS: SimSpeed[] = [1, 2, 5, 'max']
 
@@ -189,8 +190,9 @@ export function TopBar() {
           </div>
         </div>
 
-        {/* Right: sim controls (race only) or phase badge */}
+        {/* Right: sim controls (race only) or phase badge + press badge */}
         <div className="topbar-right">
+          <PressBadge />
           {isLive ? (
             <>
               <button
