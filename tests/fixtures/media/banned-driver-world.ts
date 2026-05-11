@@ -43,7 +43,7 @@ export function bannedDriverWorld(driverIndex: 0 | 1): FullGameState {
                 points: 12,
                 issuedSeason: world.gameState.season,
                 issuedRound: currentRound,
-                offenceType: 'collision' as const,
+                offenceType: 'collision-serious' as const,
                 raceId: `r${currentRound}`,
               },
             ],

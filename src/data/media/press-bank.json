@@ -1,1 +1,876 @@
-[]
+[
+  {
+    "id": "f-d-001",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "{driverName}, what's your read on the {circuit} layout this weekend?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It's a circuit that rewards patience. We've done the homework on entry phases.", "delta": { "driverMood": 1, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "It suits our car. If we don't come away with points the team has questions to answer.", "delta": { "driverMood": 2, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Every weekend is its own story. We're focused on extracting what we have.", "delta": { "driverMood": 0, "sponsorKPI": 1 } },
+      { "id": "a4", "tone": "evasive", "text": "Honestly, I haven't looked at it yet. I trust the engineers to set me up for it.", "delta": { "driverMood": -1, "sponsorKPI": -1, "prestige": -1 } }
+    ]
+  },
+  {
+    "id": "f-d-002",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Andrew Benson",
+    "template": "Looking at the wider championship picture, where does {teamName} need to improve next?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Race pace. The qualifying gap is closing. Sunday is where we still lose chunks.", "delta": { "driverMood": 1, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Strategy calls. The drivers are doing our job. The wall has to match us.", "delta": { "driverMood": 2, "teammateMood": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "It's never one thing. Aero, reliability, race execution — incremental gains across the board.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-d-003",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Tobi Grüner",
+    "template": "{driverName}, the {seasonYear} regulations have been polarising. What's your honest take?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "diplomatic", "text": "It's the future of the sport. Sustainable fuels, active aero — drivers adapt. We always do.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "The cars are heavier, the racing is different. I prefer the old formula. But you race what you're given.", "delta": { "driverMood": 1, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I'd rather let the lap times speak. I'm not a regulator.", "delta": { "driverMood": -1, "sponsorKPI": -1 } },
+      { "id": "a4", "tone": "modest", "text": "I trust the FIA's process. There are smart people working on this every day.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-d-004",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Edd Straw",
+    "template": "What's the one upgrade you'd want on the car tomorrow if you could pick?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Front-end response in slow corners. We're losing time in T1 and T8-style hairpins.", "delta": { "driverMood": 1, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "A better strategy on Sundays. Hardware isn't our problem.", "delta": { "driverMood": 2, "teammateMood": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Reliability. We've left points on the table to mechanical issues this year.", "delta": { "driverMood": 0, "sponsorKPI": 0 } }
+    ]
+  },
+  {
+    "id": "f-d-005",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "ESPN F1",
+    "journalist": "Nate Saunders",
+    "template": "How are the new active aero systems affecting your driving style at {circuit}?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It changes braking points. You commit differently because the rear is more stable on the straight.", "delta": { "driverMood": 1, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Honestly? I miss DRS. This is more processional than people admit.", "delta": { "driverMood": 1, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Every system has trade-offs. You learn to manage the windows. That's racing.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-d-006",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Lawrence Barretto",
+    "template": "{driverName}, the paddock is talking about your form. Where's your head at right now?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "I'm focused. The work is in the data, not in the paddock.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "My head is exactly where it needs to be. The paddock can talk all it wants.", "delta": { "driverMood": 3, "sponsorKPI": 0, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I don't read the rumours. Ask me on Sunday.", "delta": { "driverMood": 0, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "f-d-007",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Bernie Collins",
+    "template": "Weather forecast looks variable. How does that change preparation for {circuit}?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "diplomatic", "text": "We prep for both windows. Wet running yesterday helped. The team is ready.", "delta": { "driverMood": 1, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Bring it. I race better in the rain — everyone knows it.", "delta": { "driverMood": 3, "sponsorKPI": 2, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "modest", "text": "It evens the field. We just need to be on the right tyre at the right moment.", "delta": { "driverMood": 0, "sponsorKPI": 0, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-d-008",
+    "contextTags": [],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Jennie Gow",
+    "template": "How are you managing the mental side of a long {seasonYear} season?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Sleep, family, training. Same as every year. Nothing exotic.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "evasive", "text": "I keep that side private. It's between me and my team.", "delta": { "driverMood": 0, "sponsorKPI": -1 } },
+      { "id": "a3", "tone": "diplomatic", "text": "You learn to compartmentalise. The car doesn't care about your mood.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-tp-001",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "Where is {teamName} on its development cycle right now?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "We're balancing this year against next. Most aero work is now on the {seasonYear} car.", "delta": { "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "We're pushing both. We owe it to the partners and to the drivers to fight every round.", "delta": { "sponsorKPI": 2, "prestige": 0, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We don't disclose internal allocation. What I can say is the factory is busy.", "delta": { "sponsorKPI": 0, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-tp-002",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "Autosport",
+    "journalist": "Jonathan Noble",
+    "template": "How is {teamName} managing the cost cap this season?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "We're disciplined. Every team is. The framework works when everyone respects it.", "delta": { "sponsorKPI": 1, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "The cap punishes well-run teams. We're not changing that publicly, but I think the FIA hears us.", "delta": { "sponsorKPI": 1, "prestige": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "evasive", "text": "Numbers are numbers. We don't discuss the books in public.", "delta": { "sponsorKPI": -1, "prestige": 0 } }
+    ]
+  },
+  {
+    "id": "f-tp-003",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "AMuS",
+    "journalist": "Michael Schmidt",
+    "template": "What's your honest assessment of {teamName}'s drivers right now?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Both drivers are delivering. The pairing is working as designed.", "delta": { "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "I expect more from my line-up. They know it. Performance is the only conversation.", "delta": { "sponsorKPI": -1, "prestige": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "They're racers. They want more. So do I. That's the relationship.", "delta": { "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-tp-004",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "ESPN F1",
+    "journalist": "Laurence Edmondson",
+    "template": "How is {teamName}'s commercial side weathering the current grid changes?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Our partners stuck with us. That trust is mutual. We deliver — they deliver.", "delta": { "sponsorKPI": 2, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "New entries help everyone. More viewers, more value. We benefit.", "delta": { "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a3", "tone": "evasive", "text": "Commercial is healthy. That's all I'll say.", "delta": { "sponsorKPI": -1, "prestige": 0 } }
+    ]
+  },
+  {
+    "id": "f-tp-005",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "BBC Sport",
+    "journalist": "Andrew Benson",
+    "template": "Where do you see {teamName} in three seasons?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Fighting at the front. That's the plan. The trajectory has to support it.", "delta": { "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "World Champions. Anything less and I've failed.", "delta": { "sponsorKPI": 1, "prestige": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Stronger than today. The benchmark moves every season.", "delta": { "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "f-tp-006",
+    "contextTags": [],
+    "speaker": "team-principal",
+    "outlet": "F1.com",
+    "journalist": "Sam Hall",
+    "template": "What does {teamName} need from the FIA between now and end of season?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "diplomatic", "text": "Consistency. Predictable application of the rules. That's all any team asks.", "delta": { "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Honestly? Fewer technical directives mid-season. Teams build a year of work around a ruleset.", "delta": { "sponsorKPI": 0, "prestige": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "modest", "text": "The FIA does a hard job. We support the framework, we ask for dialogue.", "delta": { "sponsorKPI": 1, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-podium-001",
+    "contextTags": ["after-podium"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "{driverName}, P{position} — was this the breakthrough or a one-off?",
+    "weight": 1.2,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It's a data point. We'll know in two races. Today the car was kind to me.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Breakthrough. We're not going back. Anyone who thinks today was lucky hasn't seen the simulator runs.", "delta": { "driverMood": 4, "sponsorKPI": 2, "prestige": 0, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "It's the team's day. Every person at the factory earned this.", "delta": { "driverMood": 2, "teammateMood": 1, "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a4", "tone": "evasive", "text": "I'll let the result speak. I'm not going to overcall it.", "delta": { "driverMood": 1, "sponsorKPI": 0 } }
+    ]
+  },
+  {
+    "id": "q-podium-002",
+    "contextTags": ["after-podium", "beat-teammate"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Andrew Benson",
+    "template": "{driverName}, you out-qualified and out-raced your teammate. Is the team order shifting?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "We had different strategies. Today mine paid. Next race could be the other way.", "delta": { "driverMood": 2, "teammateMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "The order is what the lap times say. I'm comfortable with that.", "delta": { "driverMood": 4, "teammateMood": -2, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We push each other. That's why this team is moving forward.", "delta": { "driverMood": 2, "teammateMood": 2, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-podium-003",
+    "contextTags": ["after-podium"],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Tobi Grüner",
+    "template": "P{position} at {circuit} — does this change your championship expectations?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Mathematically it's a useful day. Realistically the gap is still there. We chip away.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Yes. We're not here to make up numbers. The title is on.", "delta": { "driverMood": 4, "sponsorKPI": 2, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I take it one race at a time. Cliché but true.", "delta": { "driverMood": 0, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-podium-004",
+    "contextTags": ["after-podium"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Edd Straw",
+    "template": "Talk us through that key overtake on lap two-thirds — what was the call?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Tyre delta was big. The engineers timed it perfectly. I just had to commit.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "He left the door open. You don't get many chances like that. You take them.", "delta": { "driverMood": 3, "sponsorKPI": 1 } },
+      { "id": "a3", "tone": "diplomatic", "text": "Clean racing. Hard but fair. That's how it should be.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-podium-005",
+    "contextTags": ["after-podium", "season-finale"],
+    "speaker": "driver",
+    "outlet": "ESPN F1",
+    "journalist": "Nate Saunders",
+    "template": "A podium to close the {seasonYear} season — what's the takeaway?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "The trajectory is right. Winter work has clear direction now.", "delta": { "driverMood": 3, "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "We were closer than the table says. Mark next season.", "delta": { "driverMood": 4, "sponsorKPI": 2, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Gratitude. To the team, to the partners, to the fans. We close strong.", "delta": { "driverMood": 2, "sponsorKPI": 3, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-podium-006",
+    "contextTags": ["after-podium"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Lawrence Barretto",
+    "template": "P{position} — what was the moment in the race you knew it was on?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "When the front tyres came in on lap eleven. After that I could lean on the car.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Lap one. I knew. The pace was there from the lights.", "delta": { "driverMood": 3, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I don't think like that during a race. It's all in the next corner.", "delta": { "driverMood": 1, "sponsorKPI": 0 } }
+    ]
+  },
+  {
+    "id": "q-points-001",
+    "contextTags": ["after-points"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Bernie Collins",
+    "template": "P{position} — points but not the podium. Satisfied?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Satisfied with the execution. Hungry for more. That balance is healthy.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "No. We had podium pace. We left it on the tarmac.", "delta": { "driverMood": -1, "sponsorKPI": 0, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Points are points. The championship is a marathon.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-points-002",
+    "contextTags": ["after-points"],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Tobi Grüner",
+    "template": "Where did the time to P{position} actually come from today?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Tyre management. We were less aggressive than the cars around us and it paid in stint two.", "delta": { "driverMood": 1, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Driving. The car wasn't fast enough for this result. I made up the difference.", "delta": { "driverMood": 2, "teammateMood": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Strategy and the team. The pit stops were perfect.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-points-003",
+    "contextTags": ["after-points", "beat-teammate"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Jonathan Noble",
+    "template": "You finished P{position}, ahead of your teammate again. Reading anything into the pattern?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Patterns are for season-end reviews. Right now we just race.", "delta": { "driverMood": 1, "teammateMood": 0, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Read what you want. The points table is the only pattern I look at.", "delta": { "driverMood": 3, "teammateMood": -2, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We had different strategies. The race was kinder to mine.", "delta": { "driverMood": 1, "teammateMood": 1, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-points-004",
+    "contextTags": ["after-points"],
+    "speaker": "driver",
+    "outlet": "ESPN F1",
+    "journalist": "Laurence Edmondson",
+    "template": "The car looked stronger today. Is this a step or a circuit-specific outlier?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Honestly, hard to tell. {circuit} flatters the chassis. We'll see at the next round.", "delta": { "driverMood": 1, "sponsorKPI": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Step. The upgrade in qualifying showed real numbers. Next race will confirm.", "delta": { "driverMood": 3, "sponsorKPI": 2, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I'll let the engineers answer that. I just drive what they bolt to the car.", "delta": { "driverMood": 0, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-points-005",
+    "contextTags": ["after-points"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Sam Hall",
+    "template": "P{position} — does this match where {teamName} should be in the constructors?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It tracks with our season average. Not above, not below. That's honest.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Below where we should be. The car has more in it.", "delta": { "driverMood": 1, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We're earning every point. The standings are competitive top to bottom.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-zero-001",
+    "contextTags": ["after-zero-points"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "No points today. What happened?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "We didn't have the pace. Honest answer. We have work to do.", "delta": { "driverMood": -2, "sponsorKPI": 0, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Strategy was wrong. I told them on the radio. They didn't listen.", "delta": { "driverMood": 0, "sponsorKPI": -2, "rumorWeight": { "inflammatory": 3 } } },
+      { "id": "a3", "tone": "evasive", "text": "Long race. Lots of things. I'll review with the engineers first.", "delta": { "driverMood": -1, "sponsorKPI": -1 } },
+      { "id": "a4", "tone": "diplomatic", "text": "Tough afternoon. The team is hurting. We regroup before the next round.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-zero-002",
+    "contextTags": ["after-zero-points"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Jennie Gow",
+    "template": "Both cars out of the points — is this a deeper problem for {teamName}?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It's not a structural issue. It's an execution issue. We'll fix it.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Performance is performance. Right now we're not delivering. That has to change fast.", "delta": { "driverMood": -1, "teammateMood": -1, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Every team has these weekends. The factory will respond. They always do.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-zero-003",
+    "contextTags": ["after-zero-points"],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Michael Schmidt",
+    "template": "What was the radio call you remember from today's race?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Honestly, lots. None polite. We had a frustrating afternoon together.", "delta": { "driverMood": -1, "sponsorKPI": 0 } },
+      { "id": "a2", "tone": "evasive", "text": "Those stay between me and the engineers.", "delta": { "driverMood": 0, "sponsorKPI": -1 } },
+      { "id": "a3", "tone": "diplomatic", "text": "End-of-race one. Wishing the other guys well. Tomorrow we work harder.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-zero-004",
+    "contextTags": ["after-zero-points"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Lawrence Barretto",
+    "template": "Where do you go from here?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Debrief. Sleep. Next week we go again. That's the only answer.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Forward. I don't dwell. The next race is where I prove this was an outlier.", "delta": { "driverMood": 2, "sponsorKPI": 1 } },
+      { "id": "a3", "tone": "evasive", "text": "Wherever the team needs me to be.", "delta": { "driverMood": -1, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-dnf-001",
+    "contextTags": ["after-dnf"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Karun Chandhok",
+    "template": "{driverName}, the car stopped on you. What did you feel happen?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Sudden loss of drive on the back straight. Engineers will analyse. I trust them.", "delta": { "driverMood": -2, "sponsorKPI": 0, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Reliability has cost me points all season. This can't keep happening.", "delta": { "driverMood": -1, "sponsorKPI": -2, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "These things happen. The boys at the factory will find it and fix it.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-dnf-002",
+    "contextTags": ["after-dnf"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Andrew Benson",
+    "template": "Walk me through the moment you knew the race was over.",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "I felt the vibration two laps before. I called it. The team called me in. It was the right call.", "delta": { "driverMood": -1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Frustrating. I had pace. Tomorrow I want answers in the debrief.", "delta": { "driverMood": -1, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I'd rather not relive it on camera. Long day.", "delta": { "driverMood": -2, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-dnf-003",
+    "contextTags": ["after-dnf"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Edd Straw",
+    "template": "How concerning is reliability for {teamName} at this point in the season?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It's been a theme. We know. The factory has a plan for the next round.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Very concerning. The car has to be in the race for me to score. That conversation starts tonight.", "delta": { "driverMood": 0, "sponsorKPI": -2, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We trust the process. Every issue gets root-caused. That's how this team works.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-dnf-004",
+    "contextTags": ["after-dnf"],
+    "speaker": "driver",
+    "outlet": "ESPN F1",
+    "journalist": "Nate Saunders",
+    "template": "Does today change anything about how you approach the next race?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "No. Same approach. Reset, prepare, race. You can't carry these days with you.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Yes. I push harder. Lost ground has to come back.", "delta": { "driverMood": 2, "sponsorKPI": 0, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "Same routine. I don't change much based on a single result.", "delta": { "driverMood": 0, "sponsorKPI": 0 } }
+    ]
+  },
+  {
+    "id": "q-tmbeat-001",
+    "contextTags": ["teammate-beat-you"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "{teammateName} finished ahead of you. What's your take?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "He had the better day. I lost time at the second stop. That was on me.", "delta": { "driverMood": -1, "teammateMood": 2, "sponsorKPI": 1, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "Strategy. He got the call I didn't. Same car, different outcome.", "delta": { "driverMood": 0, "teammateMood": -1, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We push each other. Today was his. Next race I want it back.", "delta": { "driverMood": 1, "teammateMood": 1, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-tmbeat-002",
+    "contextTags": ["teammate-beat-you"],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Tobi Grüner",
+    "template": "What did {teammateName} do that you didn't today?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Tyre management in the middle stint. He preserved better. I'll learn from it.", "delta": { "driverMood": 0, "teammateMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Nothing in the car. Strategy. We'll talk about it internally.", "delta": { "driverMood": 0, "teammateMood": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "He had a good race. I had a tougher one. Cars are equal. Move on.", "delta": { "driverMood": -1, "teammateMood": 0, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-tmbeat-003",
+    "contextTags": ["teammate-beat-you"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Jonathan Noble",
+    "template": "Is the intra-team battle starting to look one-sided?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It's a long season. Look at the full picture before you call anything one-sided.", "delta": { "driverMood": 0, "teammateMood": 0, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "No. I'm not where I want to be. That changes next round.", "delta": { "driverMood": 2, "teammateMood": -1, "sponsorKPI": 0, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We're racing each other and pushing each other. That's what teammates should do.", "delta": { "driverMood": 1, "teammateMood": 2, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-tmbeat-004",
+    "contextTags": ["teammate-beat-you"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Sam Hall",
+    "template": "Does {teammateName}'s result put pressure on you?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Always healthy pressure. He's a strong reference. That's good for the team.", "delta": { "driverMood": 0, "teammateMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "I put my own pressure on. I don't need outside help.", "delta": { "driverMood": 2, "teammateMood": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "Pressure is part of the job. Same for him.", "delta": { "driverMood": 0, "teammateMood": 0 } }
+    ]
+  },
+  {
+    "id": "q-beattm-001",
+    "contextTags": ["beat-teammate"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Bernie Collins",
+    "template": "Ahead of {teammateName} again — does it mean more or less than the result against the field?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "The field result matters more. Beating my teammate is a side effect of doing my job well.", "delta": { "driverMood": 2, "teammateMood": 1, "sponsorKPI": 1, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "It matters. Same car. Pure reference. That's the cleanest comparison in the sport.", "delta": { "driverMood": 3, "teammateMood": -1, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We're both racing the same field. I just had a slightly better day.", "delta": { "driverMood": 2, "teammateMood": 2, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-beattm-002",
+    "contextTags": ["beat-teammate"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Andrew Benson",
+    "template": "Where did you find the edge over {teammateName} today?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Sector three through the race. Engineers set me up well for the high-speed loads.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Tyre conservation. I trusted the data. He pushed early. Long stint paid.", "delta": { "driverMood": 3, "teammateMood": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Marginal. A few tenths across the race. That's all.", "delta": { "driverMood": 1, "teammateMood": 1, "sponsorKPI": 1 } }
+    ]
+  },
+  {
+    "id": "q-beattm-003",
+    "contextTags": ["beat-teammate"],
+    "speaker": "driver",
+    "outlet": "ESPN F1",
+    "journalist": "Laurence Edmondson",
+    "template": "Is this becoming your team to lead?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "That's a question for the team, not me. I just drive.", "delta": { "driverMood": 1, "teammateMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "I'm leading on points. The team decides what to do with that.", "delta": { "driverMood": 4, "teammateMood": -2, "sponsorKPI": 0, "rumorWeight": { "inflammatory": 3 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We share the leadership. Different races, different days.", "delta": { "driverMood": 2, "teammateMood": 2, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-beattm-004",
+    "contextTags": ["beat-teammate"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Lawrence Barretto",
+    "template": "Your race engineer said the second stint was vintage. Agree?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Kind of him to say. I was just trying not to overheat the rears.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "I'm capable of that every weekend if the car's there. Today the car was there.", "delta": { "driverMood": 3, "sponsorKPI": 0, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "Engineers get excited. I just drove the laps.", "delta": { "driverMood": 0, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-finale-001",
+    "contextTags": ["season-finale"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "End of the {seasonYear} season — sum it up for the fans.",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Mixed. Highs, lows. The team grew. Lots to build on for next season.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "Underperformed. I expect more from myself and from the equipment. Winter starts tonight.", "delta": { "driverMood": 0, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Grateful. To the team, the partners, the fans. We close the chapter and turn the page.", "delta": { "driverMood": 2, "sponsorKPI": 3, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-finale-002",
+    "contextTags": ["season-finale"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Jennie Gow",
+    "template": "What's the one moment of {seasonYear} you'll remember?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "First points in the wet. Felt like the team turned a corner that weekend.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Honestly? The frustrations. They sharpen you. The wins fade. The losses teach.", "delta": { "driverMood": 1, "sponsorKPI": 0, "prestige": 1 } },
+      { "id": "a3", "tone": "diplomatic", "text": "Every podium. Every team celebration. The people make it.", "delta": { "driverMood": 2, "teammateMood": 1, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-finale-003",
+    "contextTags": ["season-finale"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Sam Hall",
+    "template": "What does winter prep look like for you this off-season?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Train, simulator, time with family. Same recipe. It works.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "More than last year. Whatever it takes. I'm not here to make up numbers in {seasonYear}.", "delta": { "driverMood": 2, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I keep that side private.", "delta": { "driverMood": 0, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-thu-open-001",
+    "contextTags": ["season-opener"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "Opening race of {seasonYear} — how is {teamName} entering the season?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Quietly confident. Winter test showed real numbers. Sunday tells the truth.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Strong. We're not here to participate. The grid will see it on the timing screens.", "delta": { "driverMood": 3, "sponsorKPI": 2, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Open mind. We let the race tell us where we sit. Talking before lap one is cheap.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-thu-open-002",
+    "contextTags": ["season-opener"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Andrew Benson",
+    "template": "First race of the {seasonYear} ruleset. What changes the most?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Energy management. Active aero windows. It's a different rhythm to last year.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Honestly? The fans will notice. Drivers will adapt. That's our job.", "delta": { "driverMood": 1, "sponsorKPI": 0 } },
+      { "id": "a3", "tone": "evasive", "text": "Everything and nothing. We'll see when the lights go out.", "delta": { "driverMood": 0, "sponsorKPI": -1 } },
+      { "id": "a4", "tone": "diplomatic", "text": "Lots, but the core is the same — fastest car wins. That hasn't changed in seventy years.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-thu-open-003",
+    "contextTags": ["season-opener"],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Michael Schmidt",
+    "template": "Pre-season predictions — who do you fear most this {seasonYear}?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Everyone in the top half. The ruleset reset compresses the field. It'll be tight.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Nobody. You don't fear opponents. You measure them.", "delta": { "driverMood": 3, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Always respect for the front of the grid. They earned it.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-thu-open-004",
+    "contextTags": ["season-opener"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Edd Straw",
+    "template": "Personal target for {seasonYear} — name a number.",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "I won't put a number on it. Goals are private. Outcomes are public.", "delta": { "driverMood": 1, "sponsorKPI": 0, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "A win. Multiple. That's the bar.", "delta": { "driverMood": 3, "sponsorKPI": 2, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "evasive", "text": "Better than last year. That's all I'll commit to.", "delta": { "driverMood": 0, "sponsorKPI": 0 } }
+    ]
+  },
+  {
+    "id": "q-thu-contract-001",
+    "contextTags": ["contract-expiring"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Bernie Collins",
+    "template": "Contract talks — where are you with {teamName}?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Conversations are happening. We're aligned. I'd rather let it land than narrate it in public.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "I want a clear answer. Soon. I'm not waiting forever.", "delta": { "driverMood": 0, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "evasive", "text": "Out of respect for the process I'll let my manager speak.", "delta": { "driverMood": -1, "sponsorKPI": -1 } },
+      { "id": "a4", "tone": "diplomatic", "text": "Open dialogue. Mutual respect. The right thing will happen.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-thu-contract-002",
+    "contextTags": ["contract-expiring"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Andrew Benson",
+    "template": "Other teams are watching. Are you listening?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "diplomatic", "text": "Listening is professional. Acting is different. My focus stays here.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Of course. Any driver who says otherwise is lying. The car has to compete to keep me.", "delta": { "driverMood": 2, "sponsorKPI": -2, "rumorWeight": { "inflammatory": 3 } } },
+      { "id": "a3", "tone": "modest", "text": "My priority is here. That hasn't changed.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-thu-contract-003",
+    "contextTags": ["contract-expiring"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Jonathan Noble",
+    "template": "What does {teamName} need to show you to commit long-term?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "A trajectory. A plan for {seasonYear} and beyond. I trust the people. The car has to follow.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Wins. Consistent wins. That's the only metric that matters.", "delta": { "driverMood": 2, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "That's between me and the team. Internal conversation.", "delta": { "driverMood": -1, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-thu-contract-004",
+    "contextTags": ["contract-expiring"],
+    "speaker": "driver",
+    "outlet": "ESPN F1",
+    "journalist": "Nate Saunders",
+    "template": "If you stay, what's the partnership look like over the next three years?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Continuity. We've built something. Pulling that out would set everyone back.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "Title fights. That's the only version worth signing up for.", "delta": { "driverMood": 3, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "We grow together. The team commits to me, I commit to the team. Mutual.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-thu-home-001",
+    "contextTags": ["home-race"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "Home race weekend at {circuit} — what does it mean to you?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Everything. Family, friends, fans I've known since karting. You feel it in the grandstands.", "delta": { "driverMood": 3, "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "It's another race. Sentimentality doesn't pay points. I drive the same way.", "delta": { "driverMood": 1, "sponsorKPI": -2, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "Special weekend. I'll enjoy it and try to deliver for the fans.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-thu-home-002",
+    "contextTags": ["home-race"],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Tobi Grüner",
+    "template": "Does {circuit} change how you drive — extra weight from the home crowd?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Same lap times. The crowd doesn't make the car faster. But the energy helps after a long week.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "I push harder. I admit it. Home race energy is real and I lean into it.", "delta": { "driverMood": 3, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I try to keep it normal. Otherwise the pressure eats you.", "delta": { "driverMood": 0, "sponsorKPI": 0 } }
+    ]
+  },
+  {
+    "id": "q-thu-home-003",
+    "contextTags": ["home-race"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Lawrence Barretto",
+    "template": "Walk us through your favourite corner at {circuit}.",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "The fast right after the back straight. You commit on the apex and the car loads up beautifully when it's right.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "diplomatic", "text": "Every corner is a story here. I love them all for different reasons.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a3", "tone": "defiant", "text": "Whichever one I take fastest. Sentimentality is for after the race.", "delta": { "driverMood": 1, "sponsorKPI": 0 } }
+    ]
+  },
+  {
+    "id": "q-thu-moodlow-001",
+    "contextTags": ["driver-mood-low"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Karun Chandhok",
+    "template": "{driverName}, you've looked subdued this week. Is everything okay?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Tough run. I'm working through it. The team is supporting me. We'll come out of it.", "delta": { "driverMood": 3, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "I'm fine. Results haven't matched the effort. That gets fixed on Sunday.", "delta": { "driverMood": 2, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 1 } } },
+      { "id": "a3", "tone": "evasive", "text": "I'd rather not discuss it on camera. Personal stuff stays personal.", "delta": { "driverMood": -1, "sponsorKPI": -2 } }
+    ]
+  },
+  {
+    "id": "q-thu-moodlow-002",
+    "contextTags": ["driver-mood-low"],
+    "speaker": "driver",
+    "outlet": "BBC Sport",
+    "journalist": "Jennie Gow",
+    "template": "How are you keeping your head up through a difficult stretch?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Family, training, sleep. The basics. They carry you through.", "delta": { "driverMood": 3, "sponsorKPI": 2, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "I'm a racer. We deal with rough patches. It's not the first time, won't be the last.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a3", "tone": "diplomatic", "text": "The team. They believe in me. That's enough to keep going.", "delta": { "driverMood": 2, "sponsorKPI": 2, "teammateMood": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-thu-moodhigh-001",
+    "contextTags": ["driver-mood-high"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Ted Kravitz",
+    "template": "You look in a good place. What's flipped this week?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Nothing dramatic. Good sleep, the car feels right, the engineers are clicking. That's it.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "Everything. I told you in winter testing it would. Now you're seeing it.", "delta": { "driverMood": 3, "sponsorKPI": 1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "The team is on top of details. Confidence flows from preparation.", "delta": { "driverMood": 2, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-thu-moodhigh-002",
+    "contextTags": ["driver-mood-high"],
+    "speaker": "driver",
+    "outlet": "Autosport",
+    "journalist": "Edd Straw",
+    "template": "Confidence radiates this weekend. Can you bottle it?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Confidence is a result of work, not a cause of it. Bottle the work, the confidence follows.", "delta": { "driverMood": 2, "sponsorKPI": 1, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "I don't bottle anything. I just race.", "delta": { "driverMood": 2, "sponsorKPI": 0 } },
+      { "id": "a3", "tone": "diplomatic", "text": "Wish I could. We'll see if it survives the lights.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } }
+    ]
+  },
+  {
+    "id": "q-thu-budget-001",
+    "contextTags": ["budget-cap-pressure"],
+    "speaker": "driver",
+    "outlet": "Sky F1",
+    "journalist": "Bernie Collins",
+    "template": "There's chatter about {teamName} running tight on the cost cap. Aware of it?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "I trust the team to manage that. My job is in the cockpit. The factory handles the books.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "It's tight everywhere. Anyone telling you otherwise is bluffing.", "delta": { "driverMood": 1, "sponsorKPI": 0, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "evasive", "text": "Couldn't tell you. Not my desk.", "delta": { "driverMood": -1, "sponsorKPI": -1 } }
+    ]
+  },
+  {
+    "id": "q-thu-budget-002",
+    "contextTags": ["budget-cap-pressure"],
+    "speaker": "driver",
+    "outlet": "F1.com",
+    "journalist": "Sam Hall",
+    "template": "Would tighter spend through year-end affect the car you have at the next races?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "Possibly some upgrades slip. Hardware on the car now is what we're working with.", "delta": { "driverMood": 0, "sponsorKPI": 1, "prestige": 1 } },
+      { "id": "a2", "tone": "defiant", "text": "If it does, that's a problem we'll discuss internally and loudly.", "delta": { "driverMood": 1, "sponsorKPI": -2, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "The team plans for these scenarios. We've got what we need to compete.", "delta": { "driverMood": 1, "sponsorKPI": 2, "prestige": 2 } }
+    ]
+  },
+  {
+    "id": "q-thu-budget-003",
+    "contextTags": ["budget-cap-pressure"],
+    "speaker": "driver",
+    "outlet": "AMuS",
+    "journalist": "Michael Schmidt",
+    "template": "Is the cost cap fair to a team like {teamName} this year?",
+    "weight": 1.0,
+    "answers": [
+      { "id": "a1", "tone": "modest", "text": "It's the framework. We work within it. Fairness is a long debate.", "delta": { "driverMood": 1, "sponsorKPI": 1, "prestige": 2 } },
+      { "id": "a2", "tone": "defiant", "text": "Honestly? No. It rewards teams that were already fat. The structure punishes those climbing.", "delta": { "driverMood": 1, "sponsorKPI": -1, "rumorWeight": { "inflammatory": 2 } } },
+      { "id": "a3", "tone": "diplomatic", "text": "I won't go there. The FIA sets the rules. We race them.", "delta": { "driverMood": 0, "sponsorKPI": 1 } }
+    ]
+  }
+]
