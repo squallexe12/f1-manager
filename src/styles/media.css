@@ -1,0 +1,551 @@
+/*
+ * media.css — IP-10 Press Conference & Media Management
+ * Scoped to `.press-*` class namespace. Loaded via import in PressRoomModal.tsx.
+ *
+ * Design system: Kinetic Command dark theme.
+ * Inherits --accent-lime, --accent-cyan, --bg-primary, --text-primary, etc. from
+ * src/styles/themes/kinetic.css (loaded at :root via tokens.css in the root layout).
+ *
+ * Motion rules:
+ *   - Only transform and opacity are animated. Never transition-all.
+ *   - prefers-reduced-motion: disable transforms, keep 120ms opacity fade only.
+ */
+
+/* ─── Keyframes ──────────────────────────────────────────── */
+
+@keyframes press-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes press-speaker-in {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes press-panel-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes press-pulse {
+  0%   { opacity: 1;   transform: scale(1); }
+  50%  { opacity: 0.6; transform: scale(1.04); }
+  100% { opacity: 1;   transform: scale(1); }
+}
+
+/* ─── Backdrop ───────────────────────────────────────────── */
+
+.press-backdrop {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.85));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  z-index: 78;
+  animation: press-backdrop-in 200ms ease-out;
+}
+
+/* ─── Modal shell ────────────────────────────────────────── */
+
+.press-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  pointer-events: none; /* let events fall through to backdrop except on children */
+}
+
+.press-modal > * {
+  pointer-events: auto;
+}
+
+.press-modal__grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 20px;
+  width: 100%;
+  max-width: 960px;
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+@media (max-width: 1023px) {
+  .press-modal__grid {
+    grid-template-columns: 1fr;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+  }
+}
+
+/* ─── Glass surface ──────────────────────────────────────── */
+
+.press-glass {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 16px;
+}
+
+/* ─── Progress dots ──────────────────────────────────────── */
+
+.press-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.press-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: background 180ms, transform 180ms;
+}
+
+.press-dot--answered {
+  background: rgba(204, 255, 0, 0.5);
+  border-color: var(--accent-lime, #CCFF00);
+}
+
+.press-dot--active {
+  background: var(--accent-cyan, #00E5FF);
+  border-color: var(--accent-cyan, #00E5FF);
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.5);
+  transform: scale(1.3);
+}
+
+/* ─── Speaker card ───────────────────────────────────────── */
+
+.press-speaker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px;
+  animation: press-speaker-in 320ms ease-out both;
+  overflow: hidden;
+}
+
+.press-speaker__surface {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.press-speaker__portrait {
+  width: 120px;
+  height: 160px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.press-speaker__portrait--tp {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 160px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-size: 32px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.3);
+  letter-spacing: 0.04em;
+}
+
+.press-speaker__name {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--text-primary, #fff);
+  letter-spacing: -0.02em;
+  text-align: center;
+  margin: 0;
+  line-height: 1.1;
+}
+
+.press-speaker__role {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+}
+
+.press-speaker__team {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  color: var(--text-secondary, #aaa);
+}
+
+.press-speaker__mood {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.press-speaker__mood-label {
+  font-family: var(--font-mono, monospace);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--text-dim, #555);
+  text-transform: uppercase;
+}
+
+.press-speaker__mood-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.press-speaker__mood-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-cyan, #00E5FF), var(--accent-lime, #CCFF00));
+  border-radius: 2px;
+  transition: width 400ms ease-out;
+}
+
+/* ─── Surface badge colour variants ─────────────────────── */
+
+.tone-cyan {
+  color: var(--accent-cyan, #00E5FF);
+  border-color: rgba(0, 229, 255, 0.3) !important;
+}
+
+.tone-lime {
+  color: var(--accent-lime, #CCFF00);
+  border-color: rgba(204, 255, 0, 0.3) !important;
+}
+
+/* ─── Question panel ─────────────────────────────────────── */
+
+.press-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  animation: press-panel-in 320ms ease-out 80ms both;
+  overflow-y: auto;
+}
+
+.press-panel--submit {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 14px;
+  color: var(--text-secondary, #aaa);
+}
+
+.press-panel__head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 14px;
+}
+
+.press-panel__outlet {
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary, #fff);
+  letter-spacing: -0.01em;
+}
+
+.press-panel__journalist {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+}
+
+.press-panel__question {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-primary, #fff);
+  margin: 0;
+}
+
+.press-panel__answers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.press-panel__skip {
+  align-self: flex-end;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-muted, #888);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  cursor: pointer;
+  margin-top: auto;
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+
+.press-panel__skip:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.24);
+  color: var(--text-secondary, #aaa);
+}
+
+.press-panel__skip:focus-visible {
+  outline: 2px solid var(--accent-lime, #CCFF00);
+  outline-offset: 2px;
+}
+
+.press-panel__skip:active {
+  transform: translateY(1px);
+}
+
+.press-panel__skip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Answer card ────────────────────────────────────────── */
+
+.press-answer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 180ms, border-color 180ms, background 180ms, box-shadow 180ms;
+}
+
+.press-answer:hover:not(:disabled) {
+  transform: scale(1.015);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.press-answer:focus-visible {
+  outline: 2px solid var(--accent-lime, #CCFF00);
+  outline-offset: 2px;
+}
+
+.press-answer:active:not(:disabled) {
+  transform: scale(0.998);
+}
+
+.press-answer:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.press-answer--selected {
+  border-color: var(--accent-cyan, #00E5FF) !important;
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.2);
+  background: rgba(0, 229, 255, 0.04) !important;
+}
+
+.press-answer__tone {
+  font-family: var(--font-mono, monospace);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.press-answer__text {
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary, #fff);
+}
+
+.press-answer__deltas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+/* ─── Tone tints (subtle border accent, not fill) ────────── */
+
+.press-answer.tone-modest {
+  border-left: 2px solid rgba(255, 255, 255, 0.4);
+}
+
+.press-answer.tone-diplomatic {
+  border-left: 2px solid rgba(0, 229, 255, 0.4);
+}
+
+.press-answer.tone-defiant {
+  border-left: 2px solid rgba(204, 255, 0, 0.4);
+}
+
+.press-answer.tone-aggressive {
+  border-left: 2px solid rgba(255, 176, 32, 0.4);
+}
+
+.press-answer.tone-evasive {
+  border-left: 2px solid rgba(160, 160, 160, 0.4);
+}
+
+/* ─── Delta hint colour classes ──────────────────────────── */
+
+.hint-pos {
+  color: #4ADE80;
+}
+
+.hint-neg {
+  color: var(--accent-red, #FF3B30);
+}
+
+.hint-warn {
+  color: var(--accent-amber, #FFC800);
+}
+
+/* ─── Submit CTA ─────────────────────────────────────────── */
+
+.press-submit {
+  background: var(--accent-lime, #CCFF00);
+  color: #0A0A0A;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 8px;
+  font-family: var(--font-heading, 'Space Grotesk', sans-serif);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  animation: press-pulse 600ms ease-in-out infinite;
+  transition: opacity 150ms, transform 150ms;
+}
+
+.press-submit:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.press-submit:focus-visible {
+  outline: 2px solid var(--accent-cyan, #00E5FF);
+  outline-offset: 3px;
+}
+
+.press-submit:active {
+  transform: scale(0.98);
+}
+
+/* ─── Screen-reader utility ──────────────────────────────── */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ─── prefers-reduced-motion ─────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .press-backdrop {
+    animation-duration: 120ms;
+  }
+
+  .press-speaker {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .press-panel {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .press-dot {
+    transition: background 120ms;
+    /* no transform transition */
+  }
+
+  .press-dot--active {
+    transform: none;
+  }
+
+  .press-answer:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .press-answer:active:not(:disabled) {
+    transform: none;
+  }
+
+  .press-panel__skip:active {
+    transform: none;
+  }
+
+  .press-submit {
+    animation: none;
+  }
+
+  .press-submit:hover {
+    transform: none;
+  }
+
+  .press-submit:active {
+    transform: none;
+  }
+}
