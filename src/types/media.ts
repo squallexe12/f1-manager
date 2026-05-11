@@ -33,7 +33,7 @@ export interface PressAnswerDelta {
   driverMood?: number      // -10..+10 per-answer (absolute mood points)
   teammateMood?: number    // -5..+5 per-answer
   sponsorKPI?: number      // -3..+3 per-answer
-  prestigeDelta?: number   // -2..+2 per-answer
+  prestige?: number        // -2..+2 per-answer
   rumorWeight?: Partial<Record<PressRumorBucket, number>>  // 0..3 per bucket
 }
 
@@ -51,6 +51,7 @@ export interface PressQuestion {
   outlet: string
   journalist: string
   template: string
+  /** Relative pick weight in `weightedPickN`. Range: 0.5..3.0; default 1.0. */
   weight: number
   answers: PressAnswer[]
 }
@@ -75,6 +76,11 @@ export interface PressEvent {
   round: number
   season: number
   questions: ResolvedPressQuestion[]
+  /**
+   * Parallel array to `questions`. `answeredAnswerIds[i]` is the chosen answer id
+   * for `questions[i]`, or `null` if that slot is unanswered. INVARIANT: length
+   * MUST always equal `questions.length`. Initialized to all-null in `buildPressEvent`.
+   */
   answeredAnswerIds: (string | null)[]
   status: PressEventStatus
   resolvedAt?: number
@@ -92,6 +98,8 @@ export interface PressTranscript {
   round: number
   season: number
   speakerLabel: string
+  /** Snapshot of the speaking driver id at resolve time. `null` if Team Principal spoke. */
+  speakerDriverId: string | null
   exchanges: PressTranscriptExchange[]
   aggregateDelta: PressAnswerDelta
 }
