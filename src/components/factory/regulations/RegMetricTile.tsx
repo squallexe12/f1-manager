@@ -44,7 +44,7 @@ export function RegMetricTile({
         {isRank && <span className="reg-tile-of">/ {ofValue}</span>}
         {isRank && (
           <span className="sr-only">
-            Position {value} of {ofValue} on the 2026 readiness ranking
+            Position {value} of {ofValue} on the regulation readiness ranking
           </span>
         )}
       </div>
