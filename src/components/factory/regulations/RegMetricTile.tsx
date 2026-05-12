@@ -39,7 +39,7 @@ export function RegMetricTile({
       <header className="reg-tile-label">{label.toUpperCase()}</header>
       <div className={`reg-tile-value tier-${tier}`}>
         {prefix && <span className="reg-tile-prefix">{prefix}</span>}
-        <span className="reg-tile-num">{displayValue}</span>
+        <span>{displayValue}</span>
         {suffix && <span className="reg-tile-suffix">{suffix}</span>}
         {isRank && <span className="reg-tile-of">/ {ofValue}</span>}
         {isRank && (

@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import { useGameSlice } from '@/hooks/use-require-game'
+// IP-11 Approach A: components consume regulation-metric helpers directly
+// (per spec §5.5). Functions are pure; engine-purity invariant preserved.
 import {
   activeAeroMaturity,
   hybridEfficiencyScore,
