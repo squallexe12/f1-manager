@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react'
 import { RegRibbon } from '@/components/factory/regulations/RegRibbon'
+import { RegInfoBubble } from '@/components/factory/regulations/RegInfoBubble'
 
 interface AeroCardProps {
   windTunnelUsed: number
@@ -119,7 +120,7 @@ export function AeroCard({
       <RegRibbon card="aero" />
       <div className="fac-phead flush">
         <div className="t">Aero Testing</div>
-        <div className="s">CDT WINDOW · 14 DAYS</div>
+        <div className="s"><RegInfoBubble term="wt-cfd">CDT WINDOW · 14 DAYS</RegInfoBubble></div>
       </div>
       <div className="aero-body">
         <AeroMetric
@@ -149,11 +150,11 @@ export function AeroCard({
       </div>
       <div className="aero-foot">
         <div className="aero-foot-cell">
-          <span className="k">ATR Coefficient</span>
+          <span className="k"><RegInfoBubble term="atr-coefficient">ATR Coefficient</RegInfoBubble></span>
           <span className="v">{atrCoefficient.toFixed(2)}×</span>
         </div>
         <div className="aero-foot-cell">
-          <span className="k">Correlation Δ</span>
+          <span className="k"><RegInfoBubble term="correlation-delta">Correlation Δ</RegInfoBubble></span>
           <span className="v cyan">
             {correlationDelta >= 0 ? '+' : ''}
             {correlationDelta.toFixed(1)}%

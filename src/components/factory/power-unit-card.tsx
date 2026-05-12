@@ -1,6 +1,7 @@
 import type { ComponentAllocation } from '@/types/team'
 import type { SwapRow } from '@/engine/engineering/component-strategy'
 import { RegRibbon } from '@/components/factory/regulations/RegRibbon'
+import { RegInfoBubble } from '@/components/factory/regulations/RegInfoBubble'
 
 interface PowerUnitCardProps {
   components: ComponentAllocation[]
@@ -45,7 +46,13 @@ function PuRow({ element, used, limit }: ComponentAllocation) {
   return (
     <div>
       <div className="pu-row">
-        <span className="pk">{ELEMENT_LABELS[element] ?? element.toUpperCase()}</span>
+        <span className="pk">
+          {element === 'ers-battery' ? (
+            <RegInfoBubble term="ers">{ELEMENT_LABELS[element]}</RegInfoBubble>
+          ) : (
+            ELEMENT_LABELS[element] ?? element.toUpperCase()
+          )}
+        </span>
         <div className="pu-dots">{dots}</div>
         <span
           className="pv"

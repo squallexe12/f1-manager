@@ -9,6 +9,7 @@ import { PowerUnitCard } from '@/components/factory/power-unit-card'
 import { AeroCard } from '@/components/factory/aero-card'
 import { PitCrewCard } from '@/components/factory/pit-crew-card'
 import { RdPipelineHeader } from '@/components/factory/rd-pipeline-header'
+import { RegMetricsBand } from '@/components/factory/regulations/RegMetricsBand'
 import { RdQueue } from '@/components/factory/rd-queue'
 import { TechTree } from '@/components/factory/tech-tree'
 import { calculateOverallRating } from '@/engine/engineering/car-performance'
@@ -191,6 +192,8 @@ export default function FactoryPage() {
             onFireMember={fireStaffMember}
           />
         </div>
+
+        <RegMetricsBand />
 
         <RdPipelineHeader
           upgrades={playerTeam.rndUpgrades}
