@@ -1,5 +1,6 @@
 import type { ComponentAllocation } from '@/types/team'
 import type { SwapRow } from '@/engine/engineering/component-strategy'
+import { RegRibbon } from '@/components/factory/regulations/RegRibbon'
 
 interface PowerUnitCardProps {
   components: ComponentAllocation[]
@@ -102,6 +103,7 @@ export function PowerUnitCard({
           <span className="rd">{nextLabel}</span>
         </div>
       </div>
+      <RegRibbon card="power-unit" />
       <div className="fac-phead flush">
         <div className="t">Power Unit Allocation</div>
         <div className="s">SEASON · {totalRaces} RACES</div>

@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { RegRibbon } from '@/components/factory/regulations/RegRibbon'
 
 interface AeroCardProps {
   windTunnelUsed: number
@@ -115,6 +116,7 @@ export function AeroCard({
           <span className="d">{resetDateLabel}</span>
         </div>
       </div>
+      <RegRibbon card="aero" />
       <div className="fac-phead flush">
         <div className="t">Aero Testing</div>
         <div className="s">CDT WINDOW · 14 DAYS</div>

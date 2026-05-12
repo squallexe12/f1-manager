@@ -1,4 +1,5 @@
 import type { CarPerformance } from '@/types/team'
+import { RegRibbon } from '@/components/factory/regulations/RegRibbon'
 
 interface CarPerformanceCardProps {
   rating: number
@@ -196,6 +197,7 @@ export function CarPerformanceCard({
           <span className="rsub">PEER RANK</span>
         </div>
       </div>
+      <RegRibbon card="car-performance" />
       <div className="radar-body">
         <Radar values={values} peer={peerAxes} />
         <div className="radar-axes">
