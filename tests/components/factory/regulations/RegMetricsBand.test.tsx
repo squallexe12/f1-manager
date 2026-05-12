@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { RegMetricsBand } from '@/components/factory/regulations/RegMetricsBand'
-import { useGameStore } from '@/stores/game-store'
+import { useGameSlice } from '@/hooks/use-require-game'
 
-vi.mock('@/stores/game-store', () => ({
-  useGameStore: vi.fn(),
+vi.mock('@/hooks/use-require-game', () => ({
+  useGameSlice: vi.fn(),
+  useRequireGame: vi.fn(),
 }))
 
-function fakeWorld() {
+function fakeSlice() {
   const baseTeam = {
     id: 'player',
     rndUpgrades: [],
@@ -17,15 +18,13 @@ function fakeWorld() {
   const otherTeam = { ...baseTeam, id: 'other' }
   return {
     teams: [baseTeam, otherTeam],
-    gameState: { playerTeamId: 'player' },
+    playerTeamId: 'player',
   }
 }
 
 describe('RegMetricsBand', () => {
   beforeEach(() => {
-    ;(useGameStore as unknown as ReturnType<typeof vi.fn>).mockImplementation((sel: any) =>
-      sel({ world: fakeWorld() }),
-    )
+    ;(useGameSlice as unknown as ReturnType<typeof vi.fn>).mockReturnValue(fakeSlice())
   })
 
   it('renders the "2026 READINESS" section header', () => {

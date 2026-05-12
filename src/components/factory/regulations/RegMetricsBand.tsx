@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useGameStore } from '@/stores/game-store'
+import { useGameSlice } from '@/hooks/use-require-game'
 import {
   activeAeroMaturity,
   hybridEfficiencyScore,
@@ -12,13 +12,13 @@ import { RegMetricTile } from './RegMetricTile'
 
 export function RegMetricsBand() {
   const [openReg, setOpenReg] = useState<RegId | null>(null)
-  const slice = useGameStore((s: any) => ({
-    teams: s.world?.teams ?? [],
-    playerTeamId: s.world?.gameState?.playerTeamId ?? '',
+  const slice = useGameSlice((w) => ({
+    teams: w.teams,
+    playerTeamId: w.gameState.playerTeamId,
   }))
 
-  if (!slice.playerTeamId) return null
-  const playerTeam = slice.teams.find((t: any) => t.id === slice.playerTeamId)
+  if (!slice) return null
+  const playerTeam = slice.teams.find((t) => t.id === slice.playerTeamId)
   if (!playerTeam) return null
 
   const maturity = activeAeroMaturity(playerTeam)
