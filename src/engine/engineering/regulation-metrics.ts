@@ -51,3 +51,29 @@ export function hybridEfficiencyScore(team: Team): number {
   const score = 0.5 * puMaturity + 0.3 * reliability + 0.2 * powerAxis
   return Math.max(0, Math.min(100, Math.round(score * 100)))
 }
+
+/**
+ * Grid 2026 Adoption Rank.
+ * Combined score = (activeAeroMaturity + hybridEfficiencyScore) / 2 per team.
+ * Sort desc by combined score; ties broken by team.id ASC.
+ * Returns { rank: 1..n, of: n } for the player team.
+ * Returns { rank: 0, of: n } when the player team is not present.
+ */
+export function grid2026AdoptionRank(
+  allTeams: Team[],
+  playerTeamId: string,
+): { rank: number; of: number } {
+  const of = allTeams.length
+  if (!allTeams.some((t) => t.id === playerTeamId)) return { rank: 0, of }
+
+  const scored = allTeams.map((t) => ({
+    id: t.id,
+    score: (activeAeroMaturity(t) + hybridEfficiencyScore(t)) / 2,
+  }))
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  })
+  const rank = scored.findIndex((t) => t.id === playerTeamId) + 1
+  return { rank, of }
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeAeroMaturity, hybridEfficiencyScore } from '@/engine/engineering/regulation-metrics'
+import { activeAeroMaturity, hybridEfficiencyScore, grid2026AdoptionRank } from '@/engine/engineering/regulation-metrics'
 import type { Team, CarPerformance, RndUpgrade } from '@/types/team'
 
 function car(values: Partial<CarPerformance> = {}): CarPerformance {
@@ -144,5 +144,48 @@ describe('hybridEfficiencyScore', () => {
     ;(t.car as { straightSpeed: number }).straightSpeed = Number.NaN
     // 0.50*0 + 0.30*1 + 0.20*0 = 0.30 → 30.
     expect(hybridEfficiencyScore(t)).toBe(30)
+  })
+})
+
+describe('grid2026AdoptionRank', () => {
+  it('returns { rank: 1, of: 1 } in a single-team grid', () => {
+    expect(grid2026AdoptionRank([team('solo')], 'solo')).toEqual({ rank: 1, of: 1 })
+  })
+
+  it('returns the sentinel { rank: 0, of: n } when the player team is absent', () => {
+    expect(grid2026AdoptionRank([team('a'), team('b')], 'ghost')).toEqual({
+      rank: 0,
+      of: 2,
+    })
+  })
+
+  it('ranks by combined score descending', () => {
+    const top = team('top', [
+      upgrade('a1', 'active-aero', 'complete', 100),
+      upgrade('p1', 'power-unit', 'complete', 100),
+    ])
+    top.car.straightSpeed = 100
+    const mid = team('mid', [upgrade('a1', 'active-aero', 'complete', 100)])
+    const low = team('low', [])
+    const result = grid2026AdoptionRank([low, mid, top], 'top')
+    expect(result).toEqual({ rank: 1, of: 3 })
+  })
+
+  it('places the lowest scorer last', () => {
+    const top = team('top', [
+      upgrade('a1', 'active-aero', 'complete', 100),
+      upgrade('p1', 'power-unit', 'complete', 100),
+    ])
+    top.car.straightSpeed = 100
+    const low = team('low', [])
+    expect(grid2026AdoptionRank([top, low], 'low')).toEqual({ rank: 2, of: 2 })
+  })
+
+  it('breaks ties by team.id ASC (deterministic)', () => {
+    // Two virgin teams have identical combined scores.
+    const a = team('aaa')
+    const b = team('bbb')
+    expect(grid2026AdoptionRank([b, a], 'aaa')).toEqual({ rank: 1, of: 2 })
+    expect(grid2026AdoptionRank([b, a], 'bbb')).toEqual({ rank: 2, of: 2 })
   })
 })
