@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { activeAeroMaturity } from '@/engine/engineering/regulation-metrics'
+import { activeAeroMaturity, hybridEfficiencyScore } from '@/engine/engineering/regulation-metrics'
 import type { Team, CarPerformance, RndUpgrade } from '@/types/team'
 
 function car(values: Partial<CarPerformance> = {}): CarPerformance {
@@ -112,5 +112,37 @@ describe('activeAeroMaturity', () => {
       upgrade('a3', 'active-aero', 'available', 0),
     ])
     expect(activeAeroMaturity(t)).toBe(33)
+  })
+})
+
+describe('hybridEfficiencyScore', () => {
+  it('returns 0 on a virgin team (no PU upgrades, zero reliability proxy denominator-safe)', () => {
+    const t = team('t', [])
+    // Reliability proxy: 1 - 0/22 = 1; powerAxis = 60/100 = 0.6.
+    // 0.50 * 0 + 0.30 * 1 + 0.20 * 0.6 = 0.42 → 42.
+    expect(hybridEfficiencyScore(t)).toBe(42)
+  })
+
+  it('clamps penaltiesTaken so the reliability proxy never goes negative', () => {
+    const t = team('t', [])
+    t.penaltiesTaken = 999
+    // proxy clamps to 0 → 0.50*0 + 0.30*0 + 0.20*0.6 = 0.12 → 12.
+    expect(hybridEfficiencyScore(t)).toBe(12)
+  })
+
+  it('reaches 100 only when all three inputs are maxed', () => {
+    const t = team('t', [
+      upgrade('p1', 'power-unit', 'complete', 100),
+      upgrade('p2', 'power-unit', 'complete', 100),
+    ])
+    t.car.straightSpeed = 100
+    expect(hybridEfficiencyScore(t)).toBe(100)
+  })
+
+  it('treats NaN straightSpeed as 0 (defensive)', () => {
+    const t = team('t', [])
+    ;(t.car as { straightSpeed: number }).straightSpeed = Number.NaN
+    // 0.50*0 + 0.30*1 + 0.20*0 = 0.30 → 30.
+    expect(hybridEfficiencyScore(t)).toBe(30)
   })
 })
