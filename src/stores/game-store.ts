@@ -22,6 +22,12 @@ import {
 import { type RaceResult } from '@/engine/core/post-race-processor'
 import { type SeasonEndResult } from '@/engine/core/season-end-processor'
 import { advanceGamePhase, processPostRacePhase, processSeasonEndPhase } from '@/engine/core/orchestrator'
+import {
+  answerPressQuestion,
+  resolvePressEvent,
+  skipPressEvent,
+} from '@/engine/media/press-engine'
+import { createPRNG } from '@/engine/core/prng'
 import { createRaceCommandBus, type RaceCommandBus } from '@/engine/race/race-command-bus'
 import {
   boostSponsorSatisfaction,
@@ -36,7 +42,7 @@ import {
   type WorkerStatus,
 } from './race-runtime-slice'
 
-interface GameStore {
+export interface GameStore {
   // World state (persisted via setupPersistence)
   world: FullGameState | null
   eventCooldowns: Record<string, number>
@@ -91,6 +97,21 @@ interface GameStore {
    * contract renegotiation flow ships.
    */
   openContractNegotiation: (driverId: string) => void
+  /**
+   * IP-10 — answer all questions in the pending press event and resolve it.
+   *
+   * `answers` must contain one entry per question (questionIndex → answerId).
+   * The engine validates that every answerId exists; unknown ids are silently
+   * ignored by `answerPressQuestion`. No-op when there is no pending press.
+   */
+  resolvePress: (answers: Array<{ questionIndex: number; answerId: string }>) => void
+  /**
+   * IP-10 — skip the pending press event without answering.
+   *
+   * Applies a fixed skip penalty (driverMood: -3, prestige: -1) and writes a
+   * 'skipped' transcript. No-op when there is no pending press.
+   */
+  skipPress: () => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -425,6 +446,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Tracked in docs/architecture/current-state-baseline.md §Known stubs (IP-09b).
     console.info('[stub] openContractNegotiation', driverId)
     // Does NOT mutate world — autosave will not fire.
+  },
+
+  resolvePress: (answers) => {
+    const w = get().world
+    if (!w?.media?.pendingPress) return
+    const resolveRng = createPRNG(w.gameState.seed + w.gameState.currentRound + 0x3C)
+    let next = w
+    for (const a of answers) {
+      next = answerPressQuestion(next, a.questionIndex, a.answerId)
+    }
+    next = resolvePressEvent(next, resolveRng)
+    set({ world: next })
+  },
+
+  skipPress: () => {
+    const w = get().world
+    if (!w?.media?.pendingPress) return
+    const skipRng = createPRNG(w.gameState.seed + w.gameState.currentRound + 0x4D)
+    set({ world: skipPressEvent(w, skipRng) })
   },
 
   applyRaceWorkerEvent: (event) => {

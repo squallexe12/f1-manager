@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google'
 import { ContrastProvider } from '@/components/layout/contrast-provider'
 import { PersistenceProvider } from '@/components/providers/persistence-provider'
+import { PressTranscriptToast } from '@/components/media/PressTranscriptToast'
 import '../styles/tokens.css'
 import './globals.css'
 import '../styles/topbar.css'
 import '../styles/paddock.css'
 import '../styles/factory.css'
+import '../styles/media.css'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -37,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="bg-bg-primary text-text-primary font-body antialiased">
         <ContrastProvider />
         <PersistenceProvider />
+        <PressTranscriptToast />
         {children}
       </body>
     </html>

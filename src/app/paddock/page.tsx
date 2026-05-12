@@ -14,6 +14,7 @@ import { PaddockFeed } from '@/components/paddock/paddock-feed'
 import { RecommendationsPanel } from '@/components/paddock/recommendations-panel'
 import { DepartmentPanel } from '@/components/paddock/department-panel'
 import { PoachingAlerts } from '@/components/paddock/poaching-alerts'
+import { UpcomingMediaWidget } from '@/components/paddock/UpcomingMediaWidget'
 import { calculateOverallRating as _ignore } from '@/engine/drivers/driver-rating'
 import { calculateOverallRating as calcCarRatingStub } from '@/engine/engineering/car-performance'
 import { getNextRaceBrief } from '@/engine/paddock/race-brief'
@@ -182,6 +183,10 @@ export default function PaddockPage() {
               <span className="count">FACTORY</span>
             </div>
             <WeeklySchedule items={weekly} />
+            <div className="pd-section-title">
+              <span className="dot" />MEDIA
+            </div>
+            <UpcomingMediaWidget />
           </div>
         </div>
 
