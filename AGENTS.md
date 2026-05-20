@@ -351,5 +351,8 @@ sim-engine (types in src/types/race.ts) → game-state (adapter + worker) → ve
 | IP-06 | OpenF1 real-data integration (tire/weather/overtake calibration, 24 circuit profiles) | Complete |
 | IP-07 | OpenF1 extended integration (pit-loss, stint, pre-race intel, balance harness) | Complete |
 | IP-08 | Gameplay expansion (engineer recommendations) | Complete |
+| IP-09 | Race penalty system Tier A (contested-event evaluation, investigations, sanctions) | Complete |
+| IP-10 | Press conference & media management | Complete |
+| IP-11 | 2026 regulations Factory wedge (content module, 3 derived metrics, ribbons/tiles/info-bubbles) | Complete |
 
 When starting work on a new IP phase, read `docs/architecture/current-state-baseline.md` first. It defines what is frozen and what is open.
