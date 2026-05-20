@@ -29,7 +29,6 @@ export interface DriversPageData {
   constructorPosition: number
   rosterCount: { active: number; reserve: number }
   phase: string
-  openContractNegotiation: (driverId: string) => void
 }
 
 /**
@@ -55,7 +54,6 @@ export function useDriversPageData(): DriversPageData | null {
       season: state.world.gameState.season,
       currentRound: state.world.gameState.currentRound,
       phase: state.world.gameState.phase,
-      openContractNegotiation: state.openContractNegotiation,
     }
   }))
 
@@ -65,7 +63,6 @@ export function useDriversPageData(): DriversPageData | null {
     const {
       drivers, teams, calendar, playerTeamId,
       season, currentRound, phase,
-      openContractNegotiation,
     } = slice
 
     const playerTeam = teams.find(t => t.id === playerTeamId)
@@ -106,7 +103,6 @@ export function useDriversPageData(): DriversPageData | null {
         active: playerDrivers.length,
         reserve: reserveDriver ? 1 : 0,
       },
-      openContractNegotiation,
     }
   }, [slice])
 }

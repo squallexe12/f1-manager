@@ -87,12 +87,6 @@ interface GameStore {
    * exactly once per race-start so the penalty is not double-applied on retry.
    */
   consumeGridDrops: (driverIds: string[]) => void
-  /**
-   * STUB (IP-09b) — open the contract renegotiation modal for the given
-   * driver. No world mutation; logs intent only. Will be replaced when the
-   * contract renegotiation flow ships.
-   */
-  openContractNegotiation: (driverId: string) => void
   signContract: (driverId: string, offer: ContractOffer) => void
 
   // Actions — race runtime
@@ -421,13 +415,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : d,
     )
     set({ world: { ...world, drivers } })
-  },
-
-  openContractNegotiation: (driverId) => {
-    // STUB — IP-09b: contract renegotiation flow not yet implemented.
-    // Tracked in docs/architecture/current-state-baseline.md §Known stubs (IP-09b).
-    console.info('[stub] openContractNegotiation', driverId)
-    // Does NOT mutate world — autosave will not fire.
   },
 
   signContract: (driverId, offer) => {
