@@ -36,12 +36,13 @@ describe('ContractNegotiationModal', () => {
   it('shows the driver name and market value', () => {
     render(<ContractNegotiationModal driverId="lando" onClose={vi.fn()} />)
     expect(screen.getByText(/Lando Norris/i)).toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('commits when the driver accepts the offer', () => {
     render(<ContractNegotiationModal driverId="lando" onClose={vi.fn()} />)
     act(() => { fireEvent.click(screen.getByRole('button', { name: /Make Offer/i })) })
-    act(() => { fireEvent.click(screen.getByRole('button', { name: /Sign|Confirm/i })) })
+    act(() => { fireEvent.click(screen.getByRole('button', { name: /Sign/i })) })
     expect(commit).toHaveBeenCalled()
   })
 

@@ -13,11 +13,12 @@ function formatM(n: number): string {
   return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
 }
 
-type Phase = 'editing' | 'countered' | 'signed'
+type Phase = 'editing' | 'accepted' | 'countered' | 'signed'
 
 export function ContractNegotiationModal({ driverId, onClose }: Props) {
   const neg = useContractNegotiation(driverId)
   const dialogRef = useRef<HTMLDivElement | null>(null)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [salary, setSalary] = useState(0)
   const [term, setTerm] = useState<number>(2)
@@ -54,6 +55,11 @@ export function ContractNegotiationModal({ driverId, onClose }: Props) {
     }
   }, [driverId, onClose])
 
+  // Unmount cleanup: clear the auto-close timer to prevent calling onClose after unmount.
+  useEffect(() => () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+  }, [])
+
   if (!neg) return null
 
   const offer: ContractOffer = { salary, termLength: term, performanceBonuses: bonuses, releaseClause }
@@ -61,20 +67,23 @@ export function ContractNegotiationModal({ driverId, onClose }: Props) {
   const capRisk = projected > neg.budgetCap * 0.9
 
   function makeOffer() {
-    const r = neg!.evaluate(offer)
+    if (!neg) return
+    const r = neg.evaluate(offer)
     setResult(r)
-    if (r.accepted) setPhase('editing')
+    if (r.accepted) setPhase('accepted')
     else if (r.counterOffer) setPhase('countered')
     else setPhase('editing')
   }
 
   function commitOffer(toCommit: ContractOffer) {
-    neg!.commit(toCommit)
+    if (!neg) return
+    neg.commit(toCommit)
     setPhase('signed')
-    setTimeout(onClose, 900)
+    closeTimerRef.current = setTimeout(onClose, 900)
   }
 
   function acceptCounter() {
+    if (!neg) return
     if (result?.counterOffer) {
       setSalary(result.counterOffer.salary)
       setTerm(result.counterOffer.termLength)
@@ -187,7 +196,7 @@ export function ContractNegotiationModal({ driverId, onClose }: Props) {
                       Walk away
                     </button>
                   </>
-                ) : result?.accepted ? (
+                ) : phase === 'accepted' ? (
                   <button type="button" onClick={() => commitOffer(offer)}
                     className="text-[11px] font-heading font-semibold uppercase tracking-wider px-3 py-1.5 rounded bg-[var(--accent-lime)]/15 text-[var(--accent-lime)] hover:bg-[var(--accent-lime)]/25 transition-colors">
                     Sign
