@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
 import { useSaveGame } from '@/hooks/use-save-game'
+import { AUTO_SAVE_SLOT } from '@/engine/core/save-system'
 import { Button } from '@/components/ui/button'
+import { LoadGameModal } from '@/components/menu/load-game-modal'
 
 export default function Home() {
   const router = useRouter()
@@ -12,16 +14,18 @@ export default function Home() {
   const { loadGame, listSaves } = useSaveGame()
   const [hasAutoSave, setHasAutoSave] = useState(false)
   const [checking, setChecking] = useState(true)
+  const [loadOpen, setLoadOpen] = useState(false)
+  const closeLoad = useCallback(() => setLoadOpen(false), [])
 
   useEffect(() => {
     listSaves().then((saves) => {
-      setHasAutoSave(saves.some((s) => s.slotId === 'auto-save'))
+      setHasAutoSave(saves.some((s) => s.slotId === AUTO_SAVE_SLOT))
       setChecking(false)
     })
   }, [listSaves])
 
   async function handleContinue() {
-    await loadGame('auto-save')
+    await loadGame(AUTO_SAVE_SLOT)
     router.push('/paddock')
   }
 
@@ -63,7 +67,7 @@ export default function Home() {
           <Button
             variant="ghost"
             size="md"
-            onClick={() => {/* TODO: load game modal */}}
+            onClick={() => setLoadOpen(true)}
             className="w-56"
           >
             Load Game
@@ -75,6 +79,8 @@ export default function Home() {
           v0.1.0 — MVP
         </p>
       </div>
+
+      <LoadGameModal open={loadOpen} onClose={closeLoad} />
     </main>
   )
 }
