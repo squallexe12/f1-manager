@@ -55,7 +55,7 @@ describe('budget engine', () => {
   })
 })
 
-function makeBudgetSCS(): Budget {
+function makeBudgetForSetCategory(): Budget {
   return {
     cap: 215_000_000,
     totalSpent: 0,
@@ -70,18 +70,20 @@ function makeBudgetSCS(): Budget {
 
 describe('setCategorySpent', () => {
   it('sets a category spent value and recomputes totalSpent', () => {
-    const next = setCategorySpent(makeBudgetSCS(), 'Salaries', 45_000_000)
+    const next = setCategorySpent(makeBudgetForSetCategory(), 'Salaries', 45_000_000)
     expect(next.categories.find((c) => c.name === 'Salaries')!.spent).toBe(45_000_000)
     expect(next.totalSpent).toBe(55_000_000) // 10M R&D + 45M Salaries
   })
 
   it('flags penaltyRisk when total exceeds 90% of cap', () => {
-    const next = setCategorySpent(makeBudgetSCS(), 'Salaries', 200_000_000)
+    const next = setCategorySpent(makeBudgetForSetCategory(), 'Salaries', 200_000_000)
     expect(next.penaltyRisk).toBe(true) // 210M > 193.5M
   })
 
   it('leaves the budget unchanged for an unknown category', () => {
-    const next = setCategorySpent(makeBudgetSCS(), 'Nope', 5)
-    expect(next.categories).toEqual(makeBudgetSCS().categories)
+    const next = setCategorySpent(makeBudgetForSetCategory(), 'Nope', 5)
+    expect(next.categories).toEqual(makeBudgetForSetCategory().categories)
+    expect(next.totalSpent).toBe(10_000_000) // recompute still runs on a miss: 10M R&D + 0 Salaries
+    expect(next.penaltyRisk).toBe(false)
   })
 })

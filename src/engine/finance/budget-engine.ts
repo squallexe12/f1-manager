@@ -75,7 +75,7 @@ export function setCategorySpent(budget: Budget, categoryName: string, value: nu
     categories,
     totalSpent,
     penaltyRisk: totalSpent > budget.cap * 0.9,
-    projectedEndOfSeason: totalSpent,
+    projectedEndOfSeason: totalSpent, // simplified projection
   }
 }
 
