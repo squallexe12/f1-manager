@@ -1,7 +1,7 @@
 'use client'
 
 import type { CSSProperties } from 'react'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { PageShell } from '@/components/layout/page-shell'
 import { useDriversPageData } from '@/hooks/use-drivers-page-data'
 import { PageHeader } from '@/components/drivers/page-header'
@@ -11,10 +11,13 @@ import { AttributesCard } from '@/components/drivers/attributes-card'
 import { MoodCard } from '@/components/drivers/mood-card'
 import { ContractCard } from '@/components/drivers/contract-card'
 import { PenaltyCard } from '@/components/drivers/penalty-card'
+import { ContractNegotiationModal } from '@/components/drivers/contract-negotiation-modal'
 
 export default function DriversPage() {
   const data = useDriversPageData()
   const [activeTab, setActiveTab] = useState<TabId>('CAR-01')
+  const [negotiationDriverId, setNegotiationDriverId] = useState<string | null>(null)
+  const closeNegotiation = useCallback(() => setNegotiationDriverId(null), [])
 
   if (!data) return null
 
@@ -70,8 +73,8 @@ export default function DriversPage() {
               <ContractCard
                 driver={driver}
                 currentSeason={data.season}
-                onNegotiate={() => data.openContractNegotiation(driver.id)}
-                onRelease={() => { /* free-agent release flow — future */ }}
+                onNegotiate={() => setNegotiationDriverId(driver.id)}
+                onRelease={() => { /* free-agent release flow — future (#3) */ }}
               />
             </div>
             <div className="drv-grid" style={{ marginTop: 14, gridTemplateColumns: '1fr' }}>
@@ -96,6 +99,7 @@ export default function DriversPage() {
           </div>
         )}
       </div>
+      <ContractNegotiationModal driverId={negotiationDriverId} onClose={closeNegotiation} />
     </PageShell>
   )
 }
