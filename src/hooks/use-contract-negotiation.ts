@@ -23,6 +23,10 @@ export interface ContractNegotiation {
 }
 
 export function useContractNegotiation(driverId: string | null): ContractNegotiation | null {
+  // driverId is expected to be stable for the hook's lifetime — the modal mounts
+  // one instance per open negotiation and unmounts on close. The selector closes
+  // over driverId, so a changing driverId without a store change would otherwise
+  // surface a stale driver until the next store update.
   const slice = useGameStore(
     useShallow((s) => {
       if (!s.world || !driverId) return null
