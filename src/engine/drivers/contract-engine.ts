@@ -79,3 +79,13 @@ export function evaluateOffer(
 
   return { accepted, satisfaction, counterOffer }
 }
+
+/**
+ * Sum of annual salaries for a team's drivers — the source of truth for the
+ * 'Salaries' budget category. Drivers with no contract count as 0.
+ */
+export function salariesSpent(drivers: Driver[], teamId: string): number {
+  return drivers
+    .filter((d) => d.teamId === teamId)
+    .reduce((sum, d) => sum + (d.contract?.salary ?? 0), 0)
+}
