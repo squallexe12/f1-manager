@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { salariesSpent, type ContractOffer } from '@/engine/drivers/contract-engine'
+import { setCategorySpent } from '@/engine/finance/budget-engine'
 import type { ScenarioType } from '@/types/game'
 import type {
   DriverCommand,
@@ -91,6 +93,7 @@ interface GameStore {
    * contract renegotiation flow ships.
    */
   openContractNegotiation: (driverId: string) => void
+  signContract: (driverId: string, offer: ContractOffer) => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -425,6 +428,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Tracked in docs/architecture/current-state-baseline.md §Known stubs (IP-09b).
     console.info('[stub] openContractNegotiation', driverId)
     // Does NOT mutate world — autosave will not fire.
+  },
+
+  signContract: (driverId, offer) => {
+    const { world } = get()
+    if (!world) return
+    const playerTeamId = world.gameState.playerTeamId
+
+    const drivers = world.drivers.map((d) =>
+      d.id === driverId
+        ? {
+            ...d,
+            contract: {
+              salary: offer.salary,
+              termEndSeason: offer.termLength,
+              performanceBonuses: offer.performanceBonuses,
+              releaseClause: offer.releaseClause,
+            },
+          }
+        : d,
+    )
+
+    const finance = { ...world.finance }
+    const fs = finance[playerTeamId]
+    finance[playerTeamId] = {
+      ...fs,
+      budget: setCategorySpent(fs.budget, 'Salaries', salariesSpent(drivers, playerTeamId)),
+    }
+
+    set({ world: { ...world, drivers, finance } })
   },
 
   applyRaceWorkerEvent: (event) => {
