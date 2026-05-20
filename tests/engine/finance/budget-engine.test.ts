@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { recordSpend, checkCapBreach, calculatePrizeMoney } from '@/engine/finance/budget-engine'
+import { recordSpend, checkCapBreach, calculatePrizeMoney, setCategorySpent } from '@/engine/finance/budget-engine'
 import type { Budget } from '@/types/finance'
 
 function mockBudget(): Budget {
@@ -52,5 +52,36 @@ describe('budget engine', () => {
     const last = calculatePrizeMoney(11)
     expect(first).toBeGreaterThan(last)
     expect(first).toBe(130_000_000) // 50M base + 80M performance
+  })
+})
+
+function makeBudgetSCS(): Budget {
+  return {
+    cap: 215_000_000,
+    totalSpent: 0,
+    categories: [
+      { name: 'R&D', allocated: 80_000_000, spent: 10_000_000 },
+      { name: 'Salaries', allocated: 60_000_000, spent: 0 },
+    ],
+    projectedEndOfSeason: 0,
+    penaltyRisk: false,
+  }
+}
+
+describe('setCategorySpent', () => {
+  it('sets a category spent value and recomputes totalSpent', () => {
+    const next = setCategorySpent(makeBudgetSCS(), 'Salaries', 45_000_000)
+    expect(next.categories.find((c) => c.name === 'Salaries')!.spent).toBe(45_000_000)
+    expect(next.totalSpent).toBe(55_000_000) // 10M R&D + 45M Salaries
+  })
+
+  it('flags penaltyRisk when total exceeds 90% of cap', () => {
+    const next = setCategorySpent(makeBudgetSCS(), 'Salaries', 200_000_000)
+    expect(next.penaltyRisk).toBe(true) // 210M > 193.5M
+  })
+
+  it('leaves the budget unchanged for an unknown category', () => {
+    const next = setCategorySpent(makeBudgetSCS(), 'Nope', 5)
+    expect(next.categories).toEqual(makeBudgetSCS().categories)
   })
 })

@@ -61,6 +61,25 @@ export function checkCapBreach(budget: Budget): {
 }
 
 /**
+ * Set a category's spent value outright (vs. recordSpend's additive delta) and
+ * recompute totals. Used when a category is derived from truth — e.g. 'Salaries'
+ * recomputed from the sum of driver contracts after a renegotiation.
+ */
+export function setCategorySpent(budget: Budget, categoryName: string, value: number): Budget {
+  const categories = budget.categories.map((cat) =>
+    cat.name === categoryName ? { ...cat, spent: value } : cat,
+  )
+  const totalSpent = categories.reduce((sum, cat) => sum + cat.spent, 0)
+  return {
+    ...budget,
+    categories,
+    totalSpent,
+    penaltyRisk: totalSpent > budget.cap * 0.9,
+    projectedEndOfSeason: totalSpent,
+  }
+}
+
+/**
  * Calculate season-end prize money based on constructor position.
  */
 export function calculatePrizeMoney(constructorPosition: number): number {
