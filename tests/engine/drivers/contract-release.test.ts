@@ -30,4 +30,9 @@ describe('computeSeverance', () => {
   it('a release clause of 0 is honored (not treated as "no clause")', () => {
     expect(computeSeverance(contract({ releaseClause: 0 }))).toBe(0)
   })
+
+  it('final-season driver with no clause owes half a single season of salary', () => {
+    // termEndSeason 1 = final season → 24M × 1 × 0.5 = 12M
+    expect(computeSeverance(contract({ salary: 24_000_000, termEndSeason: 1 }))).toBe(12_000_000)
+  })
 })

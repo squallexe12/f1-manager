@@ -10,6 +10,8 @@ export const SEVERANCE_FRACTION = 0.5
  *
  * `termEndSeason` is relative seasons remaining (1 = final season), so
  * `salary × termEndSeason` is the total remaining salary owed.
+ * Assumes an active contract (termEndSeason ≥ 1); callers guard that the
+ * driver has a contract before calling.
  */
 export function computeSeverance(contract: Contract): number {
   if (contract.releaseClause != null) return contract.releaseClause
