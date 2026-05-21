@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useGameStore } from '@/stores/game-store'
 import { salariesSpent } from '@/engine/drivers/contract-engine'
 import type { ContractOffer } from '@/engine/drivers/contract-engine'
+import { computeSeverance } from '@/engine/drivers/contract-release'
 
 describe('signContract', () => {
   beforeEach(() => {
@@ -46,5 +47,45 @@ describe('signContract', () => {
     const driver = before!.drivers.find((d) => d.teamId === 'mclaren' && !d.isReserve)!
     useGameStore.getState().signContract(driver.id, { salary: 10_000_000, termLength: 1, performanceBonuses: [], releaseClause: null })
     expect(useGameStore.getState().world).not.toBe(before)
+  })
+})
+
+describe('releaseDriver action', () => {
+  beforeEach(() => {
+    useGameStore.setState({ world: null })
+    useGameStore.getState().initGame('mclaren', 'golden-era', 42)
+  })
+
+  it('moves the driver to free agency and updates the budget', () => {
+    const w0 = useGameStore.getState().world!
+    const driver = w0.drivers.find((d) => d.teamId === 'mclaren' && !d.isReserve)!
+    const opsBefore = w0.finance['mclaren'].budget.categories.find((c) => c.name === 'Operations')!.spent
+    const salariesBefore = salariesSpent(w0.drivers, 'mclaren')
+    const severance = computeSeverance(driver.contract!)
+
+    useGameStore.getState().releaseDriver(driver.id)
+
+    const w1 = useGameStore.getState().world!
+    const freed = w1.drivers.find((d) => d.id === driver.id)!
+    expect(freed.teamId).toBeNull()
+    expect(freed.contract).toBeNull()
+    expect(freed.isReserve).toBe(false)
+    const ops = w1.finance['mclaren'].budget.categories.find((c) => c.name === 'Operations')!.spent
+    expect(ops).toBe(opsBefore + severance)
+    const salariesAfter = w1.finance['mclaren'].budget.categories.find((c) => c.name === 'Salaries')!.spent
+    expect(salariesAfter).toBeLessThan(salariesBefore)
+  })
+
+  it('produces a new world reference (autosave trigger)', () => {
+    const before = useGameStore.getState().world
+    const driver = before!.drivers.find((d) => d.teamId === 'mclaren' && !d.isReserve)!
+    useGameStore.getState().releaseDriver(driver.id)
+    expect(useGameStore.getState().world).not.toBe(before)
+  })
+
+  it('is a no-op when world is null', () => {
+    useGameStore.setState({ world: null })
+    expect(() => useGameStore.getState().releaseDriver('anyone')).not.toThrow()
+    expect(useGameStore.getState().world).toBeNull()
   })
 })

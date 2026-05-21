@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { salariesSpent, type ContractOffer } from '@/engine/drivers/contract-engine'
+import { releaseDriver as releaseDriverEngine } from '@/engine/drivers/contract-release'
 import { setCategorySpent } from '@/engine/finance/budget-engine'
 import type { ScenarioType } from '@/types/game'
 import type {
@@ -88,6 +89,8 @@ interface GameStore {
    */
   consumeGridDrops: (driverIds: string[]) => void
   signContract: (driverId: string, offer: ContractOffer) => void
+  /** Terminate a contracted player driver early — moves them to free agency and charges severance. */
+  releaseDriver: (driverId: string) => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -444,6 +447,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
 
     set({ world: { ...world, drivers, finance } })
+  },
+
+  releaseDriver: (driverId) => {
+    const { world } = get()
+    if (!world) return
+    const { world: next } = releaseDriverEngine(world, world.gameState.playerTeamId, driverId)
+    set({ world: next })
   },
 
   applyRaceWorkerEvent: (event) => {
