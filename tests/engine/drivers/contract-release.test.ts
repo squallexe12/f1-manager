@@ -55,6 +55,10 @@ describe('releaseDriver', () => {
     expect(freed.contract).toBeNull()
     expect(freed.isReserve).toBe(false)
     expect(releasedDriver.id).toBe(driver.id)
+    const teammate = world.drivers.find((d) => d.teamId === 'mclaren' && !d.isReserve && d.id !== driver.id)
+    if (teammate) {
+      expect(next.drivers.find((d) => d.id === teammate.id)).toEqual(teammate)
+    }
   })
 
   it('recomputes Salaries (drops) and charges severance to Operations', () => {
@@ -64,6 +68,7 @@ describe('releaseDriver', () => {
     const { world: next, severance } = releaseDriver(world, 'mclaren', driver.id)
     expect(cat(next, 'Salaries')).toBe(salariesSpent(next.drivers, 'mclaren'))
     expect(cat(next, 'Operations')).toBe(opsBefore + severance)
+    expect(severance).toBe(computeSeverance(driver.contract!))
   })
 
   it('does not mutate the input world (purity)', () => {
@@ -113,9 +118,13 @@ describe('releaseDriver', () => {
     expect(() => releaseDriver(world, 'mclaren', other.id)).toThrow(/team/i)
   })
 
-  it('throws when the driver has no contract', () => {
+  it('throws when the driver is on the team but has no contract', () => {
     const world = buildWorld()
-    const fa = world.drivers.find((d) => d.teamId === null)!
-    expect(() => releaseDriver(world, 'mclaren', fa.id)).toThrow(/team|contract/i)
+    const onTeam = world.drivers.find((d) => d.teamId === 'mclaren')!
+    const patched = {
+      ...world,
+      drivers: world.drivers.map((d) => (d.id === onTeam.id ? { ...d, contract: null } : d)),
+    }
+    expect(() => releaseDriver(patched, 'mclaren', onTeam.id)).toThrow(/no contract/i)
   })
 })
