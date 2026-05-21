@@ -60,6 +60,7 @@ describe('releaseDriver action', () => {
     const w0 = useGameStore.getState().world!
     const driver = w0.drivers.find((d) => d.teamId === 'mclaren' && !d.isReserve)!
     const opsBefore = w0.finance['mclaren'].budget.categories.find((c) => c.name === 'Operations')!.spent
+    const salariesBefore = salariesSpent(w0.drivers, 'mclaren')
     const severance = computeSeverance(driver.contract!)
 
     useGameStore.getState().releaseDriver(driver.id)
@@ -68,8 +69,11 @@ describe('releaseDriver action', () => {
     const freed = w1.drivers.find((d) => d.id === driver.id)!
     expect(freed.teamId).toBeNull()
     expect(freed.contract).toBeNull()
+    expect(freed.isReserve).toBe(false)
     const ops = w1.finance['mclaren'].budget.categories.find((c) => c.name === 'Operations')!.spent
     expect(ops).toBe(opsBefore + severance)
+    const salariesAfter = w1.finance['mclaren'].budget.categories.find((c) => c.name === 'Salaries')!.spent
+    expect(salariesAfter).toBeLessThan(salariesBefore)
   })
 
   it('produces a new world reference (autosave trigger)', () => {
