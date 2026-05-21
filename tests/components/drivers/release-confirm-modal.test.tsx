@@ -66,4 +66,25 @@ describe('ReleaseConfirmModal', () => {
     act(() => { fireEvent.keyDown(window, { key: 'Escape' }) })
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('shows the Settlement label when there is no release clause', () => {
+    release = { ...release!, fromReleaseClause: false }
+    render(<ReleaseConfirmModal driverId="hamilton" onClose={vi.fn()} />)
+    expect(screen.getByText(/settlement/i)).toBeInTheDocument()
+    expect(screen.queryByText(/release clause/i)).toBeNull()
+  })
+
+  it('shows the cap-risk warning on the Operations line', () => {
+    release = { ...release!, capRisk: true }
+    render(<ReleaseConfirmModal driverId="hamilton" onClose={vi.fn()} />)
+    expect(screen.getByText(/cap risk/i)).toBeInTheDocument()
+  })
+
+  it('closes when the backdrop is clicked', () => {
+    const onClose = vi.fn()
+    const { container } = render(<ReleaseConfirmModal driverId="hamilton" onClose={onClose} />)
+    // The backdrop is the outermost element; clicking it (target === currentTarget) dismisses.
+    act(() => { fireEvent.click(container.firstChild as Element) })
+    expect(onClose).toHaveBeenCalled()
+  })
 })

@@ -8,6 +8,7 @@ interface Props {
   onClose: () => void
 }
 
+// shared with contract-negotiation-modal.tsx — extract to a util only if a third consumer appears
 function formatM(n: number): string {
   return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
 }
@@ -78,7 +79,7 @@ export function ReleaseConfirmModal({ driverId, onClose }: Props) {
 
         <div className="px-5 py-4 flex flex-col gap-3">
           {phase === 'released' ? (
-            <p className="text-sm font-heading text-[var(--accent-lime)] py-6 text-center">Released ✓</p>
+            <p role="status" className="text-sm font-heading text-[var(--accent-lime)] py-6 text-center">Released ✓</p>
           ) : rel ? (
             <>
               <div className="flex items-baseline justify-between">
