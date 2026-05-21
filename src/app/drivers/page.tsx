@@ -12,12 +12,15 @@ import { MoodCard } from '@/components/drivers/mood-card'
 import { ContractCard } from '@/components/drivers/contract-card'
 import { PenaltyCard } from '@/components/drivers/penalty-card'
 import { ContractNegotiationModal } from '@/components/drivers/contract-negotiation-modal'
+import { ReleaseConfirmModal } from '@/components/drivers/release-confirm-modal'
 
 export default function DriversPage() {
   const data = useDriversPageData()
   const [activeTab, setActiveTab] = useState<TabId>('CAR-01')
   const [negotiationDriverId, setNegotiationDriverId] = useState<string | null>(null)
   const closeNegotiation = useCallback(() => setNegotiationDriverId(null), [])
+  const [releaseDriverId, setReleaseDriverId] = useState<string | null>(null)
+  const closeRelease = useCallback(() => setReleaseDriverId(null), [])
 
   if (!data) return null
 
@@ -74,7 +77,7 @@ export default function DriversPage() {
                 driver={driver}
                 currentSeason={data.season}
                 onNegotiate={() => setNegotiationDriverId(driver.id)}
-                onRelease={() => { /* free-agent release flow — future (#3) */ }}
+                onRelease={() => setReleaseDriverId(driver.id)}
               />
             </div>
             <div className="drv-grid" style={{ marginTop: 14, gridTemplateColumns: '1fr' }}>
@@ -100,6 +103,7 @@ export default function DriversPage() {
         )}
       </div>
       <ContractNegotiationModal driverId={negotiationDriverId} onClose={closeNegotiation} />
+      <ReleaseConfirmModal driverId={releaseDriverId} onClose={closeRelease} />
     </PageShell>
   )
 }
