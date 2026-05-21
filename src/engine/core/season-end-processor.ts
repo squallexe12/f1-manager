@@ -109,9 +109,16 @@ export function processSeasonEnd(
     const newAttributes = applyAging(driver)
     const newAge = driver.age + 1
 
-    // Check contract expiration
-    const contractExpired = driver.contract && driver.contract.termEndSeason <= currentSeason
-    const contract = contractExpired ? null : driver.contract
+    // Contract expiration. `termEndSeason` is RELATIVE (seasons remaining;
+    // see src/types/driver.ts): 1 means this is the final season, so the
+    // contract expires now. Survivors decrement by one and persist as a new
+    // object (engine purity — never mutate the input contract).
+    let contract = driver.contract
+    if (contract) {
+      contract = contract.termEndSeason <= 1
+        ? null
+        : { ...contract, termEndSeason: contract.termEndSeason - 1 }
+    }
 
     return {
       ...driver,
