@@ -2,15 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useDriverRelease } from '@/hooks/use-driver-release'
+import { formatM } from '@/lib/utils/format'
 
 interface Props {
   driverId: string | null
   onClose: () => void
-}
-
-// shared with contract-negotiation-modal.tsx — extract to a util only if a third consumer appears
-function formatM(n: number): string {
-  return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
 }
 
 type Phase = 'confirm' | 'released'

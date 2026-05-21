@@ -3,14 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useContractNegotiation } from '@/hooks/use-contract-negotiation'
 import type { ContractOffer, ContractEvaluation } from '@/engine/drivers/contract-engine'
+import { formatM } from '@/lib/utils/format'
 
 interface Props {
   driverId: string | null
   onClose: () => void
-}
-
-function formatM(n: number): string {
-  return `$${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`
 }
 
 type Phase = 'editing' | 'accepted' | 'countered' | 'signed'
