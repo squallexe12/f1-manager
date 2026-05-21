@@ -282,6 +282,7 @@
 .pd-driver-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pd-driver-name { font-family: var(--font-display); font-weight: 700; font-size: 18px; color: var(--ink-hi); letter-spacing: -0.01em; line-height: 1; }
 .pd-driver-meta { font-family: var(--font-mono); font-size: 9px; letter-spacing: 0.18em; color: var(--ink-dim); text-transform: uppercase; }
+.pd-driver-meta .pd-contract.expiring { color: var(--sig-amber); }
 .pd-driver-wdc {
   font-family: var(--font-display); font-weight: 800;
   font-size: 28px; color: var(--sig-red);

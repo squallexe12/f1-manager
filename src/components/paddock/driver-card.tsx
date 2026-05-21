@@ -25,8 +25,13 @@ function moodLabel(pill: ReturnType<typeof moodPill>): string {
 export function DriverCard({ driver, driverNumber, wdcPosition, teamColor }: DriverCardProps) {
   const rating = calculateOverallRating(driver.attributes)
   const pill = moodPill(driver)
+  // `termEndSeason` is RELATIVE (seasons remaining; nulled at expiry, so always >= 1).
+  // Glance-tier card shows urgency, not the absolute season index used on the Drivers page.
+  const expiring = driver.contract != null && driver.contract.termEndSeason <= 1
   const contractLabel = driver.contract
-    ? `CONTRACT THRU '${String(driver.contract.termEndSeason).slice(-2).padStart(2, '0')}`
+    ? expiring
+      ? 'FINAL SEASON'
+      : `${driver.contract.termEndSeason} SEASONS LEFT`
     : 'FREE AGENT'
 
   // Sparkline path for last-7 finishing positions, capped at 20 so the line
@@ -61,7 +66,8 @@ export function DriverCard({ driver, driverNumber, wdcPosition, teamColor }: Dri
         <div className="pd-driver-body">
           <div className="pd-driver-name">{driver.firstName} {driver.lastName}</div>
           <div className="pd-driver-meta">
-            {driver.shortName} · {driver.nationality.toUpperCase()} · {contractLabel}
+            {driver.shortName} · {driver.nationality.toUpperCase()} ·{' '}
+            <span className={expiring ? 'pd-contract expiring' : 'pd-contract'}>{contractLabel}</span>
           </div>
         </div>
         <div className="pd-driver-wdc">
