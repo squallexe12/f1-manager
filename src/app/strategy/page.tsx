@@ -417,6 +417,7 @@ export default function StrategyPage() {
         {/* ═══ Sticky Command Chrome ═══ */}
         <BroadcastChrome
           phase={phase === 'sprint' ? 'sprint' : 'race'}
+          flagStatus={raceSim.safetyCar}
           lap={raceSim.currentLap}
           totalLaps={raceSim.totalLaps}
           weather={raceSim.weather}

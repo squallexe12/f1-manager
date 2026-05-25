@@ -3,6 +3,7 @@
 import { RaceStatusBar } from './race-status-bar'
 import { SimSpeedControl } from './sim-speed-control'
 import { RaceTicker } from './race-ticker'
+import { FlagStateIndicator } from './flag-state-indicator'
 import type { WeatherForecast, SimSpeed, CommentaryEntry, RaceFlag } from '@/types/race'
 
 interface BroadcastChromeProps {
@@ -47,10 +48,8 @@ export function BroadcastChrome({
   tickerEntries,
   sticky = true,
 }: BroadcastChromeProps) {
-  // phase and flagStatus are part of the contract per spec §6.
-  // They are available for flag-strip styling and future design phases.
+  // phase is part of the contract per spec §6.
   void phase
-  void flagStatus
 
   return (
     <div className={sticky ? 'sticky top-12 z-20 bg-surface-void/95 backdrop-blur-md pb-2 -mx-4 px-4 pt-1' : ''}>
@@ -63,6 +62,9 @@ export function BroadcastChrome({
           trackTemp={trackTemp}
           safetyCar={safetyCar}
         />
+        {flagStatus && flagStatus !== 'chequered' && (
+          <FlagStateIndicator flag={flagStatus as RaceFlag} />
+        )}
         <SimSpeedControl
           currentSpeed={currentSpeed}
           onSetSpeed={onSetSpeed}
