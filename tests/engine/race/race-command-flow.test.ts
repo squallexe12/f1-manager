@@ -16,6 +16,7 @@ function makeSim(): SimRaceState {
     totalLaps: 50,
     weather: { current: 'dry', rainProbability: 0, changeInLaps: null },
     safetyCar: 'green',
+    cautionLapsRemaining: 0,
     trackTemp: 40,
     results: [],
     incidents: [],
