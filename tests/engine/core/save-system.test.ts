@@ -890,6 +890,68 @@ describe('v11 → v12 migration (Tier B v2 — pit-crew staff schema)', () => {
   })
 })
 
+describe('track-limits offence type loads without a schema bump (Tier C IP-C2)', () => {
+  it('a v13 save with a track-limits penaltyPoint entry round-trips through save→load', async () => {
+    // Tier C IP-C2 adds the 'track-limits' OffenceType but performs NO schema
+    // bump (SCHEMA_VERSION stays 13). PenaltyPointEntry.offenceType is a plain
+    // string union and the save layer applies no value validation, so a save
+    // already at the current version must round-trip the new offence string
+    // verbatim with no migration required.
+    const save = new SaveSystem(`track-limits-noload-${Date.now()}`)
+
+    // Real PenaltyPointEntry shape (src/types/driver.ts):
+    //   { points, issuedSeason, issuedRound, offenceType, raceId }
+    const trackLimitsEntry = {
+      points: 0,
+      issuedSeason: 2026,
+      issuedRound: 3,
+      offenceType: 'track-limits' as const,
+      raceId: 'r3',
+    }
+
+    const v13Payload = {
+      gameState: { season: 1, currentRound: 3, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [],
+      drivers: [
+        {
+          id: 'norris', teamId: 'mclaren', isReserve: false, isF2: false,
+          penaltyPoints: [trackLimitsEntry],
+          warningsThisSeason: 1,
+          nextRaceGridDrop: 0,
+          banUntilRound: null,
+          seasonStats: {
+            points: 0, wins: 0, podiums: 0, poles: 0, dnfs: 0,
+            penalties: 0, bestFinish: 0, averageFinish: 0, lastProcessedRound: 0,
+          },
+        },
+      ],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+    } as unknown as FullGameState
+
+    // Save at the CURRENT schema version (13) — no backdating, so no migration runs.
+    await save.saveToSlot('track-limits-save', 'Track Limits Save', v13Payload)
+
+    // Load must succeed (no throw) — proves the unknown offence string is not rejected.
+    const loaded = await save.loadFromSlot('track-limits-save') as unknown as FullGameState
+
+    const driver = loaded.drivers[0]
+    expect(driver.penaltyPoints).toHaveLength(1)
+    const entry = driver.penaltyPoints[0]
+    expect(entry.offenceType).toBe('track-limits')
+    expect(entry.points).toBe(0)
+    expect(entry.issuedSeason).toBe(2026)
+    expect(entry.issuedRound).toBe(3)
+    expect(entry.raceId).toBe('r3')
+
+    // The slot is stored at the current schema version — confirms no bump was
+    // forced and no migration mangled the entry.
+    const listed = await save.listSlots()
+    expect(listed.find(s => s.slotId === 'track-limits-save')?.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(SCHEMA_VERSION).toBe(13)
+  })
+})
+
 describe('SaveSystem auto-rewrite on migration', () => {
   it('rewrites a migrated save back at the current schema version', async () => {
     // Stub a migration from a hypothetical older version (0 → 1) by temporarily
