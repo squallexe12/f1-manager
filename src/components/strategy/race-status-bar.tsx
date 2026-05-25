@@ -13,8 +13,10 @@ interface RaceStatusBarProps {
 
 const SC_CONFIG: Record<string, { label: string; accentClass: string }> = {
   green: { label: 'GREEN', accentClass: 'text-sig-green' },
+  yellow: { label: 'YELLOW', accentClass: 'text-sig-amber' },
   vsc: { label: 'VSC', accentClass: 'text-sig-amber' },
   sc: { label: 'SAFETY CAR', accentClass: 'text-sig-red' },
+  red: { label: 'RED FLAG', accentClass: 'text-sig-red' },
 }
 
 const WEATHER_ICON: Record<string, string> = {
