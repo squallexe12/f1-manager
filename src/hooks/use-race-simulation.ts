@@ -14,6 +14,7 @@ import type {
   BattleForecast,
   TireCompound,
   RaceWorkerStartPayload,
+  RaceFlag,
 } from '@/types/race'
 import { calculateStrategyOptions } from '@/engine/race/pit-strategy'
 import type { CalibrationProfile } from '@/types/calibration'
@@ -54,7 +55,7 @@ export interface RaceSimState {
   currentLap: number
   totalLaps: number
   weather: WeatherForecast
-  safetyCar: 'green' | 'vsc' | 'sc'
+  safetyCar: RaceFlag
   trackTemp: number
   timing: TimingEntry[]
   tireStates: Record<string, TireState>

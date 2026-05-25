@@ -1,13 +1,13 @@
 'use client'
 
-import type { WeatherForecast } from '@/types/race'
+import type { WeatherForecast, RaceFlag } from '@/types/race'
 
 interface RaceStatusBarProps {
   lap: number
   totalLaps: number
   weather: WeatherForecast
   trackTemp: number
-  safetyCar: 'green' | 'vsc' | 'sc'
+  safetyCar: RaceFlag
   className?: string
 }
 

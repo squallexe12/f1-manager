@@ -3,7 +3,7 @@
 import { RaceStatusBar } from './race-status-bar'
 import { SimSpeedControl } from './sim-speed-control'
 import { RaceTicker } from './race-ticker'
-import type { WeatherForecast, SimSpeed, CommentaryEntry } from '@/types/race'
+import type { WeatherForecast, SimSpeed, CommentaryEntry, RaceFlag } from '@/types/race'
 
 interface BroadcastChromeProps {
   // Phase + flag context (spec §6)
@@ -15,7 +15,7 @@ interface BroadcastChromeProps {
   totalLaps: number
   weather: WeatherForecast
   trackTemp: number
-  safetyCar: 'green' | 'vsc' | 'sc'
+  safetyCar: RaceFlag
 
   // ─── SimSpeedControl pass-through (exact types from step 2.1) ───
   currentSpeed: SimSpeed
