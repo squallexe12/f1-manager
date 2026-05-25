@@ -56,6 +56,7 @@ export interface RaceSimState {
   totalLaps: number
   weather: WeatherForecast
   safetyCar: RaceFlag
+  trackLimitStrikes: Record<string, number>
   trackTemp: number
   timing: TimingEntry[]
   tireStates: Record<string, TireState>
@@ -363,6 +364,7 @@ export function useRaceSimulation({
       totalLaps: runtime.totalLaps,
       weather: runtime.weather,
       safetyCar: runtime.safetyCar,
+      trackLimitStrikes: runtime.trackLimitStrikes,
       trackTemp: runtime.trackTemp,
       timing,
       tireStates: runtime.tireStates,
