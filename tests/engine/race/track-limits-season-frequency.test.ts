@@ -127,7 +127,6 @@ describe.skipIf(!RUN_HARNESS)('track-limits season frequency harness (TRACK_LIMI
     const avgPenalties = timePenalties / SAMPLES
     const avgBreaches = totalBreaches / SAMPLES
 
-    // eslint-disable-next-line no-console
     console.log(
       `[IP-C2-frequency] samples=${SAMPLES} exp=70 frus=40 → ` +
       `warnings≈${avgWarnings.toFixed(1)} (target 12–18), ` +
@@ -152,7 +151,6 @@ describe.skipIf(!RUN_HARNESS)('track-limits season frequency harness (TRACK_LIMI
   it('a calm veteran breaches materially less than a frustrated rookie', () => {
     const veteran = replaySeasonForDriver(95, 10, SEED_BASE + 100)
     const rookie = replaySeasonForDriver(30, 90, SEED_BASE + 100)
-    // eslint-disable-next-line no-console
     console.log(
       `[IP-C2-attribute] veteran breaches=${veteran.totalBreaches}, ` +
       `rookie breaches=${rookie.totalBreaches}`,
