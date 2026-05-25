@@ -1,5 +1,14 @@
 import type { PRNG } from '@/engine/core/prng'
 
+/**
+ * Track-limits strike FSM tuning.
+ *
+ * INVARIANT: `blackWhiteAt < timePenaltyAt`. The strike escalation in
+ * `applyTrackLimitStrike` checks the time-penalty threshold first, so if
+ * `blackWhiteAt >= timePenaltyAt` the black-and-white branch becomes
+ * unreachable (every strike at/over `blackWhiteAt` would already be a
+ * time penalty). Keep the black-and-white step strictly below the penalty step.
+ */
 export interface TrackLimitsConfig {
   /** Per-corner per-lap base breach probability by difficulty tier. */
   baseRateByTier: Record<1 | 2 | 3, number>
@@ -23,7 +32,7 @@ export const DEFAULT_TRACK_LIMITS_CONFIG: TrackLimitsConfig = {
 export interface TrackLimitBreachInput {
   difficultyTier: 1 | 2 | 3
   experience: number   // 0-100; higher → fewer breaches
-  frustration: number  // 0-100; higher → more breaches
+  frustration: number  // 0-100; higher → more breaches // source: driver.mood.frustration
   config: TrackLimitsConfig
 }
 

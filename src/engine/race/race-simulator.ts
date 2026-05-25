@@ -24,6 +24,8 @@ import { aggregateCrewRatings } from '@/engine/staff/pit-crew'
 import type { PitCrewChief, PitCrewMember } from '@/types/staff'
 import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
 import { advanceRaceFlags, DEFAULT_CAUTION_CONFIG } from './race-flags'
+import { evaluateTrackLimitBreach, applyTrackLimitStrike, DEFAULT_TRACK_LIMITS_CONFIG } from './track-limits'
+import { cornersForCircuit, DEFAULT_CORNER_PROFILE } from '@/data/corner-profiles'
 
 export interface RaceDriver {
   id: string
@@ -57,12 +59,14 @@ export interface SimRaceState {
   safetyCar: RaceFlag
   /** Tier C: laps left on the active caution; 0 when green. Transient. */
   cautionLapsRemaining: number
+  /** Tier C: per-driver track-limits breach count this race. Transient. Resets per race. */
+  trackLimitStrikes: Record<string, number>
   trackTemp: number
   results: LapResult[][]
   incidents: RaceIncident[]
   commentary: CommentaryEntry[]
   drivers: RaceDriver[]
-  circuit: { tireWear: string; overtakingDifficulty: 'low' | 'medium' | 'high'; weatherVariability: string; compounds?: [TireCompound, TireCompound, TireCompound] }
+  circuit: { id: string; tireWear: string; overtakingDifficulty: 'low' | 'medium' | 'high'; weatherVariability: string; compounds?: [TireCompound, TireCompound, TireCompound] }
   calibration: CalibrationProfile
   strategies: RaceStrategy[]
   tireStates: Record<string, TireState>
@@ -638,6 +642,10 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   for (let i = 1; i < positions.length; i++) {
     const aheadId = positions[i - 1]
     const behindId = positions[i]
+    // DNF drivers stay in `positions` with a frozen cumulative time but produce
+    // no lap result this lap; skip any pair involving one so the `find(...)!`
+    // below never dereferences `undefined`.
+    if (state.dnfDriverIds[aheadId] || state.dnfDriverIds[behindId]) continue
     const cumAhead = state.cumulativeTimes[aheadId]!
     const cumBehind = state.cumulativeTimes[behindId]!
     if (cumBehind >= cumAhead) continue // no inversion, nothing to gate
@@ -737,6 +745,9 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const leaderCumulative = state.cumulativeTimes[positions[0]]!
   for (let i = 0; i < positions.length; i++) {
     const driverId = positions[i]
+    // DNF drivers have no lap result this lap; their cumulative is frozen and
+    // their final standing was written on the lap they retired. Skip them.
+    if (state.dnfDriverIds[driverId]) continue
     const result = lapResults.find(r => r.driverId === driverId)!
     result.position = i + 1
     result.gapToLeader = state.cumulativeTimes[driverId]! - leaderCumulative
@@ -811,6 +822,61 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     }
   }
 
+  // Tier C: track-limits breaches. End-of-lap so existing within-lap PRNG draws
+  // (overtakes, lap times) are unshifted. Iterate drivers in sorted id order and
+  // corners in profile order for deterministic PRNG consumption.
+  const cornerProfile = cornersForCircuit(state.circuit.id, DEFAULT_CORNER_PROFILE)
+  const monitored = cornerProfile.corners.filter((c) => c.trackLimitMonitored)
+  if (monitored.length > 0) {
+    const sortedDrivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    for (const driver of sortedDrivers) {
+      if (state.dnfDriverIds[driver.id]) continue
+      for (const corner of monitored) {
+        const breached = evaluateTrackLimitBreach(
+          {
+            difficultyTier: corner.difficultyTier,
+            experience: driver.attributes.experience,
+            frustration: driver.mood.frustration,
+            config: DEFAULT_TRACK_LIMITS_CONFIG,
+          },
+          rng,
+        )
+        if (!breached) continue
+        const prior = state.trackLimitStrikes[driver.id] ?? 0
+        const strike = applyTrackLimitStrike(prior, DEFAULT_TRACK_LIMITS_CONFIG)
+        state.trackLimitStrikes[driver.id] = strike.strikes
+        if (strike.outcome === 'time-penalty') {
+          state.pendingTimePenalties[driver.id] = (state.pendingTimePenalties[driver.id] ?? 0) + strike.timePenaltySeconds
+          ;(state.appliedPenaltiesByDriver[driver.id] ??= []).push({
+            offenceType: 'track-limits',
+            sanction: '5s',
+            timePenaltySeconds: strike.timePenaltySeconds,
+            penaltyPointsIssued: 0,
+            warningCounted: false,
+            raceLap: state.currentLap,
+          })
+          incidents.push({
+            lap: state.currentLap,
+            type: 'penalty-issued',
+            driverIds: [driver.id],
+            description: `${driver.id.toUpperCase()} +5s — track limits (strike ${strike.strikes})`,
+            investigationId: `tl-${state.currentLap}-${driver.id}`,
+            sanction: '5s',
+            penaltyPointsIssued: 0,
+            offenceType: 'track-limits',
+          })
+        } else if (strike.outcome === 'black-and-white') {
+          commentary.push({
+            lap: state.currentLap,
+            text: `${driver.id.toUpperCase()} shown the black-and-white flag for track limits`,
+            severity: 'info',
+            driverId: driver.id,
+          })
+        }
+      }
+    }
+  }
+
   return { lapResults, commentary, incidents, pitLaneEvents }
 }
 
@@ -858,6 +924,7 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     weather: weatherEngine.getForecast(setup.circuit.laps),
     safetyCar: 'green',
     cautionLapsRemaining: 0,
+    trackLimitStrikes: {},
     trackTemp: 35 + rng.range(-5, 10),
     results: [],
     incidents: [],
