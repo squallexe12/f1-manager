@@ -24,10 +24,15 @@ import { RaceStartScreen } from '@/components/strategy/race-start-screen'
 import { StewardsCard } from '@/components/strategy/stewards-card'
 import { StewardsDecisionsPanel } from '@/components/strategy/stewards-decisions-panel'
 import { CautionFlash } from '@/components/strategy/caution-flash'
+import { TrackLimitsCounter } from '@/components/strategy/track-limits-counter'
 import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
 import { applyBanSubstitution, applyGridDrops } from '@/engine/race/race-bootstrap'
+
+// UI constant — mirrors DEFAULT_TRACK_LIMITS_CONFIG.timePenaltyAt from the engine.
+// Kept local to avoid importing engine values into the UI layer (AGENTS.md rule).
+const TRACK_LIMIT_THRESHOLD = 4
 
 // ─── GapChartRow ─────────────────────────────────────────────────────────────
 // Inline helper component — collapsible secondary row below the live race grid.
@@ -498,15 +503,21 @@ export default function StrategyPage() {
           {/* Right — Driver Commands + Battle Forecast + Commentary Feed */}
           <div className="flex flex-col gap-3">
             {playerDrivers.map(driver => (
-              <DriverCommands
-                key={driver.id}
-                driverId={driver.id}
-                driverName={`${driver.firstName} ${driver.lastName}`}
-                currentCommand={raceSim.driverCommands[driver.id] ?? 'standard'}
-                availableCompounds={currentRace?.circuit.compounds}
-                onCommand={sendCommand}
-                onPitWithCompound={pitWithCompound}
-              />
+              <div key={driver.id} className="flex flex-col gap-1">
+                <DriverCommands
+                  driverId={driver.id}
+                  driverName={`${driver.firstName} ${driver.lastName}`}
+                  currentCommand={raceSim.driverCommands[driver.id] ?? 'standard'}
+                  availableCompounds={currentRace?.circuit.compounds}
+                  onCommand={sendCommand}
+                  onPitWithCompound={pitWithCompound}
+                />
+                <TrackLimitsCounter
+                  strikes={raceSim.trackLimitStrikes[driver.id] ?? 0}
+                  threshold={TRACK_LIMIT_THRESHOLD}
+                  driverLabel={driver.shortName ?? driver.id.toUpperCase()}
+                />
+              </div>
             ))}
             {raceSim.battles.length > 0 && (
               <BattleForecast battles={raceSim.battles} />
