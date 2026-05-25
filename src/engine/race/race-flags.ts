@@ -39,3 +39,48 @@ export function rollCautionFlag(rng: PRNG, config: RaceFlagsConfig): CautionFlag
 export function cautionDurationLaps(flag: CautionFlag, config: RaceFlagsConfig): number {
   return config.durationLaps[flag]
 }
+
+export interface RaceFlagsTransition {
+  safetyCar: RaceFlag
+  cautionLapsRemaining: number
+  /** The flag just deployed this lap (for radio/commentary), else null. */
+  deployed: CautionFlag | null
+  /** True on the lap the caution just cleared back to green. */
+  cleared: boolean
+}
+
+/**
+ * Advance the caution FSM by one lap. Pure: returns the next flag state.
+ *
+ * Determinism: consumes EXACTLY ONE PRNG draw, and only when a fresh caution is
+ * deployed (green + triggerCaution). The green-no-trigger path and the
+ * already-under-caution path draw zero PRNG — this is load-bearing for keeping
+ * existing seeded race tests byte-identical.
+ */
+export function advanceRaceFlags(
+  state: { safetyCar: RaceFlag; cautionLapsRemaining: number },
+  rng: PRNG,
+  triggerCaution: boolean,
+  config: RaceFlagsConfig,
+): RaceFlagsTransition {
+  // Under caution: decrement, clear to green at zero. No PRNG.
+  if (state.safetyCar !== 'green') {
+    const remaining = state.cautionLapsRemaining - 1
+    if (remaining <= 0) {
+      return { safetyCar: 'green', cautionLapsRemaining: 0, deployed: null, cleared: true }
+    }
+    return { safetyCar: state.safetyCar, cautionLapsRemaining: remaining, deployed: null, cleared: false }
+  }
+  // Green + trigger: deploy. One PRNG draw.
+  if (triggerCaution) {
+    const flag = rollCautionFlag(rng, config)
+    return {
+      safetyCar: flag,
+      cautionLapsRemaining: cautionDurationLaps(flag, config),
+      deployed: flag,
+      cleared: false,
+    }
+  }
+  // Green + no trigger. No PRNG.
+  return { safetyCar: 'green', cautionLapsRemaining: 0, deployed: null, cleared: false }
+}
