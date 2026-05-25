@@ -348,6 +348,7 @@ export type WorkerOutEvent =
       tireStates: Record<string, TireState>
       weather: WeatherForecast
       safetyCar: RaceState['safetyCar']
+      trackLimitStrikes: Record<string, number>
     }
   | { type: 'commentary'; entries: CommentaryEntry[] }
   | { type: 'incident'; incident: RaceIncident }
