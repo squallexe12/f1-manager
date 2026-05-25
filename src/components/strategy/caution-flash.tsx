@@ -1,5 +1,3 @@
-'use client'
-
 import type { RaceFlag } from '@/types/race'
 
 const FLASH_COLOR: Record<RaceFlag, string> = {
@@ -31,7 +29,6 @@ export function CautionFlash({ flag }: CautionFlashProps) {
       data-active={active ? 'true' : 'false'}
       aria-hidden="true"
       className="pointer-events-none fixed inset-0 z-40"
-      key={flag}
       style={{
         boxShadow: active ? `inset 0 0 120px 12px ${FLASH_COLOR[flag]}` : 'none',
         opacity: active ? 1 : 0,

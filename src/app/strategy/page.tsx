@@ -415,7 +415,7 @@ export default function StrategyPage() {
 
     return (
       <PageShell theme="broadcast">
-        <CautionFlash flag={raceSim.safetyCar} />
+        <CautionFlash key={raceSim.safetyCar} flag={raceSim.safetyCar} />
         {/* ═══ Sticky Command Chrome ═══ */}
         <BroadcastChrome
           phase={phase === 'sprint' ? 'sprint' : 'race'}
