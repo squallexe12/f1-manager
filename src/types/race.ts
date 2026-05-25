@@ -21,6 +21,7 @@ export type OffenceType =
   | 'unsafe-release'
   | 'pit-lane-speeding'
   | 'failure-to-serve'
+  | 'track-limits'
 
 export type SanctionType =
   | 'reprimand'

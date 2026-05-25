@@ -79,6 +79,17 @@ export const DEFAULT_PENALTY_CALIBRATION: PenaltyCalibration = {
       major:     { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 0, warningCounted: false },
       egregious: { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 0, warningCounted: false },
     },
+    // Track-limits: the strike FSM (Task 5) produces the AppliedPenalty directly
+    // and does NOT call selectSanction; this entry satisfies the Record<OffenceType, ...>
+    // completeness check and documents the canonical 5s sanction.
+    // No penalty points and not warning-counted — track-limits has its own in-race
+    // strike escalation system.
+    'track-limits': {
+      minor:     { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+      serious:   { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+      major:     { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+      egregious: { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+    },
   },
   banThreshold: 12,
   banDurationRounds: 1,
