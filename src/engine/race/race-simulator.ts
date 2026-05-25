@@ -3,7 +3,7 @@ import type { DriverAttributes, Mood } from '@/types/driver'
 import type {
   TireCompound, TireState, LapResult, RaceStrategy,
   DriverCommand, CommentaryEntry, RaceIncident, WeatherState, AppliedPenalty,
-  RadioCategory, RadioSpeaker,
+  RadioCategory, RadioSpeaker, RaceFlag,
 } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
@@ -23,6 +23,7 @@ import {
 import { aggregateCrewRatings } from '@/engine/staff/pit-crew'
 import type { PitCrewChief, PitCrewMember } from '@/types/staff'
 import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
+import { advanceRaceFlags, DEFAULT_CAUTION_CONFIG } from './race-flags'
 
 export interface RaceDriver {
   id: string
@@ -53,7 +54,9 @@ export interface SimRaceState {
   currentLap: number
   totalLaps: number
   weather: { current: WeatherState; rainProbability: number; changeInLaps: number | null }
-  safetyCar: 'green' | 'vsc' | 'sc'
+  safetyCar: RaceFlag
+  /** Tier C: laps left on the active caution; 0 when green. Transient. */
+  cautionLapsRemaining: number
   trackTemp: number
   results: LapResult[][]
   incidents: RaceIncident[]
@@ -266,6 +269,7 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const commentary: CommentaryEntry[] = []
   const incidents: RaceIncident[] = []
   const pitLaneEvents: PitLaneEvent[] = []
+  let seriousIncidentThisLap = false
 
   // Tier B v2 — failure-to-serve check at lap start. Any driver whose
   // drive-through / stop-go service-deadline lapsed before this lap began is
@@ -712,6 +716,10 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         decideOnLap: inv.decideOnLap,
       })
 
+      if (evaluation.decision.severity === 'major' || evaluation.decision.severity === 'egregious') {
+        seriousIncidentThisLap = true
+      }
+
       // Radio: FIA voice opens an investigation. `turn` is synthesised from
       // PRNG since the simulator does not yet model corner numbers; templates
       // referencing {turn} resolve cleanly.
@@ -769,6 +777,25 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   }
   if (state.weather.current === 'dry') {
     state.radioFlags.weatherTransitionAnnounced = false
+  }
+
+  // Tier C: advance the caution FSM. Mutates state.safetyCar in place so the
+  // existing prevSafetyCar diff below fires the deploy/clear radio for free.
+  const flagTransition = advanceRaceFlags(
+    { safetyCar: state.safetyCar, cautionLapsRemaining: state.cautionLapsRemaining },
+    rng,
+    seriousIncidentThisLap,
+    DEFAULT_CAUTION_CONFIG,
+  )
+  state.safetyCar = flagTransition.safetyCar
+  state.cautionLapsRemaining = flagTransition.cautionLapsRemaining
+  if (flagTransition.deployed !== null) {
+    incidents.push({
+      lap: state.currentLap,
+      type: 'safety-car',
+      driverIds: [],
+      description: `${flagTransition.deployed.toUpperCase()} deployed`,
+    })
   }
 
   // Safety-car transitions (dormant in v1 — simulator does not currently
@@ -830,6 +857,7 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     totalLaps: setup.circuit.laps,
     weather: weatherEngine.getForecast(setup.circuit.laps),
     safetyCar: 'green',
+    cautionLapsRemaining: 0,
     trackTemp: 35 + rng.range(-5, 10),
     results: [],
     incidents: [],
