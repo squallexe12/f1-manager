@@ -488,6 +488,66 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
     expect(sc1).toEqual(sc2)
   })
 
+  it('Tier C IP-C2: track-limits penalties are deterministic across two seeded runs', () => {
+    // The fold determinism setup uses circuit id 'test-fold' which has NO corner
+    // profile (no monitored corners → no track-limits events), so that assertion
+    // would be vacuous. Use a real circuit ('spielberg' — tier-3 hotspots) with
+    // reckless low-experience / high-frustration drivers over a long race so the
+    // end-of-lap track-limits FSM reproducibly issues 5s time penalties. The
+    // deterministic `tl-<lap>-<driverId>` investigationId makes the stream stable.
+    const recklessSetup: RaceSetup = {
+      drivers: [
+        {
+          id: 'd1', shortName: 'D1', teamId: 't1',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 80, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 95, confidence: 60 },
+        },
+        {
+          id: 'd2', shortName: 'D2', teamId: 't2',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 80, experience: 25, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 90, confidence: 60 },
+        },
+      ],
+      circuit: {
+        id: 'spielberg', // real circuit with tier-3 trackLimitMonitored corners
+        name: 'Austrian Grand Prix',
+        laps: 60,
+        tireWear: 'low',
+        overtakingDifficulty: 'low',
+        weatherVariability: 'low',
+        compounds: ['C3', 'C4', 'C5'],
+      },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+      calibration: {
+        ...createFallbackProfile('spielberg'),
+        overtake: { overtakeModifier: 1.0, drsEffectiveness: 0.5 },
+      },
+    }
+
+    // Seed 2 reproducibly issues 4 track-limits time penalties for this setup
+    // (verified via a seed scan), so the FSM is genuinely exercised.
+    const SEED = 2
+    const tlIncidents = (r: ReturnType<typeof simulateRace>) =>
+      r.incidents.filter((i) => i.type === 'penalty-issued' && i.offenceType === 'track-limits')
+
+    const run1 = simulateRace(recklessSetup, SEED)
+    const run2 = simulateRace(recklessSetup, SEED)
+    const tl1 = tlIncidents(run1)
+    const tl2 = tlIncidents(run2)
+
+    // The setup must actually exercise the FSM, otherwise the gate is vacuous.
+    expect(tl1.length).toBeGreaterThan(0)
+    // Byte-identical track-limits penalty stream across two seeded runs.
+    expect(tl1).toEqual(tl2)
+  })
+
   it('race-end fold: final-lap LapResult positions are consistent with finalPositions', () => {
     // The fold rewrites the final-lap LapResult.position values to match the
     // post-penalty cumulativeTimes ordering. This test verifies the invariant:
