@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { createPRNG } from '@/engine/core/prng'
 import {
   evaluateTrackLimitBreach,
+  applyTrackLimitStrike,
   DEFAULT_TRACK_LIMITS_CONFIG,
 } from '@/engine/race/track-limits'
 
@@ -39,5 +40,36 @@ describe('evaluateTrackLimitBreach', () => {
       if (evaluateTrackLimitBreach(baseInput({ experience: 99, frustration: 0, difficultyTier: 1 }), createPRNG(s))) n++
     }
     expect(n).toBeLessThan(250) // < ~5% even worst-case seeds
+  })
+})
+
+describe('applyTrackLimitStrike', () => {
+  it('breaches 1-3 are warnings (no flag, no penalty)', () => {
+    for (let n = 1; n <= 3; n++) {
+      const r = applyTrackLimitStrike(n - 1, DEFAULT_TRACK_LIMITS_CONFIG)
+      expect(r.strikes).toBe(n)
+      expect(r.outcome).toBe('warning')
+    }
+  })
+
+  it('the 4th breach shows the black-and-white flag (warning, not a penalty)', () => {
+    const r = applyTrackLimitStrike(3, DEFAULT_TRACK_LIMITS_CONFIG)
+    expect(r.strikes).toBe(4)
+    expect(r.outcome).toBe('black-and-white')
+    expect(r.timePenaltySeconds).toBe(0)
+  })
+
+  it('the 5th breach issues a 5s time penalty', () => {
+    const r = applyTrackLimitStrike(4, DEFAULT_TRACK_LIMITS_CONFIG)
+    expect(r.strikes).toBe(5)
+    expect(r.outcome).toBe('time-penalty')
+    expect(r.timePenaltySeconds).toBe(5)
+  })
+
+  it('6th+ continues issuing time penalties', () => {
+    const r = applyTrackLimitStrike(5, DEFAULT_TRACK_LIMITS_CONFIG)
+    expect(r.strikes).toBe(6)
+    expect(r.outcome).toBe('time-penalty')
+    expect(r.timePenaltySeconds).toBe(5)
   })
 })
