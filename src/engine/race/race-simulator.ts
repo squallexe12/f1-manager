@@ -25,6 +25,7 @@ import type { PitCrewChief, PitCrewMember } from '@/types/staff'
 import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
 import { advanceRaceFlags, DEFAULT_CAUTION_CONFIG } from './race-flags'
 import { evaluateTrackLimitBreach, applyTrackLimitStrike, DEFAULT_TRACK_LIMITS_CONFIG } from './track-limits'
+import { evaluateRejoinCollision, DEFAULT_REJOIN_CONFIG } from './rejoin-collision'
 import { cornersForCircuit, DEFAULT_CORNER_PROFILE } from '@/data/corner-profiles'
 
 export interface RaceDriver {
@@ -872,6 +873,46 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
             severity: 'info',
             driverId: driver.id,
           })
+        }
+
+        // Tier C IP-C3: a car that ran wide at a med/high-rejoinRisk corner is
+        // the car that rejoins; roll for an unsafe-rejoin collision. Conditional
+        // on the breach already firing and the corner being risky, so the common
+        // path (no breach) consumes no extra PRNG draws — determinism preserved.
+        if (corner.rejoinRisk === 'med' || corner.rejoinRisk === 'high') {
+          const rejoin = evaluateRejoinCollision(
+            {
+              driverId: driver.id,
+              rejoinRisk: corner.rejoinRisk,
+              racecraft: driver.attributes.racecraft,
+              config: DEFAULT_REJOIN_CONFIG,
+            },
+            rng,
+          )
+          if (rejoin.decision) {
+            const inv = openInvestigation(
+              rejoin.decision.driverId,
+              rejoin.decision.severity,
+              rejoin.decision.offenceType,
+              state.currentLap,
+              state.totalLaps,
+              DEFAULT_PENALTY_CALIBRATION,
+              rng,
+            )
+            state.pendingInvestigations.push(inv)
+            incidents.push({
+              lap: state.currentLap,
+              type: 'investigation-opened',
+              driverIds: [rejoin.decision.driverId],
+              description: `${driver.id.toUpperCase()} under investigation: unsafe rejoin (${corner.name})`,
+              investigationId: inv.id,
+              offenceType: rejoin.decision.offenceType,
+              decideOnLap: inv.decideOnLap,
+            })
+            if (rejoin.decision.severity === 'major' || rejoin.decision.severity === 'egregious') {
+              seriousIncidentThisLap = true
+            }
+          }
         }
       }
     }
