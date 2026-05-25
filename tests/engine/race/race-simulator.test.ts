@@ -481,6 +481,10 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
     expect(result1.fastestLap).toEqual(result2.fastestLap)
     // Compare all lap data for complete byte-equality
     expect(result1.lapData).toEqual(result2.lapData)
+    // Tier C IP-C1: explicit safety-car incident determinism gate
+    const sc1 = result1.incidents.filter((i) => i.type === 'safety-car')
+    const sc2 = result2.incidents.filter((i) => i.type === 'safety-car')
+    expect(sc1).toEqual(sc2)
   })
 
   it('race-end fold: final-lap LapResult positions are consistent with finalPositions', () => {
