@@ -90,6 +90,12 @@ export const DEFAULT_PENALTY_CALIBRATION: PenaltyCalibration = {
       major:     { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
       egregious: { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
     },
+    'rejoin-collision': {
+      minor:     { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 1, warningCounted: true },
+      serious:   { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 2, warningCounted: true },
+      major:     { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 2, warningCounted: true },
+      egregious: { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 3, warningCounted: true },
+    },
   },
   banThreshold: 12,
   banDurationRounds: 1,
