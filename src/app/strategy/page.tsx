@@ -23,6 +23,7 @@ import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { RaceStartScreen } from '@/components/strategy/race-start-screen'
 import { StewardsCard } from '@/components/strategy/stewards-card'
 import { StewardsDecisionsPanel } from '@/components/strategy/stewards-decisions-panel'
+import { CautionFlash } from '@/components/strategy/caution-flash'
 import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
@@ -414,6 +415,7 @@ export default function StrategyPage() {
 
     return (
       <PageShell theme="broadcast">
+        <CautionFlash flag={raceSim.safetyCar} />
         {/* ═══ Sticky Command Chrome ═══ */}
         <BroadcastChrome
           phase={phase === 'sprint' ? 'sprint' : 'race'}
