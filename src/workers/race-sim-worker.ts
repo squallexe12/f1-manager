@@ -100,6 +100,7 @@ function simulateNextLap(): void {
       tireStates: { ...raceState.tireStates },
       weather: raceState.weather,
       safetyCar: raceState.safetyCar,
+      trackLimitStrikes: { ...raceState.trackLimitStrikes },
     })
 
     if (commentary.length > 0) {
@@ -200,12 +201,15 @@ export function __handleMessage(msg: unknown): void {
         totalLaps: boot.raceState.totalLaps,
         weather: boot.raceState.weather,
         safetyCar: boot.raceState.safetyCar,
+        cautionLapsRemaining: 0,
+        trackLimitStrikes: {},
         trackTemp: boot.raceState.trackTemp,
         results: [],
         incidents: [],
         commentary: [],
         drivers: boot.raceDrivers,
         circuit: {
+          id: payload.circuit.id,
           tireWear: boot.circuitInfo.tireWear,
           overtakingDifficulty: boot.circuitInfo.overtakingDifficulty,
           weatherVariability: boot.circuitInfo.weatherVariability,

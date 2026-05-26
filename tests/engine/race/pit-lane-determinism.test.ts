@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { simulateRace, type RaceSetup, type RaceDriver } from '@/engine/race/race-simulator'
-import type { TireCompound, RaceStrategy } from '@/types/race'
+import type { TireCompound, RaceStrategy, RaceIncident } from '@/types/race'
 
 /**
  * Tier B v2 — pit-lane determinism HARD GATE.
@@ -98,5 +98,40 @@ describe('pit-lane determinism HARD GATE', () => {
     const sumA = a.lapData.flat().reduce((s, r) => s + r.lapTime, 0)
     const sumB = b.lapData.flat().reduce((s, r) => s + r.lapTime, 0)
     expect(sumA).not.toBe(sumB)
+  })
+
+  // ─── Tier C IP-C5: pit-line white-line crossing determinism ──────────────────
+  //
+  // The byte-identical incident-stream assertion above implicitly covers
+  // pit-line-crossing incidents (offence `pit-line-crossing`, finalised id
+  // `pl-<lap>-<driverId>-<boundary>`). This dedicated case makes that explicit
+  // for regression protection: it finds a seed whose forced-pit-stop scenario
+  // actually fires ≥1 crossing, runs it twice, and deep-equals the filtered
+  // crossing sub-stream. If the white-line detector draw ever drifts out of its
+  // appended-per-car position, the finalised ids diverge and this fails first.
+  it('pit-line white-line crossings are byte-identical across two seeded runs', () => {
+    const isPitLineCrossing = (i: RaceIncident): boolean =>
+      i.type === 'penalty-issued' && i.offenceType === 'pit-line-crossing'
+
+    // Seed-search for a scenario that actually produces a crossing so the
+    // equality assertion is exercised against real ids, not two empty arrays.
+    let firingSeed: number | null = null
+    for (let seed = 4242; seed <= 4242 + 200; seed++) {
+      const run = simulateRace(makeRaceSetup(), seed)
+      if (run.incidents.some(isPitLineCrossing)) {
+        firingSeed = seed
+        break
+      }
+    }
+    expect(firingSeed, 'expected at least one seed in [4242, 4442] to fire a pit-line crossing').not.toBeNull()
+
+    const a = simulateRace(makeRaceSetup(), firingSeed!)
+    const b = simulateRace(makeRaceSetup(), firingSeed!)
+
+    const crossingsA = a.incidents.filter(isPitLineCrossing)
+    const crossingsB = b.incidents.filter(isPitLineCrossing)
+
+    expect(crossingsA.length).toBeGreaterThan(0)
+    expect(crossingsA).toEqual(crossingsB)
   })
 })

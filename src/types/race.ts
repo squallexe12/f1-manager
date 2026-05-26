@@ -5,6 +5,12 @@ import type { CalibrationProfile } from '@/types/calibration'
 export type TireCompound = 'C1' | 'C2' | 'C3' | 'C4' | 'C5'
 export type TireLabel = 'hard' | 'medium' | 'soft'
 export type WeatherState = 'dry' | 'damp' | 'wet'
+/**
+ * Unified race-control caution flag (Tier C). Promotes the formerly 3-state
+ * `safetyCar` field. `green` = racing; `yellow` = local caution (no overtaking);
+ * `vsc`/`sc` = virtual/full safety car; `red` = session suspended.
+ */
+export type RaceFlag = 'green' | 'yellow' | 'vsc' | 'sc' | 'red'
 export type DriverCommand = 'push' | 'standard' | 'conserve' | 'overtake' | 'defend' | 'pit'
 
 export type OffenceType =
@@ -15,6 +21,13 @@ export type OffenceType =
   | 'unsafe-release'
   | 'pit-lane-speeding'
   | 'failure-to-serve'
+  | 'track-limits'
+  | 'rejoin-collision'
+  | 'yellow-flag-breach'
+  | 'sc-infraction'
+  | 'vsc-infraction'
+  | 'red-flag-breach'
+  | 'pit-line-crossing'
 
 export type SanctionType =
   | 'reprimand'
@@ -143,7 +156,7 @@ export interface RaceState {
   currentLap: number
   totalLaps: number
   weather: WeatherForecast
-  safetyCar: 'green' | 'vsc' | 'sc'
+  safetyCar: RaceFlag
   trackTemp: number
   results: LapResult[][]  // [lap][driver]
   incidents: RaceIncident[]
@@ -341,6 +354,7 @@ export type WorkerOutEvent =
       tireStates: Record<string, TireState>
       weather: WeatherForecast
       safetyCar: RaceState['safetyCar']
+      trackLimitStrikes: Record<string, number>
     }
   | { type: 'commentary'; entries: CommentaryEntry[] }
   | { type: 'incident'; incident: RaceIncident }

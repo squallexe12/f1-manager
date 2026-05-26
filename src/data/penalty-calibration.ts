@@ -79,6 +79,56 @@ export const DEFAULT_PENALTY_CALIBRATION: PenaltyCalibration = {
       major:     { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 0, warningCounted: false },
       egregious: { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 0, warningCounted: false },
     },
+    // Track-limits: the strike FSM (Task 5) produces the AppliedPenalty directly
+    // and does NOT call selectSanction; this entry satisfies the Record<OffenceType, ...>
+    // completeness check and documents the canonical 5s sanction.
+    // No penalty points and not warning-counted — track-limits has its own in-race
+    // strike escalation system.
+    'track-limits': {
+      minor:     { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+      serious:   { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+      major:     { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+      egregious: { sanction: '5s', timePenaltySeconds: 5, penaltyPoints: 0, warningCounted: false },
+    },
+    'rejoin-collision': {
+      minor:     { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 1, warningCounted: true },
+      serious:   { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 2, warningCounted: true },
+      major:     { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 2, warningCounted: true },
+      egregious: { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 3, warningCounted: true },
+    },
+    'yellow-flag-breach': {
+      minor:     { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 1, warningCounted: true },
+      serious:   { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 2, warningCounted: true },
+      major:     { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 2, warningCounted: true },
+      egregious: { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 3, warningCounted: true },
+    },
+    'sc-infraction': {
+      minor:     { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 1, warningCounted: true },
+      serious:   { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 2, warningCounted: true },
+      major:     { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 3, warningCounted: true },
+      egregious: { sanction: 'drive-through', timePenaltySeconds: 0, penaltyPoints: 3, warningCounted: true },
+    },
+    'vsc-infraction': {
+      minor:     { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 0, warningCounted: false },
+      serious:   { sanction: '5s',  timePenaltySeconds: 5,  penaltyPoints: 0, warningCounted: false },
+      major:     { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 1, warningCounted: false },
+      egregious: { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 1, warningCounted: false },
+    },
+    'red-flag-breach': {
+      minor:     { sanction: '10s', timePenaltySeconds: 10, penaltyPoints: 2, warningCounted: true },
+      serious:   { sanction: 'drive-through', timePenaltySeconds: 0, penaltyPoints: 3, warningCounted: true },
+      major:     { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 3, warningCounted: true },
+      egregious: { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 3, warningCounted: true },
+    },
+    // Pit-line crossing: procedural offence (mirrors pit-lane-speeding tone but
+    // with a lighter minor/serious tier — 5s penalty — and drive-through for
+    // major/egregious). No super-licence points; not a driving warning.
+    'pit-line-crossing': {
+      minor:     { sanction: '5s',            timePenaltySeconds: 5,  penaltyPoints: 0, warningCounted: false },
+      serious:   { sanction: '5s',            timePenaltySeconds: 5,  penaltyPoints: 0, warningCounted: false },
+      major:     { sanction: 'drive-through', timePenaltySeconds: 0,  penaltyPoints: 0, warningCounted: false },
+      egregious: { sanction: 'drive-through', timePenaltySeconds: 0,  penaltyPoints: 0, warningCounted: false },
+    },
   },
   banThreshold: 12,
   banDurationRounds: 1,

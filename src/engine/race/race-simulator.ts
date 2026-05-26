@@ -3,7 +3,7 @@ import type { DriverAttributes, Mood } from '@/types/driver'
 import type {
   TireCompound, TireState, LapResult, RaceStrategy,
   DriverCommand, CommentaryEntry, RaceIncident, WeatherState, AppliedPenalty,
-  RadioCategory, RadioSpeaker,
+  RadioCategory, RadioSpeaker, RaceFlag,
 } from '@/types/race'
 import type { CalibrationProfile } from '@/types/calibration'
 import type { PRNG } from '@/engine/core/prng'
@@ -23,6 +23,11 @@ import {
 import { aggregateCrewRatings } from '@/engine/staff/pit-crew'
 import type { PitCrewChief, PitCrewMember } from '@/types/staff'
 import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
+import { advanceRaceFlags, DEFAULT_CAUTION_CONFIG } from './race-flags'
+import { evaluateTrackLimitBreach, applyTrackLimitStrike, DEFAULT_TRACK_LIMITS_CONFIG } from './track-limits'
+import { evaluateRejoinCollision, DEFAULT_REJOIN_CONFIG } from './rejoin-collision'
+import { evaluateFlagStateBreach, DEFAULT_FLAG_OFFENCE_CONFIG } from './flag-state-offences'
+import { cornersForCircuit, DEFAULT_CORNER_PROFILE } from '@/data/corner-profiles'
 
 export interface RaceDriver {
   id: string
@@ -53,13 +58,17 @@ export interface SimRaceState {
   currentLap: number
   totalLaps: number
   weather: { current: WeatherState; rainProbability: number; changeInLaps: number | null }
-  safetyCar: 'green' | 'vsc' | 'sc'
+  safetyCar: RaceFlag
+  /** Tier C: laps left on the active caution; 0 when green. Transient. */
+  cautionLapsRemaining: number
+  /** Tier C: per-driver track-limits breach count this race. Transient. Resets per race. */
+  trackLimitStrikes: Record<string, number>
   trackTemp: number
   results: LapResult[][]
   incidents: RaceIncident[]
   commentary: CommentaryEntry[]
   drivers: RaceDriver[]
-  circuit: { tireWear: string; overtakingDifficulty: 'low' | 'medium' | 'high'; weatherVariability: string; compounds?: [TireCompound, TireCompound, TireCompound] }
+  circuit: { id: string; tireWear: string; overtakingDifficulty: 'low' | 'medium' | 'high'; weatherVariability: string; compounds?: [TireCompound, TireCompound, TireCompound] }
   calibration: CalibrationProfile
   strategies: RaceStrategy[]
   tireStates: Record<string, TireState>
@@ -266,6 +275,7 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const commentary: CommentaryEntry[] = []
   const incidents: RaceIncident[] = []
   const pitLaneEvents: PitLaneEvent[] = []
+  let seriousIncidentThisLap = false
 
   // Tier B v2 — failure-to-serve check at lap start. Any driver whose
   // drive-through / stop-go service-deadline lapsed before this lap began is
@@ -503,6 +513,44 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
           investigationId: inv.id,
           decideOnLap: inv.decideOnLap,
         })
+      } else if (inc.type === 'penalty-issued' && inc.offenceType === 'pit-line-crossing') {
+        // Tier C IP-C5 — automatic pit-line white-line crossing. No
+        // investigation: the sanction is applied immediately, mirroring the
+        // resolved-investigation path below (appliedPenaltiesByDriver +
+        // pendingTimePenalties + drive-through/stop-go deadline registration).
+        // The engine emitted this with `lap: 0` and a partial
+        // `pl-<boundary>` id; finalise the real lap and the lap-encoded
+        // `pl-<lap>-<driverId>-<boundary>` id here.
+        const driverId = inc.driverIds[0]
+        let appliedTimeSeconds = 0
+        if (inc.sanction === '5s' || inc.sanction === '10s') {
+          appliedTimeSeconds = DEFAULT_PENALTY_CALIBRATION.sanctionMatrix['pit-line-crossing'].minor.timePenaltySeconds
+          state.pendingTimePenalties[driverId] =
+            (state.pendingTimePenalties[driverId] ?? 0) + appliedTimeSeconds
+        } else if (inc.sanction === 'drive-through' || inc.sanction === 'stop-go') {
+          const ftsState = registerSanctionDeadline(
+            { sanctionDeadlines: state.sanctionDeadlines },
+            driverId,
+            inc.sanction,
+            state.currentLap,
+            DEFAULT_PENALTY_CALIBRATION.failureToServeWindowLaps,
+          )
+          state.sanctionDeadlines = ftsState.sanctionDeadlines
+        }
+        ;(state.appliedPenaltiesByDriver[driverId] ??= []).push({
+          offenceType: 'pit-line-crossing',
+          sanction: inc.sanction,
+          timePenaltySeconds: appliedTimeSeconds,
+          penaltyPointsIssued: inc.penaltyPointsIssued,
+          warningCounted: false,
+          raceLap: state.currentLap,
+        })
+        const boundary = inc.investigationId.replace('pl-', '')
+        incidents.push({
+          ...inc,
+          lap: state.currentLap,
+          investigationId: `pl-${state.currentLap}-${driverId}-${boundary}`,
+        })
       }
     }
   }
@@ -634,6 +682,10 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   for (let i = 1; i < positions.length; i++) {
     const aheadId = positions[i - 1]
     const behindId = positions[i]
+    // DNF drivers stay in `positions` with a frozen cumulative time but produce
+    // no lap result this lap; skip any pair involving one so the `find(...)!`
+    // below never dereferences `undefined`.
+    if (state.dnfDriverIds[aheadId] || state.dnfDriverIds[behindId]) continue
     const cumAhead = state.cumulativeTimes[aheadId]!
     const cumBehind = state.cumulativeTimes[behindId]!
     if (cumBehind >= cumAhead) continue // no inversion, nothing to gate
@@ -712,6 +764,10 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         decideOnLap: inv.decideOnLap,
       })
 
+      if (evaluation.decision.severity === 'major' || evaluation.decision.severity === 'egregious') {
+        seriousIncidentThisLap = true
+      }
+
       // Radio: FIA voice opens an investigation. `turn` is synthesised from
       // PRNG since the simulator does not yet model corner numbers; templates
       // referencing {turn} resolve cleanly.
@@ -729,6 +785,9 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   const leaderCumulative = state.cumulativeTimes[positions[0]]!
   for (let i = 0; i < positions.length; i++) {
     const driverId = positions[i]
+    // DNF drivers have no lap result this lap; their cumulative is frozen and
+    // their final standing was written on the lap they retired. Skip them.
+    if (state.dnfDriverIds[driverId]) continue
     const result = lapResults.find(r => r.driverId === driverId)!
     result.position = i + 1
     result.gapToLeader = state.cumulativeTimes[driverId]! - leaderCumulative
@@ -771,6 +830,25 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
     state.radioFlags.weatherTransitionAnnounced = false
   }
 
+  // Tier C: advance the caution FSM. Mutates state.safetyCar in place so the
+  // existing prevSafetyCar diff below fires the deploy/clear radio for free.
+  const flagTransition = advanceRaceFlags(
+    { safetyCar: state.safetyCar, cautionLapsRemaining: state.cautionLapsRemaining },
+    rng,
+    seriousIncidentThisLap,
+    DEFAULT_CAUTION_CONFIG,
+  )
+  state.safetyCar = flagTransition.safetyCar
+  state.cautionLapsRemaining = flagTransition.cautionLapsRemaining
+  if (flagTransition.deployed !== null) {
+    incidents.push({
+      lap: state.currentLap,
+      type: 'safety-car',
+      driverIds: [],
+      description: `${flagTransition.deployed.toUpperCase()} deployed`,
+    })
+  }
+
   // Safety-car transitions (dormant in v1 — simulator does not currently
   // change `state.safetyCar`). Wired here so v2 inherits SC radio for free.
   if (state.safetyCar !== 'green' && prevSafetyCar === 'green') {
@@ -781,6 +859,179 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   if (state.safetyCar === 'green' && prevSafetyCar !== 'green') {
     for (const d of state.drivers) {
       emitRadio(state, commentary, positions, rng, d, 'safety_car_in', 'fia')
+    }
+  }
+
+  // Tier C: track-limits breaches. End-of-lap so existing within-lap PRNG draws
+  // (overtakes, lap times) are unshifted. Iterate drivers in sorted id order and
+  // corners in profile order for deterministic PRNG consumption.
+  const cornerProfile = cornersForCircuit(state.circuit.id, DEFAULT_CORNER_PROFILE)
+  const monitored = cornerProfile.corners.filter((c) => c.trackLimitMonitored)
+  if (monitored.length > 0) {
+    const sortedDrivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    for (const driver of sortedDrivers) {
+      if (state.dnfDriverIds[driver.id]) continue
+      for (const corner of monitored) {
+        const breached = evaluateTrackLimitBreach(
+          {
+            difficultyTier: corner.difficultyTier,
+            experience: driver.attributes.experience,
+            frustration: driver.mood.frustration,
+            config: DEFAULT_TRACK_LIMITS_CONFIG,
+          },
+          rng,
+        )
+        if (!breached) continue
+        const prior = state.trackLimitStrikes[driver.id] ?? 0
+        const strike = applyTrackLimitStrike(prior, DEFAULT_TRACK_LIMITS_CONFIG)
+        state.trackLimitStrikes[driver.id] = strike.strikes
+        if (strike.outcome === 'time-penalty') {
+          state.pendingTimePenalties[driver.id] = (state.pendingTimePenalties[driver.id] ?? 0) + strike.timePenaltySeconds
+          ;(state.appliedPenaltiesByDriver[driver.id] ??= []).push({
+            offenceType: 'track-limits',
+            sanction: '5s',
+            timePenaltySeconds: strike.timePenaltySeconds,
+            penaltyPointsIssued: 0,
+            warningCounted: false,
+            raceLap: state.currentLap,
+          })
+          incidents.push({
+            lap: state.currentLap,
+            type: 'penalty-issued',
+            driverIds: [driver.id],
+            description: `${driver.id.toUpperCase()} +5s — track limits (strike ${strike.strikes})`,
+            investigationId: `tl-${state.currentLap}-${driver.id}`,
+            sanction: '5s',
+            penaltyPointsIssued: 0,
+            offenceType: 'track-limits',
+          })
+        } else if (strike.outcome === 'black-and-white') {
+          commentary.push({
+            lap: state.currentLap,
+            text: `${driver.id.toUpperCase()} shown the black-and-white flag for track limits`,
+            severity: 'info',
+            driverId: driver.id,
+          })
+        }
+
+        // Tier C IP-C3: a car that ran wide at a med/high-rejoinRisk corner is
+        // the car that rejoins; roll for an unsafe-rejoin collision. Conditional
+        // on the breach already firing and the corner being risky, so the common
+        // path (no breach) consumes no extra PRNG draws — determinism preserved.
+        if (corner.rejoinRisk === 'med' || corner.rejoinRisk === 'high') {
+          const rejoin = evaluateRejoinCollision(
+            {
+              driverId: driver.id,
+              rejoinRisk: corner.rejoinRisk,
+              racecraft: driver.attributes.racecraft,
+              config: DEFAULT_REJOIN_CONFIG,
+            },
+            rng,
+          )
+          if (rejoin.decision) {
+            const inv = openInvestigation(
+              rejoin.decision.driverId,
+              rejoin.decision.severity,
+              rejoin.decision.offenceType,
+              state.currentLap,
+              state.totalLaps,
+              DEFAULT_PENALTY_CALIBRATION,
+              rng,
+            )
+            state.pendingInvestigations.push(inv)
+            incidents.push({
+              lap: state.currentLap,
+              type: 'investigation-opened',
+              driverIds: [rejoin.decision.driverId],
+              description: `${driver.id.toUpperCase()} under investigation: unsafe rejoin (${corner.name})`,
+              investigationId: inv.id,
+              offenceType: rejoin.decision.offenceType,
+              decideOnLap: inv.decideOnLap,
+            })
+            if (rejoin.decision.severity === 'major' || rejoin.decision.severity === 'egregious') {
+              seriousIncidentThisLap = true
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Tier C IP-C4: flag-state offences. Only runs while a caution is active, so
+  // green-flag laps (the vast majority) consume ZERO extra PRNG draws and prior
+  // seeded tests stay byte-identical. Aggressive drivers under caution risk a
+  // breach; the detector draws no PRNG for non-aggressive drivers. id-sorted for
+  // deterministic PRNG consumption. Placed AFTER advanceRaceFlags so
+  // state.safetyCar reflects this lap's caution.
+  if (state.safetyCar !== 'green') {
+    const flag = state.safetyCar as 'yellow' | 'vsc' | 'sc' | 'red'
+    const sorted = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    for (const driver of sorted) {
+      if (state.dnfDriverIds[driver.id]) continue
+      const cmd = state.strategies.find((s) => s.driverId === driver.id)?.currentCommand
+      const aggressive = cmd === 'overtake' || cmd === 'push'
+      const evalResult = evaluateFlagStateBreach(
+        {
+          driverId: driver.id,
+          flag,
+          aggressive,
+          experience: driver.attributes.experience,
+          mentality: driver.attributes.mentality,
+          config: DEFAULT_FLAG_OFFENCE_CONFIG,
+        },
+        rng,
+      )
+      if (!evalResult.decision) continue
+      const dec = evalResult.decision
+      if (evalResult.automatic) {
+        // VSC-delta: automatic sanction via the matrix, applied directly.
+        // Mirrors the track-limits time-penalty branch above.
+        const cell = DEFAULT_PENALTY_CALIBRATION.sanctionMatrix[dec.offenceType][dec.severity]
+        if (cell.timePenaltySeconds > 0) {
+          state.pendingTimePenalties[driver.id] =
+            (state.pendingTimePenalties[driver.id] ?? 0) + cell.timePenaltySeconds
+        }
+        ;(state.appliedPenaltiesByDriver[driver.id] ??= []).push({
+          offenceType: dec.offenceType,
+          sanction: cell.sanction,
+          timePenaltySeconds: cell.timePenaltySeconds,
+          penaltyPointsIssued: cell.penaltyPoints,
+          warningCounted: cell.warningCounted,
+          raceLap: state.currentLap,
+        })
+        incidents.push({
+          lap: state.currentLap,
+          type: 'penalty-issued',
+          driverIds: [driver.id],
+          description: `${driver.id.toUpperCase()} ${cell.sanction} — VSC delta breach`,
+          investigationId: `vsc-${state.currentLap}-${driver.id}`,
+          sanction: cell.sanction,
+          penaltyPointsIssued: cell.penaltyPoints,
+          offenceType: dec.offenceType,
+        })
+      } else {
+        // yellow/sc/red: open an investigation (judgment). Same signature as
+        // the contested-overtake and rejoin-collision paths above.
+        const inv = openInvestigation(
+          dec.driverId,
+          dec.severity,
+          dec.offenceType,
+          state.currentLap,
+          state.totalLaps,
+          DEFAULT_PENALTY_CALIBRATION,
+          rng,
+        )
+        state.pendingInvestigations.push(inv)
+        incidents.push({
+          lap: state.currentLap,
+          type: 'investigation-opened',
+          driverIds: [dec.driverId],
+          description: `${driver.id.toUpperCase()} under investigation: ${dec.offenceType}`,
+          investigationId: inv.id,
+          offenceType: dec.offenceType,
+          decideOnLap: inv.decideOnLap,
+        })
+      }
     }
   }
 
@@ -830,6 +1081,8 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     totalLaps: setup.circuit.laps,
     weather: weatherEngine.getForecast(setup.circuit.laps),
     safetyCar: 'green',
+    cautionLapsRemaining: 0,
+    trackLimitStrikes: {},
     trackTemp: 35 + rng.range(-5, 10),
     results: [],
     incidents: [],

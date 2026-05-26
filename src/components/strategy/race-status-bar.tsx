@@ -1,20 +1,22 @@
 'use client'
 
-import type { WeatherForecast } from '@/types/race'
+import type { WeatherForecast, RaceFlag } from '@/types/race'
 
 interface RaceStatusBarProps {
   lap: number
   totalLaps: number
   weather: WeatherForecast
   trackTemp: number
-  safetyCar: 'green' | 'vsc' | 'sc'
+  safetyCar: RaceFlag
   className?: string
 }
 
 const SC_CONFIG: Record<string, { label: string; accentClass: string }> = {
   green: { label: 'GREEN', accentClass: 'text-sig-green' },
+  yellow: { label: 'YELLOW', accentClass: 'text-sig-amber' },
   vsc: { label: 'VSC', accentClass: 'text-sig-amber' },
   sc: { label: 'SAFETY CAR', accentClass: 'text-sig-red' },
+  red: { label: 'RED FLAG', accentClass: 'text-sig-red' },
 }
 
 const WEATHER_ICON: Record<string, string> = {

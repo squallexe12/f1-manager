@@ -14,6 +14,13 @@ export const OFFENCE_LABELS: Record<OffenceType, string> = {
   'unsafe-release':     'Unsafe Release',
   'pit-lane-speeding':  'Pit-Lane Speeding',
   'failure-to-serve':   'Failure to Serve',
+  'track-limits':       'Track Limits',
+  'rejoin-collision':   'Unsafe Rejoin',
+  'yellow-flag-breach': 'Yellow-Flag Breach',
+  'sc-infraction':      'Safety-Car Infraction',
+  'vsc-infraction':     'VSC Infraction',
+  'red-flag-breach':    'Red-Flag Breach',
+  'pit-line-crossing':  'Pit-Line Crossing',
 }
 
 export const SANCTION_LABELS: Record<SanctionType, string> = {

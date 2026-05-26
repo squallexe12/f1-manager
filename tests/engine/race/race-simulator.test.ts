@@ -29,12 +29,14 @@ function mockRaceState(): SimRaceState {
     totalLaps: 55,
     weather: { current: 'dry', rainProbability: 0.1, changeInLaps: null },
     safetyCar: 'green',
+    cautionLapsRemaining: 0,
+    trackLimitStrikes: {},
     trackTemp: 38,
     results: [],
     incidents: [],
     commentary: [],
     drivers,
-    circuit: { tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low' },
+    circuit: { id: 'silverstone', tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low' },
     calibration: createFallbackProfile('test-circuit'),
     strategies: mockStrategies(drivers),
     tireStates: Object.fromEntries(drivers.map(d => [d.id, { compound: 'C3' as TireCompound, label: 'medium' as const, wear: 72, lapsFitted: 10 }])),
@@ -480,6 +482,246 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
     expect(result1.fastestLap).toEqual(result2.fastestLap)
     // Compare all lap data for complete byte-equality
     expect(result1.lapData).toEqual(result2.lapData)
+    // Tier C IP-C1: explicit safety-car incident determinism gate
+    const sc1 = result1.incidents.filter((i) => i.type === 'safety-car')
+    const sc2 = result2.incidents.filter((i) => i.type === 'safety-car')
+    expect(sc1).toEqual(sc2)
+  })
+
+  it('Tier C IP-C2: track-limits penalties are deterministic across two seeded runs', () => {
+    // The fold determinism setup uses circuit id 'test-fold' which has NO corner
+    // profile (no monitored corners → no track-limits events), so that assertion
+    // would be vacuous. Use a real circuit ('spielberg' — tier-3 hotspots) with
+    // reckless low-experience / high-frustration drivers over a long race so the
+    // end-of-lap track-limits FSM reproducibly issues 5s time penalties. The
+    // deterministic `tl-<lap>-<driverId>` investigationId makes the stream stable.
+    const recklessSetup: RaceSetup = {
+      drivers: [
+        {
+          id: 'd1', shortName: 'D1', teamId: 't1',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 80, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 95, confidence: 60 },
+        },
+        {
+          id: 'd2', shortName: 'D2', teamId: 't2',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 80, experience: 25, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 90, confidence: 60 },
+        },
+      ],
+      circuit: {
+        id: 'spielberg', // real circuit with tier-3 trackLimitMonitored corners
+        name: 'Austrian Grand Prix',
+        laps: 60,
+        tireWear: 'low',
+        overtakingDifficulty: 'low',
+        weatherVariability: 'low',
+        compounds: ['C3', 'C4', 'C5'],
+      },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+      calibration: {
+        ...createFallbackProfile('spielberg'),
+        overtake: { overtakeModifier: 1.0, drsEffectiveness: 0.5 },
+      },
+    }
+
+    // Seed 2 reproducibly issues 4 track-limits time penalties for this setup
+    // (verified via a seed scan), so the FSM is genuinely exercised.
+    const SEED = 2
+    const tlIncidents = (r: ReturnType<typeof simulateRace>) =>
+      r.incidents.filter((i) => i.type === 'penalty-issued' && i.offenceType === 'track-limits')
+
+    const run1 = simulateRace(recklessSetup, SEED)
+    const run2 = simulateRace(recklessSetup, SEED)
+    const tl1 = tlIncidents(run1)
+    const tl2 = tlIncidents(run2)
+
+    // The setup must actually exercise the FSM, otherwise the gate is vacuous.
+    expect(tl1.length).toBeGreaterThan(0)
+    // Byte-identical track-limits penalty stream across two seeded runs.
+    expect(tl1).toEqual(tl2)
+  })
+
+  it('Tier C IP-C3: rejoin-collision opens an investigation at a high-rejoinRisk monitored corner', () => {
+    // Use silverstone: Copse (high rejoinRisk, monitored) and Maggotts (high rejoinRisk,
+    // monitored) both provide the escalation path. Drivers have low racecraft (25) and
+    // high frustration (95) + low experience (20) to maximise track-limits breach
+    // rate (gating condition) and then maximise the rejoin-collision roll probability.
+    // A seed scan across 1..100 finds the first seed that produces at least one
+    // investigation-opened incident with offenceType 'rejoin-collision'.
+    const recklessSetup: RaceSetup = {
+      drivers: [
+        {
+          id: 'd1', shortName: 'D1', teamId: 't1',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 25, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 95, confidence: 60 },
+        },
+        {
+          id: 'd2', shortName: 'D2', teamId: 't2',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 25, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 95, confidence: 60 },
+        },
+      ],
+      circuit: {
+        id: 'silverstone', // Copse + Maggotts: high rejoinRisk, trackLimitMonitored
+        name: 'British Grand Prix',
+        laps: 52,
+        tireWear: 'low',
+        overtakingDifficulty: 'low',
+        weatherVariability: 'low',
+        compounds: ['C3', 'C4', 'C5'],
+      },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+      calibration: {
+        ...createFallbackProfile('silverstone'),
+        overtake: { overtakeModifier: 0.3, drsEffectiveness: 0.3 },
+      },
+    }
+
+    // Helper: filter incidents to those that are investigation-opened rejoin-collisions.
+    const rejoinInvestigations = (r: ReturnType<typeof simulateRace>) =>
+      r.incidents.filter(
+        (i): i is Extract<typeof i, { type: 'investigation-opened' }> =>
+          i.type === 'investigation-opened',
+      ).filter(i => i.offenceType === 'rejoin-collision')
+
+    // Seed scan: find the lowest seed in 1..200 that fires a rejoin-collision investigation.
+    let firedSeed = -1
+    let firedResult: ReturnType<typeof simulateRace> | null = null
+    for (let s = 1; s <= 200; s++) {
+      const r = simulateRace(recklessSetup, s)
+      if (rejoinInvestigations(r).length > 0) {
+        firedSeed = s
+        firedResult = r
+        break
+      }
+    }
+
+    // The scan must find a firing seed — if it doesn't the wiring is broken.
+    expect(firedSeed, 'expected a seed in 1..200 to fire a rejoin-collision investigation').toBeGreaterThan(0)
+    expect(firedResult).not.toBeNull()
+
+    const invs = rejoinInvestigations(firedResult!)
+    expect(invs.length).toBeGreaterThan(0)
+    expect(invs[0].offenceType).toBe('rejoin-collision')
+
+    // Determinism: the same seed must produce byte-identical results.
+    const run2 = simulateRace(recklessSetup, firedSeed)
+    const invs2 = rejoinInvestigations(run2)
+    expect(invs2).toEqual(invs)
+  })
+
+  it('Tier C IP-C4: flag offences NEVER fire under green flag (green-flag-never gate)', () => {
+    // PURPOSE: prove the flag-state breach loop is GATED on safetyCar !== 'green'.
+    // Drivers use 'standard' (not 'overtake') to prevent contested-overtake serious
+    // incidents from deploying a caution mid-lap — keeping the flag cleanly green
+    // for all 200 seeds and ensuring any future failure is a genuine gate regression,
+    // not a caution accidentally deployed by the overtake path.
+    // Low experience/mentality means the detector would fire readily IF the gate opened.
+    const FLAG_OFFENCE_TYPES = new Set([
+      'yellow-flag-breach', 'sc-infraction', 'vsc-infraction', 'red-flag-breach',
+    ])
+
+    // Use `mockRaceState()` with safetyCar forced to 'green'. This is the pure
+    // simulateLap approach — the FSM decrement runs but since cautionLapsRemaining
+    // is 0 and safetyCar is 'green' and no triggerCaution fires, the flag stays
+    // green across all 200 seeds. The flag-state breach loop is gated on
+    // state.safetyCar !== 'green', so it is entirely skipped every lap.
+    const state = mockRaceState()
+    state.safetyCar = 'green'
+    state.cautionLapsRemaining = 0
+    state.strategies[0].currentCommand = 'standard'
+    state.strategies[1].currentCommand = 'standard'
+    state.strategies[2].currentCommand = 'standard'
+    state.strategies[3].currentCommand = 'standard'
+    // Low experience + mentality — maximise detector fire probability IF it runs.
+    for (const d of state.drivers) {
+      d.attributes.experience = 25
+      d.attributes.mentality = 25
+    }
+
+    let totalFlagOffenceIncidents = 0
+    for (let seed = 1; seed <= 200; seed++) {
+      const rng = createPRNG(seed)
+      const result = simulateLap(state, rng)
+      for (const inc of result.incidents) {
+        if ('offenceType' in inc && inc.offenceType && FLAG_OFFENCE_TYPES.has(inc.offenceType as string)) {
+          totalFlagOffenceIncidents++
+        }
+      }
+    }
+
+    expect(totalFlagOffenceIncidents, 'no flag-state offence incidents should fire under safetyCar: green').toBe(0)
+  })
+
+  it('Tier C IP-C4: sc-infraction investigation opens when a caution is active (under-caution gate)', () => {
+    // Force a PERSISTING SC caution by setting safetyCar: 'sc' + cautionLapsRemaining: 5
+    // (high enough to survive the advanceRaceFlags decrement on each simulateLap call).
+    // All drivers use 'overtake' command and have low experience/mentality (25/25),
+    // maximising detector breach probability. Seed-search across 1..500 until an
+    // 'investigation-opened' incident with offenceType === 'sc-infraction' appears.
+    // Then assert determinism: same state + seed → byte-identical sc-infraction incidents.
+
+    const buildCautionState = (): SimRaceState => {
+      const s = mockRaceState()
+      s.safetyCar = 'sc'
+      s.cautionLapsRemaining = 5   // survives the FSM decrement (5 − 1 = 4 → still 'sc')
+      s.strategies[0].currentCommand = 'overtake'
+      s.strategies[1].currentCommand = 'overtake'
+      s.strategies[2].currentCommand = 'overtake'
+      s.strategies[3].currentCommand = 'overtake'
+      for (const d of s.drivers) {
+        d.attributes.experience = 25
+        d.attributes.mentality = 25
+      }
+      return s
+    }
+
+    type InvestigationOpenedIncident = Extract<ReturnType<typeof simulateLap>['incidents'][number], { type: 'investigation-opened' }>
+    const scInvestigations = (incidents: ReturnType<typeof simulateLap>['incidents']): InvestigationOpenedIncident[] =>
+      incidents.filter(
+        (i): i is InvestigationOpenedIncident =>
+          i.type === 'investigation-opened' && 'offenceType' in i && i.offenceType === 'sc-infraction',
+      )
+
+    // Seed scan: find the first seed in 1..500 that fires an sc-infraction investigation.
+    let firedSeed = -1
+    let firedIncidents: ReturnType<typeof simulateLap>['incidents'] = []
+    for (let s = 1; s <= 500; s++) {
+      const state = buildCautionState()
+      const rng = createPRNG(s)
+      const result = simulateLap(state, rng)
+      if (scInvestigations(result.incidents).length > 0) {
+        firedSeed = s
+        firedIncidents = result.incidents
+        break
+      }
+    }
+
+    expect(firedSeed, 'expected a seed in 1..500 to fire an sc-infraction investigation').toBeGreaterThan(0)
+    const invs = scInvestigations(firedIncidents)
+    expect(invs.length).toBeGreaterThan(0)
+    expect(invs[0].offenceType).toBe('sc-infraction')
+
+    // Determinism sub-assertion: same seed + same initial state → identical sc-infraction stream.
+    const state2 = buildCautionState()
+    const rng2 = createPRNG(firedSeed)
+    const result2 = simulateLap(state2, rng2)
+    const invs2 = scInvestigations(result2.incidents)
+    expect(invs2, 'sc-infraction incidents must be byte-identical across two runs with the same seed').toEqual(invs)
   })
 
   it('race-end fold: final-lap LapResult positions are consistent with finalPositions', () => {
@@ -615,12 +857,14 @@ describe('applyRaceEndFold', () => {
       totalLaps: 50,
       weather: { current: 'dry', rainProbability: 0, changeInLaps: null },
       safetyCar: 'green',
+      cautionLapsRemaining: 0,
+      trackLimitStrikes: {},
       trackTemp: 35,
       results: [],
       incidents: [],
       commentary: [],
       drivers,
-      circuit: { tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low' },
+      circuit: { id: 'silverstone', tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low' },
       calibration: createFallbackProfile('test-circuit'),
       strategies: mockStrategies(drivers),
       tireStates: Object.fromEntries(drivers.map(d => [d.id, tireState()])),

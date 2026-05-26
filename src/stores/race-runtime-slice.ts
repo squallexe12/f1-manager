@@ -41,6 +41,7 @@ export interface RaceRuntimeSlice {
   totalLaps: number
   weather: WeatherForecast
   safetyCar: RaceState['safetyCar']
+  trackLimitStrikes: Record<string, number>
   trackTemp: number
   lastLapResults: LapResult[]
   tireStates: Record<string, TireState>
@@ -70,6 +71,7 @@ export function createInitialRaceRuntime(): RaceRuntimeSlice {
     totalLaps: 0,
     weather: INITIAL_WEATHER,
     safetyCar: 'green',
+    trackLimitStrikes: {},
     trackTemp: 35,
     lastLapResults: [],
     tireStates: {},
@@ -120,6 +122,7 @@ export function reduceWorkerEvent(
         tireStates: { ...event.tireStates },
         weather: event.weather,
         safetyCar: event.safetyCar,
+        trackLimitStrikes: event.trackLimitStrikes,
         wearHistory,
         compoundHistory,
       }
