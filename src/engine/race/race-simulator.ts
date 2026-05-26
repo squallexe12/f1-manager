@@ -26,6 +26,7 @@ import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-
 import { advanceRaceFlags, DEFAULT_CAUTION_CONFIG } from './race-flags'
 import { evaluateTrackLimitBreach, applyTrackLimitStrike, DEFAULT_TRACK_LIMITS_CONFIG } from './track-limits'
 import { evaluateRejoinCollision, DEFAULT_REJOIN_CONFIG } from './rejoin-collision'
+import { evaluateFlagStateBreach, DEFAULT_FLAG_OFFENCE_CONFIG } from './flag-state-offences'
 import { cornersForCircuit, DEFAULT_CORNER_PROFILE } from '@/data/corner-profiles'
 
 export interface RaceDriver {
@@ -914,6 +915,84 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
             }
           }
         }
+      }
+    }
+  }
+
+  // Tier C IP-C4: flag-state offences. Only runs while a caution is active, so
+  // green-flag laps (the vast majority) consume ZERO extra PRNG draws and prior
+  // seeded tests stay byte-identical. Aggressive drivers under caution risk a
+  // breach; the detector draws no PRNG for non-aggressive drivers. id-sorted for
+  // deterministic PRNG consumption. Placed AFTER advanceRaceFlags so
+  // state.safetyCar reflects this lap's caution.
+  if (state.safetyCar !== 'green') {
+    const flag = state.safetyCar as 'yellow' | 'vsc' | 'sc' | 'red'
+    const sorted = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    for (const driver of sorted) {
+      if (state.dnfDriverIds[driver.id]) continue
+      const cmd = state.strategies.find((s) => s.driverId === driver.id)?.currentCommand
+      const aggressive = cmd === 'overtake' || cmd === 'push'
+      const evalResult = evaluateFlagStateBreach(
+        {
+          driverId: driver.id,
+          flag,
+          aggressive,
+          experience: driver.attributes.experience,
+          mentality: driver.attributes.mentality,
+          config: DEFAULT_FLAG_OFFENCE_CONFIG,
+        },
+        rng,
+      )
+      if (!evalResult.decision) continue
+      const dec = evalResult.decision
+      if (evalResult.automatic) {
+        // VSC-delta: automatic sanction via the matrix, applied directly.
+        // Mirrors the track-limits time-penalty branch above.
+        const cell = DEFAULT_PENALTY_CALIBRATION.sanctionMatrix[dec.offenceType][dec.severity]
+        if (cell.timePenaltySeconds > 0) {
+          state.pendingTimePenalties[driver.id] =
+            (state.pendingTimePenalties[driver.id] ?? 0) + cell.timePenaltySeconds
+        }
+        ;(state.appliedPenaltiesByDriver[driver.id] ??= []).push({
+          offenceType: dec.offenceType,
+          sanction: cell.sanction,
+          timePenaltySeconds: cell.timePenaltySeconds,
+          penaltyPointsIssued: cell.penaltyPoints,
+          warningCounted: cell.warningCounted,
+          raceLap: state.currentLap,
+        })
+        incidents.push({
+          lap: state.currentLap,
+          type: 'penalty-issued',
+          driverIds: [driver.id],
+          description: `${driver.id.toUpperCase()} ${cell.sanction} — VSC delta breach`,
+          investigationId: `vsc-${state.currentLap}-${driver.id}`,
+          sanction: cell.sanction,
+          penaltyPointsIssued: cell.penaltyPoints,
+          offenceType: dec.offenceType,
+        })
+      } else {
+        // yellow/sc/red: open an investigation (judgment). Same signature as
+        // the contested-overtake and rejoin-collision paths above.
+        const inv = openInvestigation(
+          dec.driverId,
+          dec.severity,
+          dec.offenceType,
+          state.currentLap,
+          state.totalLaps,
+          DEFAULT_PENALTY_CALIBRATION,
+          rng,
+        )
+        state.pendingInvestigations.push(inv)
+        incidents.push({
+          lap: state.currentLap,
+          type: 'investigation-opened',
+          driverIds: [dec.driverId],
+          description: `${driver.id.toUpperCase()} under investigation: ${dec.offenceType}`,
+          investigationId: inv.id,
+          offenceType: dec.offenceType,
+          decideOnLap: inv.decideOnLap,
+        })
       }
     }
   }
