@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { simulateRace, type RaceSetup, type RaceDriver } from '@/engine/race/race-simulator'
-import type { TireCompound, RaceStrategy } from '@/types/race'
+import type { TireCompound, RaceStrategy, RaceIncident } from '@/types/race'
 
 /**
  * Tier B v2 — pit-lane determinism HARD GATE.
@@ -110,7 +110,8 @@ describe('pit-lane determinism HARD GATE', () => {
   // crossing sub-stream. If the white-line detector draw ever drifts out of its
   // appended-per-car position, the finalised ids diverge and this fails first.
   it('pit-line white-line crossings are byte-identical across two seeded runs', () => {
-    const isPitLineCrossing = (i: { offenceType?: string }) => i.offenceType === 'pit-line-crossing'
+    const isPitLineCrossing = (i: RaceIncident): boolean =>
+      i.type === 'penalty-issued' && i.offenceType === 'pit-line-crossing'
 
     // Seed-search for a scenario that actually produces a crossing so the
     // equality assertion is exercised against real ids, not two empty arrays.

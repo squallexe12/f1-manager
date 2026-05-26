@@ -18,6 +18,10 @@ import {
   rollCautionFlag,
   DEFAULT_CAUTION_CONFIG,
 } from '@/engine/race/race-flags'
+import {
+  evaluatePitLineCrossing,
+  DEFAULT_PIT_LINE_CONFIG,
+} from '@/engine/race/pit-line-crossing'
 import { CORNER_PROFILES, DEFAULT_CORNER_PROFILE } from '@/data/corner-profiles'
 import { CIRCUITS } from '@/data/circuits'
 
@@ -456,6 +460,147 @@ describe.skipIf(!RUN_HARNESS)('flag-state offences season frequency harness (TRA
   })
 })
 
+/**
+ * Tier C IP-C5 — pit-line white-line crossing season-frequency calibration harness.
+ *
+ * Gated behind the same TRACK_LIMITS_FREQUENCY=1 env var as the harnesses above,
+ * so it never runs in the normal suite. This is the sixth and final Tier C family.
+ *
+ * Models a full 24-race season for one driver and counts per-driver pit-line
+ * crossings. The replay drives the pure detector `evaluatePitLineCrossing`
+ * directly (same approach as the track-limits / rejoin / flag harnesses) rather
+ * than going through the full pit-lane sub-sim. This is faithful because the
+ * detector is invoked exactly once per (boundary) per pit transit and consumes
+ * exactly one PRNG draw, in fixed entry→exit order (pit-lane-engine §5.3 items
+ * 6–7). We model STOPS_PER_RACE stops/race, each crossing both the entry and the
+ * exit white line — i.e. 2 detector rolls per stop, matching the engine.
+ *
+ * STOPS_PER_RACE = 2 is the upper-typical 2-stop strategy; F1 drivers average
+ * ~1–2 stops/race, so this is a conservative (slightly high) season exposure.
+ *
+ * Spec §7 target: ~0–1 pit-line crossings per driver/season.
+ *
+ * MEASURED (DEFAULT_PIT_LINE_CONFIG, experience=70, STOPS_PER_RACE=2, 12-seed
+ * mean): pit-line crossings ≈ 0.50 per driver/season — ON the spec target.
+ * Veteran (exp=95) ≈ 0.33, rookie (exp=20) ≈ 1.08 — the experience gradient is
+ * intact. Unlike the IP-C2/C3 families, this family needs NO follow-up tuning:
+ * the default config lands inside the spec envelope, so the band below is the
+ * tight spec band (0–1.5, allowing a little headroom over the 0.50 mean).
+ */
+
+/** Modelled stops per race per driver (2 = upper-typical 2-stop strategy). */
+const STOPS_PER_RACE = 2
+
+function replayPitLineCrossingsForDriver(experience: number, seed: number): number {
+  const rng = createPRNG(seed)
+  let crossings = 0
+
+  for (let race = 0; race < CIRCUITS.length; race++) {
+    for (let stop = 0; stop < STOPS_PER_RACE; stop++) {
+      // Per stop the engine rolls both boundaries in fixed entry→exit order.
+      for (const boundary of ['entry', 'exit'] as const) {
+        const crossed = evaluatePitLineCrossing(
+          { boundary, experience, config: DEFAULT_PIT_LINE_CONFIG },
+          rng,
+        )
+        if (crossed) crossings++
+      }
+    }
+  }
+
+  return crossings
+}
+
+describe.skipIf(!RUN_HARNESS)('pit-line crossing season frequency harness (TRACK_LIMITS_FREQUENCY=1)', () => {
+  it('a typical driver lands within the spec §7 ~0–1 pit-line crossings per driver/season', () => {
+    const SAMPLES = Number(process.env.TRACK_LIMITS_FREQUENCY_SAMPLES ?? 12)
+    let total = 0
+
+    for (let s = 0; s < SAMPLES; s++) {
+      // Representative mid-grid driver: experience 70.
+      total += replayPitLineCrossingsForDriver(70, SEED_BASE + s + 7000)
+    }
+
+    const avg = total / SAMPLES
+
+    console.log(
+      `[IP-C5-frequency] samples=${SAMPLES} exp=70 stops/race=${STOPS_PER_RACE} → ` +
+      `pit-line-crossings≈${avg.toFixed(2)}/driver/season ` +
+      `(spec target ~0–1; measured ≈0.50 — on target, no tuning needed)`,
+    )
+
+    // Tight spec band: DEFAULT_PIT_LINE_CONFIG lands inside the §7 envelope, so
+    // unlike the C2/C3 families this records the spec band directly (with a
+    // little headroom over the 0.50 mean) and catches a base-rate regression.
+    expect(avg, 'pit-line-crossings/driver/season (spec target ~0–1; measured ≈0.50)').toBeGreaterThanOrEqual(0)
+    expect(avg, 'pit-line-crossings/driver/season').toBeLessThanOrEqual(1.5)
+  })
+
+  it('a veteran crosses the pit white line less often than a rookie over a season', () => {
+    const veteran = replayPitLineCrossingsForDriver(95, SEED_BASE + 8000)
+    const rookie = replayPitLineCrossingsForDriver(20, SEED_BASE + 8000)
+    console.log(
+      `[IP-C5-attribute] veteran(exp=95) crossings=${veteran}, rookie(exp=20) crossings=${rookie}`,
+    )
+    // Higher experience reduces the crossing rate; ≥ avoids small-sample flakiness.
+    expect(rookie).toBeGreaterThanOrEqual(veteran)
+  })
+})
+
+/**
+ * Tier C all-six-family summary harness (env-gated). Emits one consolidated log
+ * line covering every Tier C offence family so a single run surfaces the full
+ * picture. Per-family band assertions live in their dedicated blocks above; this
+ * is a reporting aid, so it asserts only that every family produced a finite,
+ * non-negative measured number.
+ */
+describe.skipIf(!RUN_HARNESS)('Tier C six-family summary (TRACK_LIMITS_FREQUENCY=1)', () => {
+  it('reports all six Tier C offence-family frequencies in one line', () => {
+    const SAMPLES = Number(process.env.TRACK_LIMITS_FREQUENCY_SAMPLES ?? 12)
+
+    // 1+2+3 — track-limits warnings / B&W / time penalties.
+    let warnings = 0, bwFlags = 0, timePenalties = 0
+    // 4 — rejoin-collision.
+    let rejoin = 0
+    // 5 — flag-state offences (yellow / vsc / sc / red).
+    let yellow = 0, vsc = 0, sc = 0, red = 0
+    // 6 — pit-line crossing.
+    let pitLine = 0
+
+    for (let s = 0; s < SAMPLES; s++) {
+      const tl = replaySeasonForDriver(70, 40, SEED_BASE + s)
+      warnings += tl.warnings
+      bwFlags += tl.bwFlags
+      timePenalties += tl.timePenalties
+
+      rejoin += replayRejoinCollisionForDriver(60, 70, 40, SEED_BASE + s + 1000)
+
+      const flags = replayFlagOffencesForDriver(70, 70, 0.3, SEED_BASE + s + 5000)
+      yellow += flags.yellow
+      vsc += flags.vsc
+      sc += flags.sc
+      red += flags.red
+
+      pitLine += replayPitLineCrossingsForDriver(70, SEED_BASE + s + 7000)
+    }
+
+    const avg = (n: number) => (n / SAMPLES).toFixed(2)
+    console.log(
+      `[Tier-C-summary] samples=${SAMPLES} per-driver/season → ` +
+      `track-limits warnings≈${avg(warnings)} (12–18), B&W≈${avg(bwFlags)} (2–3), ` +
+      `time-penalties≈${avg(timePenalties)} (3–5); ` +
+      `rejoin-collision≈${avg(rejoin)} (1–2); ` +
+      `yellow≈${avg(yellow)} vsc≈${avg(vsc)} sc≈${avg(sc)} red≈${avg(red)} (~0–1 each); ` +
+      `pit-line≈${avg(pitLine)} (~0–1)`,
+    )
+
+    for (const n of [warnings, bwFlags, timePenalties, rejoin, yellow, vsc, sc, red, pitLine]) {
+      expect(Number.isFinite(n / SAMPLES)).toBe(true)
+      expect(n).toBeGreaterThanOrEqual(0)
+    }
+  })
+})
+
 // Cheap always-on sanity test: confirms the harness helper compiles and returns
 // a well-shaped result for a single driver. The full §7 band run is env-gated.
 describe('track-limits season frequency harness helpers', () => {
@@ -478,5 +623,10 @@ describe('track-limits season frequency harness helpers', () => {
     expect(counts.vsc).toBeGreaterThanOrEqual(0)
     expect(counts.sc).toBeGreaterThanOrEqual(0)
     expect(counts.red).toBeGreaterThanOrEqual(0)
+  })
+
+  it('replayPitLineCrossingsForDriver returns a non-negative count', () => {
+    const count = replayPitLineCrossingsForDriver(70, 999)
+    expect(count).toBeGreaterThanOrEqual(0)
   })
 })

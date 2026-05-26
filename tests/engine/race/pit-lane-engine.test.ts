@@ -12,6 +12,7 @@ import { DEFAULT_PENALTY_CALIBRATION } from '@/data/penalty-calibration'
 import { createPRNG } from '@/engine/core/prng'
 import type { PitLaneCarState } from '@/types/pit-lane'
 import type { PitLaneCalibration } from '@/types/calibration'
+import type { RaceIncident } from '@/types/race'
 
 const STD_LANE: PitLaneCalibration = {
   lengthMeters: 350,
@@ -241,5 +242,45 @@ describe('simulatePitLane', () => {
     const result = simulatePitLane(baseInput([carInput('d1'), carInput('d2')]), rng)
     expect(result.events.filter((e) => e.type === 'pitLaneEntry')).toHaveLength(2)
     expect(result.events.filter((e) => e.type === 'pitLaneExit')).toHaveLength(2)
+  })
+
+  // ─── Tier C IP-C5: pit-line white-line crossing wiring ───────────────────────
+  //
+  // The detector itself is unit-tested in pit-line-crossing.test.ts. This test
+  // proves the WIRING: a low-experience driver pitting can produce an automatic
+  // `penalty-issued` incident (offence `pit-line-crossing`) directly from the
+  // sub-sim — no investigation. The crossing rate is deliberately low (base
+  // 0.010 entry / 0.014 exit, reduced by experience), so we seed-scan a low-exp
+  // driver until one fires and assert the incident shape the race-simulator then
+  // finalises (it fills the real lap + the `pl-<lap>-<driverId>-<boundary>` id).
+  it('a low-experience driver pitting can produce a pit-line-crossing penalty-issued incident', () => {
+    type PenaltyIssuedIncident = Extract<RaceIncident, { type: 'penalty-issued' }>
+    let crossing: PenaltyIssuedIncident | null = null
+    let firingSeed: number | null = null
+
+    for (let seed = 1; seed <= 1000; seed++) {
+      const result = simulatePitLane(baseInput([carInput('d1', { driverExperience: 20 })]), createPRNG(seed))
+      const found = result.incidents.find(
+        (i): i is PenaltyIssuedIncident =>
+          i.type === 'penalty-issued' && i.offenceType === 'pit-line-crossing',
+      )
+      if (found) {
+        crossing = found
+        firingSeed = seed
+        break
+      }
+    }
+
+    expect(firingSeed, 'expected a low-experience driver to cross the pit white line within seeds 1–1000').not.toBeNull()
+    expect(crossing).not.toBeNull()
+    expect(crossing!.type).toBe('penalty-issued')
+    expect(crossing!.offenceType).toBe('pit-line-crossing')
+    expect(crossing!.driverIds).toEqual(['d1'])
+    // Automatic time penalty (minor cell of the matrix): +5s, no super-licence points.
+    expect(crossing!.sanction).toBe('5s')
+    expect(crossing!.penaltyPointsIssued).toBe(0)
+    // Sub-sim emits the partial boundary-tagged id; the race-simulator prefixes
+    // the real lap + driverId to produce `pl-<lap>-<driverId>-<boundary>`.
+    expect(crossing!.investigationId).toMatch(/^pl-(entry|exit)$/)
   })
 })
