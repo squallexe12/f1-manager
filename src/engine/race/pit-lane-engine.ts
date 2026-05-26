@@ -10,6 +10,7 @@ import { sampleGaussian } from '@/engine/core/gaussian'
 import type { PenaltyCalibration } from '@/data/penalty-calibration'
 import { severityFromScore } from './penalty-engine'
 import { tickPitLaneFsm, type PitLaneFsmContext } from './pit-lane-fsm'
+import { evaluatePitLineCrossing, DEFAULT_PIT_LINE_CONFIG } from './pit-line-crossing'
 
 /**
  * Tier B v2 pit-lane sub-step engine. `simulatePitLane` runs a deterministic
@@ -32,10 +33,20 @@ import { tickPitLaneFsm, type PitLaneFsmContext } from './pit-lane-fsm'
  *                             gauntlet that fires on any of ~120 sub-ticks)
  *     4. releaseTimingNoise  (1 sample, rng.next())
  *     5. exitAccelNoise      (1 sample, rng.next())
+ *     6. pitLineEntryCrossing (1 sample, rng.chance — Tier C IP-C5)
+ *     7. pitLineExitCrossing  (1 sample, rng.chance — Tier C IP-C5)
  *
  * Items 1, 4, 5 are currently unused — they burn PRNG values for forward
  * compatibility so future additions can consume them without re-baselining
  * existing seeded races.
+ *
+ * Items 6, 7 (Tier C) are APPENDED at the END of each car's draw order. They
+ * are evaluated immediately after exitAccelNoise so the white-line detector
+ * never shifts the existing Tier B sub-step PRNG ordering — the pit-lane
+ * determinism HARD GATE stays byte-identical. On a crossing the engine emits an
+ * automatic `penalty-issued` incident (offence `pit-line-crossing`, no
+ * investigation) that the race-simulator merges into appliedPenaltiesByDriver +
+ * pendingTimePenalties via the same path it uses for resolved investigations.
  */
 
 const SUB_STEP_DT = 0.1 // seconds per FSM tick
@@ -373,6 +384,36 @@ export function simulatePitLane(input: PitLaneSimInput, rng: PRNG): PitLaneSimRe
     rng.next()
     /* exitAccelNoise — currently unused, burned for ordering stability */
     rng.next()
+
+    // Tier C IP-C5: pit-entry / pit-exit white-line crossing (automatic).
+    // APPENDED at the very END of this car's PRNG consumption (after
+    // exitAccelNoise) so the white-line draws never shift the existing Tier B
+    // sub-step ordering — the pit-lane determinism HARD GATE stays byte-
+    // identical. Both boundaries are always rolled (in fixed entry→exit order)
+    // so the draw count per car is constant regardless of outcome. On a
+    // crossing the engine emits a `penalty-issued` incident with `lap: 0` and
+    // an empty `investigationId`; the race-simulator fills in the real lap and
+    // the lap-encoded `pl-<lap>-<driverId>-<boundary>` id, mirroring how it
+    // finalises the deferred investigation incidents above.
+    for (const boundary of ['entry', 'exit'] as const) {
+      const crossed = evaluatePitLineCrossing(
+        { boundary, experience: entry.car.driverExperience, config: DEFAULT_PIT_LINE_CONFIG },
+        rng,
+      )
+      if (crossed) {
+        const cell = input.calibration.sanctionMatrix['pit-line-crossing'].minor
+        incidents.push({
+          lap: 0, // assigned by caller
+          type: 'penalty-issued',
+          driverIds: [entry.car.driverId],
+          description: `${entry.car.driverId.toUpperCase()} ${cell.sanction} — crossed the pit-${boundary} white line`,
+          investigationId: `pl-${boundary}`, // caller prefixes with the real lap + driverId
+          sanction: cell.sanction,
+          penaltyPointsIssued: cell.penaltyPoints,
+          offenceType: 'pit-line-crossing',
+        })
+      }
+    }
   }
 
   return { addedLapTime, timings, incidents, events }

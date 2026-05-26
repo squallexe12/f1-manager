@@ -513,6 +513,44 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
           investigationId: inv.id,
           decideOnLap: inv.decideOnLap,
         })
+      } else if (inc.type === 'penalty-issued' && inc.offenceType === 'pit-line-crossing') {
+        // Tier C IP-C5 — automatic pit-line white-line crossing. No
+        // investigation: the sanction is applied immediately, mirroring the
+        // resolved-investigation path below (appliedPenaltiesByDriver +
+        // pendingTimePenalties + drive-through/stop-go deadline registration).
+        // The engine emitted this with `lap: 0` and a partial
+        // `pl-<boundary>` id; finalise the real lap and the lap-encoded
+        // `pl-<lap>-<driverId>-<boundary>` id here.
+        const driverId = inc.driverIds[0]
+        let appliedTimeSeconds = 0
+        if (inc.sanction === '5s' || inc.sanction === '10s') {
+          appliedTimeSeconds = DEFAULT_PENALTY_CALIBRATION.sanctionMatrix['pit-line-crossing'].minor.timePenaltySeconds
+          state.pendingTimePenalties[driverId] =
+            (state.pendingTimePenalties[driverId] ?? 0) + appliedTimeSeconds
+        } else if (inc.sanction === 'drive-through' || inc.sanction === 'stop-go') {
+          const ftsState = registerSanctionDeadline(
+            { sanctionDeadlines: state.sanctionDeadlines },
+            driverId,
+            inc.sanction,
+            state.currentLap,
+            DEFAULT_PENALTY_CALIBRATION.failureToServeWindowLaps,
+          )
+          state.sanctionDeadlines = ftsState.sanctionDeadlines
+        }
+        ;(state.appliedPenaltiesByDriver[driverId] ??= []).push({
+          offenceType: 'pit-line-crossing',
+          sanction: inc.sanction,
+          timePenaltySeconds: appliedTimeSeconds,
+          penaltyPointsIssued: inc.penaltyPointsIssued,
+          warningCounted: false,
+          raceLap: state.currentLap,
+        })
+        const boundary = inc.investigationId.replace('pl-', '')
+        incidents.push({
+          ...inc,
+          lap: state.currentLap,
+          investigationId: `pl-${state.currentLap}-${driverId}-${boundary}`,
+        })
       }
     }
   }
