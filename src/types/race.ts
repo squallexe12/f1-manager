@@ -23,6 +23,10 @@ export type OffenceType =
   | 'failure-to-serve'
   | 'track-limits'
   | 'rejoin-collision'
+  | 'yellow-flag-breach'
+  | 'sc-infraction'
+  | 'vsc-infraction'
+  | 'red-flag-breach'
 
 export type SanctionType =
   | 'reprimand'
