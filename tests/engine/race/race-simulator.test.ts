@@ -548,6 +548,82 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
     expect(tl1).toEqual(tl2)
   })
 
+  it('Tier C IP-C3: rejoin-collision opens an investigation at a high-rejoinRisk monitored corner', () => {
+    // Use silverstone: Copse (high rejoinRisk, monitored) and Maggotts (high rejoinRisk,
+    // monitored) both provide the escalation path. Drivers have low racecraft (25) and
+    // high frustration (95) + low experience (20) to maximise track-limits breach
+    // rate (gating condition) and then maximise the rejoin-collision roll probability.
+    // A seed scan across 1..100 finds the first seed that produces at least one
+    // investigation-opened incident with offenceType 'rejoin-collision'.
+    const recklessSetup: RaceSetup = {
+      drivers: [
+        {
+          id: 'd1', shortName: 'D1', teamId: 't1',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 25, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 95, confidence: 60 },
+        },
+        {
+          id: 'd2', shortName: 'D2', teamId: 't2',
+          car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 },
+          attributes: { pace: 80, racecraft: 25, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 },
+          mood: { motivation: 50, frustration: 95, confidence: 60 },
+        },
+      ],
+      circuit: {
+        id: 'silverstone', // Copse + Maggotts: high rejoinRisk, trackLimitMonitored
+        name: 'British Grand Prix',
+        laps: 52,
+        tireWear: 'low',
+        overtakingDifficulty: 'low',
+        weatherVariability: 'low',
+        compounds: ['C3', 'C4', 'C5'],
+      },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+      calibration: {
+        ...createFallbackProfile('silverstone'),
+        overtake: { overtakeModifier: 0.3, drsEffectiveness: 0.3 },
+      },
+    }
+
+    // Helper: filter incidents to those that are investigation-opened rejoin-collisions.
+    const rejoinInvestigations = (r: ReturnType<typeof simulateRace>) =>
+      r.incidents.filter(
+        (i): i is Extract<typeof i, { type: 'investigation-opened' }> =>
+          i.type === 'investigation-opened',
+      ).filter(i => i.offenceType === 'rejoin-collision')
+
+    // Seed scan: find the lowest seed in 1..200 that fires a rejoin-collision investigation.
+    let firedSeed = -1
+    let firedResult: ReturnType<typeof simulateRace> | null = null
+    for (let s = 1; s <= 200; s++) {
+      const r = simulateRace(recklessSetup, s)
+      if (rejoinInvestigations(r).length > 0) {
+        firedSeed = s
+        firedResult = r
+        break
+      }
+    }
+
+    // The scan must find a firing seed — if it doesn't the wiring is broken.
+    expect(firedSeed, 'expected a seed in 1..200 to fire a rejoin-collision investigation').toBeGreaterThan(0)
+    expect(firedResult).not.toBeNull()
+
+    const invs = rejoinInvestigations(firedResult!)
+    expect(invs.length).toBeGreaterThan(0)
+    expect(invs[0].offenceType).toBe('rejoin-collision')
+
+    // Determinism: the same seed must produce byte-identical results.
+    const run2 = simulateRace(recklessSetup, firedSeed)
+    const invs2 = rejoinInvestigations(run2)
+    expect(invs2).toEqual(invs)
+  })
+
   it('race-end fold: final-lap LapResult positions are consistent with finalPositions', () => {
     // The fold rewrites the final-lap LapResult.position values to match the
     // post-penalty cumulativeTimes ordering. This test verifies the invariant:
