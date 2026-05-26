@@ -1,7 +1,8 @@
 import type { PRNG } from '@/engine/core/prng'
 import type { OffenceType, SeverityTier } from '@/types/race'
+import type { CautionFlag } from './race-flags'
 
-export type CautionFlag = 'yellow' | 'vsc' | 'sc' | 'red'
+export type { CautionFlag } from './race-flags'
 
 export interface FlagOffenceConfig {
   /** Base breach probability for an aggressive driver, by active flag. */
@@ -52,6 +53,7 @@ export function evaluateFlagStateBreach(input: FlagBreachInput, rng: PRNG): Flag
   const base = input.config.baseRateByFlag[input.flag]
   // Experience + mentality both reduce the rate (average of the two deficits).
   const discipline = (input.experience + input.mentality) / 2
+  // 0.85 (raised from spec's 0.7) tightens veteran discipline; yellow still ~2.5×/season — tracked for a baseRateByFlag co-tune pass
   const disciplineFactor = 1 - (discipline / 100) * 0.85
   const prob = Math.min(base * disciplineFactor, 0.4)
   if (!rng.chance(prob)) {

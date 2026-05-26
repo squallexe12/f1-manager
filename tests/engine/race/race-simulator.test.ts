@@ -625,27 +625,28 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
   })
 
   it('Tier C IP-C4: flag offences NEVER fire under green flag (green-flag-never gate)', () => {
-    // Build a setup with ALL drivers aggressive ('overtake') and deliberately low
-    // experience/mentality (25/25) so the detector would fire readily under caution.
-    // With safetyCar: 'green' the flag-state breach loop must be entirely skipped —
-    // zero PRNG drawn for flag offences — so NO incident can have an offenceType
-    // in the four flag-breach set regardless of how many laps or seeds we run.
+    // PURPOSE: prove the flag-state breach loop is GATED on safetyCar !== 'green'.
+    // Drivers use 'standard' (not 'overtake') to prevent contested-overtake serious
+    // incidents from deploying a caution mid-lap — keeping the flag cleanly green
+    // for all 200 seeds and ensuring any future failure is a genuine gate regression,
+    // not a caution accidentally deployed by the overtake path.
+    // Low experience/mentality means the detector would fire readily IF the gate opened.
     const FLAG_OFFENCE_TYPES = new Set([
       'yellow-flag-breach', 'sc-infraction', 'vsc-infraction', 'red-flag-breach',
     ])
 
     // Use `mockRaceState()` with safetyCar forced to 'green'. This is the pure
     // simulateLap approach — the FSM decrement runs but since cautionLapsRemaining
-    // is 0 and safetyCar is 'green' and no triggerCaution fires (no serious incident),
-    // the flag stays green across all 200 seeds. The flag-state breach loop is gated
-    // on state.safetyCar !== 'green', so it is entirely skipped every lap.
+    // is 0 and safetyCar is 'green' and no triggerCaution fires, the flag stays
+    // green across all 200 seeds. The flag-state breach loop is gated on
+    // state.safetyCar !== 'green', so it is entirely skipped every lap.
     const state = mockRaceState()
     state.safetyCar = 'green'
     state.cautionLapsRemaining = 0
-    state.strategies[0].currentCommand = 'overtake'
-    state.strategies[1].currentCommand = 'overtake'
-    state.strategies[2].currentCommand = 'overtake'
-    state.strategies[3].currentCommand = 'overtake'
+    state.strategies[0].currentCommand = 'standard'
+    state.strategies[1].currentCommand = 'standard'
+    state.strategies[2].currentCommand = 'standard'
+    state.strategies[3].currentCommand = 'standard'
     // Low experience + mentality — maximise detector fire probability IF it runs.
     for (const d of state.drivers) {
       d.attributes.experience = 25
