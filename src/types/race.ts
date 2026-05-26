@@ -27,6 +27,7 @@ export type OffenceType =
   | 'sc-infraction'
   | 'vsc-infraction'
   | 'red-flag-breach'
+  | 'pit-line-crossing'
 
 export type SanctionType =
   | 'reprimand'

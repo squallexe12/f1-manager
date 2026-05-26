@@ -20,6 +20,7 @@ export const OFFENCE_LABELS: Record<OffenceType, string> = {
   'sc-infraction':      'Safety-Car Infraction',
   'vsc-infraction':     'VSC Infraction',
   'red-flag-breach':    'Red-Flag Breach',
+  'pit-line-crossing':  'Pit-Line Crossing',
 }
 
 export const SANCTION_LABELS: Record<SanctionType, string> = {

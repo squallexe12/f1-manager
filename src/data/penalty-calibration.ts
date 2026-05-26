@@ -120,6 +120,15 @@ export const DEFAULT_PENALTY_CALIBRATION: PenaltyCalibration = {
       major:     { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 3, warningCounted: true },
       egregious: { sanction: 'stop-go', timePenaltySeconds: 0, penaltyPoints: 3, warningCounted: true },
     },
+    // Pit-line crossing: procedural offence (mirrors pit-lane-speeding tone but
+    // with a lighter minor/serious tier — 5s penalty — and drive-through for
+    // major/egregious). No super-licence points; not a driving warning.
+    'pit-line-crossing': {
+      minor:     { sanction: '5s',            timePenaltySeconds: 5,  penaltyPoints: 0, warningCounted: false },
+      serious:   { sanction: '5s',            timePenaltySeconds: 5,  penaltyPoints: 0, warningCounted: false },
+      major:     { sanction: 'drive-through', timePenaltySeconds: 0,  penaltyPoints: 0, warningCounted: false },
+      egregious: { sanction: 'drive-through', timePenaltySeconds: 0,  penaltyPoints: 0, warningCounted: false },
+    },
   },
   banThreshold: 12,
   banDurationRounds: 1,
