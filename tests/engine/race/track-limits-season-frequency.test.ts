@@ -9,6 +9,15 @@ import {
   evaluateRejoinCollision,
   DEFAULT_REJOIN_CONFIG,
 } from '@/engine/race/rejoin-collision'
+import {
+  evaluateFlagStateBreach,
+  DEFAULT_FLAG_OFFENCE_CONFIG,
+  type CautionFlag,
+} from '@/engine/race/flag-state-offences'
+import {
+  rollCautionFlag,
+  DEFAULT_CAUTION_CONFIG,
+} from '@/engine/race/race-flags'
 import { CORNER_PROFILES, DEFAULT_CORNER_PROFILE } from '@/data/corner-profiles'
 import { CIRCUITS } from '@/data/circuits'
 
@@ -292,6 +301,161 @@ describe.skipIf(!RUN_HARNESS)('rejoin-collision season frequency harness (TRACK_
   })
 })
 
+/**
+ * Tier C IP-C4 — flag-state offences season-frequency calibration harness.
+ *
+ * Gated behind the same TRACK_LIMITS_FREQUENCY=1 env var as the track-limits
+ * harness above, so it never runs in the normal suite.
+ *
+ * Models a full 24-race season for a representative driver and counts per-flag
+ * offences. The replay drives `evaluateFlagStateBreach` + `rollCautionFlag`
+ * directly (same approach as the track-limits harness) rather than going through
+ * the full `simulateRace` stack. This is accurate because:
+ *   - Flag offences only fire when the flag is non-green (gated).
+ *   - The detector is pure (experience + mentality → breach probability).
+ *   - Caution laps per race are modeled from the real FSM config:
+ *       MEAN_CAUTION_EVENTS_PER_RACE caution events × durationLaps distribution.
+ *   - For each caution lap, one call to `evaluateFlagStateBreach` per driver.
+ *
+ * MEAN_CAUTION_EVENTS_PER_RACE = 2 approximates F1 reality (~1–3 SCs/race).
+ * The flag type for each caution lap is drawn via `rollCautionFlag` so the
+ * yellow:vsc:sc:red split matches the real FSM severity bands.
+ *
+ * Spec §7 target: ~0–1 of each flag offence type per driver/season.
+ *
+ * MEASURED (DEFAULT_FLAG_OFFENCE_CONFIG, exp=70/ment=70, aggressive on 30% of
+ * caution laps, 12-seed mean, MEAN_CAUTION_EVENTS_PER_RACE=2):
+ *   - yellow-flag-breach ≈ 0.X per driver/season  (to be filled from first run)
+ *   - sc-infraction      ≈ 0.X per driver/season
+ *   - vsc-infraction     ≈ 0.X per driver/season
+ *   - red-flag-breach    ≈ 0.X per driver/season
+ *
+ * Bands are set generously (0–3 each) on the first pass and tightened after
+ * the first measured run. The log line shows measured values so the follow-up
+ * tuning pass can tighten or adjust baseRateByFlag entries.
+ */
+
+/** Mean number of caution EVENTS per race. Each event lasts durationLaps[flag] laps. */
+const MEAN_CAUTION_EVENTS_PER_RACE = 2
+
+/**
+ * Model expected caution laps per race from the FSM config. This draws
+ * both the trigger (modelled as a Bernoulli at rate MEAN_CAUTION_EVENTS_PER_RACE/totalLaps
+ * per lap) and the flag type via `rollCautionFlag`, then applies durationLaps.
+ *
+ * For the frequency replay we pre-compute caution laps for the whole season
+ * from a seeded PRNG, then call evaluateFlagStateBreach once per caution lap
+ * per driver attribute set. `aggressiveRate` is the fraction of caution laps
+ * where the driver runs 'overtake' or 'push' (0.0–1.0, conservatively 0.3).
+ */
+function replayFlagOffencesForDriver(
+  experience: number,
+  mentality: number,
+  aggressiveRate: number,
+  seed: number,
+): Record<CautionFlag, number> {
+  const rng = createPRNG(seed)
+  const counts: Record<CautionFlag, number> = { yellow: 0, vsc: 0, sc: 0, red: 0 }
+
+  for (const circuit of CIRCUITS) {
+    const lapTriggerProb = MEAN_CAUTION_EVENTS_PER_RACE / circuit.laps
+    let cautionLapsRemaining = 0
+    let activeFlag: CautionFlag | null = null
+
+    for (let lap = 0; lap < circuit.laps; lap++) {
+      // Advance FSM
+      if (cautionLapsRemaining > 0) {
+        cautionLapsRemaining--
+        if (cautionLapsRemaining === 0) {
+          activeFlag = null
+        }
+      } else if (rng.chance(lapTriggerProb)) {
+        // Deploy a new caution — draw flag type from severity bands.
+        const flag = rollCautionFlag(rng, DEFAULT_CAUTION_CONFIG)
+        activeFlag = flag
+        cautionLapsRemaining = DEFAULT_CAUTION_CONFIG.durationLaps[flag] - 1
+      }
+
+      if (!activeFlag) continue
+
+      // Under caution: call detector once for this driver.
+      // `aggressive` is true with probability `aggressiveRate`.
+      const aggressive = rng.chance(aggressiveRate)
+      const result = evaluateFlagStateBreach(
+        {
+          driverId: 'driver',
+          flag: activeFlag,
+          aggressive,
+          experience,
+          mentality,
+          config: DEFAULT_FLAG_OFFENCE_CONFIG,
+        },
+        rng,
+      )
+      if (result.decision) {
+        counts[activeFlag]++
+      }
+    }
+  }
+
+  return counts
+}
+
+describe.skipIf(!RUN_HARNESS)('flag-state offences season frequency harness (TRACK_LIMITS_FREQUENCY=1)', () => {
+  it('a typical driver lands within the spec §7 ~0–1 per-flag offence per driver/season', () => {
+    const SAMPLES = Number(process.env.TRACK_LIMITS_FREQUENCY_SAMPLES ?? 12)
+    const totals: Record<CautionFlag, number> = { yellow: 0, vsc: 0, sc: 0, red: 0 }
+
+    for (let s = 0; s < SAMPLES; s++) {
+      // Representative mid-grid driver: exp=70, mentality=70, aggressive 30% of caution laps.
+      const counts = replayFlagOffencesForDriver(70, 70, 0.3, SEED_BASE + s + 5000)
+      totals.yellow += counts.yellow
+      totals.vsc    += counts.vsc
+      totals.sc     += counts.sc
+      totals.red    += counts.red
+    }
+
+    const avgYellow = totals.yellow / SAMPLES
+    const avgVsc    = totals.vsc    / SAMPLES
+    const avgSc     = totals.sc     / SAMPLES
+    const avgRed    = totals.red    / SAMPLES
+    const avgTotal  = avgYellow + avgVsc + avgSc + avgRed
+
+    console.log(
+      `[IP-C4-frequency] samples=${SAMPLES} exp=70 ment=70 aggressive=30% → ` +
+      `yellow≈${avgYellow.toFixed(2)} vsc≈${avgVsc.toFixed(2)} ` +
+      `sc≈${avgSc.toFixed(2)} red≈${avgRed.toFixed(2)} ` +
+      `total≈${avgTotal.toFixed(2)}/driver/season ` +
+      `(spec target ~0–1 each)`,
+    )
+
+    // Generous bands on first pass — set to 0..3 each to capture the measured
+    // envelope before tightening. If any value overshoots 3, tune baseRateByFlag
+    // downward proportionally; if any is 0.0 average, tune upward.
+    expect(avgYellow, 'yellow-flag-breach/season (spec target ~0–1)').toBeGreaterThanOrEqual(0)
+    expect(avgYellow, 'yellow-flag-breach/season').toBeLessThanOrEqual(3)
+    expect(avgVsc,    'vsc-infraction/season (spec target ~0–1)').toBeGreaterThanOrEqual(0)
+    expect(avgVsc,    'vsc-infraction/season').toBeLessThanOrEqual(3)
+    expect(avgSc,     'sc-infraction/season (spec target ~0–1)').toBeGreaterThanOrEqual(0)
+    expect(avgSc,     'sc-infraction/season').toBeLessThanOrEqual(3)
+    expect(avgRed,    'red-flag-breach/season (spec target ~0–1)').toBeGreaterThanOrEqual(0)
+    expect(avgRed,    'red-flag-breach/season').toBeLessThanOrEqual(3)
+  })
+
+  it('an aggressive, low-discipline driver has more flag offences than a disciplined conservative', () => {
+    const aggressive = replayFlagOffencesForDriver(25, 25, 0.9, SEED_BASE + 6000)
+    const disciplined = replayFlagOffencesForDriver(95, 95, 0.1, SEED_BASE + 6000)
+    const aggressiveTotal = Object.values(aggressive).reduce((a, b) => a + b, 0)
+    const disciplinedTotal = Object.values(disciplined).reduce((a, b) => a + b, 0)
+    console.log(
+      `[IP-C4-attribute] aggressive/reckless offences=${aggressiveTotal}, ` +
+      `disciplined/conservative offences=${disciplinedTotal}`,
+    )
+    // An aggressive low-discipline driver should have more offences (or at least equal).
+    expect(aggressiveTotal).toBeGreaterThanOrEqual(disciplinedTotal)
+  })
+})
+
 // Cheap always-on sanity test: confirms the harness helper compiles and returns
 // a well-shaped result for a single driver. The full §7 band run is env-gated.
 describe('track-limits season frequency harness helpers', () => {
@@ -306,5 +470,13 @@ describe('track-limits season frequency harness helpers', () => {
   it('replayRejoinCollisionForDriver returns a non-negative count', () => {
     const count = replayRejoinCollisionForDriver(60, 70, 40, 999)
     expect(count).toBeGreaterThanOrEqual(0)
+  })
+
+  it('replayFlagOffencesForDriver returns non-negative counts for all flag types', () => {
+    const counts = replayFlagOffencesForDriver(70, 70, 0.3, 999)
+    expect(counts.yellow).toBeGreaterThanOrEqual(0)
+    expect(counts.vsc).toBeGreaterThanOrEqual(0)
+    expect(counts.sc).toBeGreaterThanOrEqual(0)
+    expect(counts.red).toBeGreaterThanOrEqual(0)
   })
 })

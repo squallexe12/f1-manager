@@ -624,6 +624,105 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
     expect(invs2).toEqual(invs)
   })
 
+  it('Tier C IP-C4: flag offences NEVER fire under green flag (green-flag-never gate)', () => {
+    // Build a setup with ALL drivers aggressive ('overtake') and deliberately low
+    // experience/mentality (25/25) so the detector would fire readily under caution.
+    // With safetyCar: 'green' the flag-state breach loop must be entirely skipped —
+    // zero PRNG drawn for flag offences — so NO incident can have an offenceType
+    // in the four flag-breach set regardless of how many laps or seeds we run.
+    const FLAG_OFFENCE_TYPES = new Set([
+      'yellow-flag-breach', 'sc-infraction', 'vsc-infraction', 'red-flag-breach',
+    ])
+
+    // Use `mockRaceState()` with safetyCar forced to 'green'. This is the pure
+    // simulateLap approach — the FSM decrement runs but since cautionLapsRemaining
+    // is 0 and safetyCar is 'green' and no triggerCaution fires (no serious incident),
+    // the flag stays green across all 200 seeds. The flag-state breach loop is gated
+    // on state.safetyCar !== 'green', so it is entirely skipped every lap.
+    const state = mockRaceState()
+    state.safetyCar = 'green'
+    state.cautionLapsRemaining = 0
+    state.strategies[0].currentCommand = 'overtake'
+    state.strategies[1].currentCommand = 'overtake'
+    state.strategies[2].currentCommand = 'overtake'
+    state.strategies[3].currentCommand = 'overtake'
+    // Low experience + mentality — maximise detector fire probability IF it runs.
+    for (const d of state.drivers) {
+      d.attributes.experience = 25
+      d.attributes.mentality = 25
+    }
+
+    let totalFlagOffenceIncidents = 0
+    for (let seed = 1; seed <= 200; seed++) {
+      const rng = createPRNG(seed)
+      const result = simulateLap(state, rng)
+      for (const inc of result.incidents) {
+        if ('offenceType' in inc && inc.offenceType && FLAG_OFFENCE_TYPES.has(inc.offenceType as string)) {
+          totalFlagOffenceIncidents++
+        }
+      }
+    }
+
+    expect(totalFlagOffenceIncidents, 'no flag-state offence incidents should fire under safetyCar: green').toBe(0)
+  })
+
+  it('Tier C IP-C4: sc-infraction investigation opens when a caution is active (under-caution gate)', () => {
+    // Force a PERSISTING SC caution by setting safetyCar: 'sc' + cautionLapsRemaining: 5
+    // (high enough to survive the advanceRaceFlags decrement on each simulateLap call).
+    // All drivers use 'overtake' command and have low experience/mentality (25/25),
+    // maximising detector breach probability. Seed-search across 1..500 until an
+    // 'investigation-opened' incident with offenceType === 'sc-infraction' appears.
+    // Then assert determinism: same state + seed → byte-identical sc-infraction incidents.
+
+    const buildCautionState = (): SimRaceState => {
+      const s = mockRaceState()
+      s.safetyCar = 'sc'
+      s.cautionLapsRemaining = 5   // survives the FSM decrement (5 − 1 = 4 → still 'sc')
+      s.strategies[0].currentCommand = 'overtake'
+      s.strategies[1].currentCommand = 'overtake'
+      s.strategies[2].currentCommand = 'overtake'
+      s.strategies[3].currentCommand = 'overtake'
+      for (const d of s.drivers) {
+        d.attributes.experience = 25
+        d.attributes.mentality = 25
+      }
+      return s
+    }
+
+    type InvestigationOpenedIncident = Extract<ReturnType<typeof simulateLap>['incidents'][number], { type: 'investigation-opened' }>
+    const scInvestigations = (incidents: ReturnType<typeof simulateLap>['incidents']): InvestigationOpenedIncident[] =>
+      incidents.filter(
+        (i): i is InvestigationOpenedIncident =>
+          i.type === 'investigation-opened' && 'offenceType' in i && i.offenceType === 'sc-infraction',
+      )
+
+    // Seed scan: find the first seed in 1..500 that fires an sc-infraction investigation.
+    let firedSeed = -1
+    let firedIncidents: ReturnType<typeof simulateLap>['incidents'] = []
+    for (let s = 1; s <= 500; s++) {
+      const state = buildCautionState()
+      const rng = createPRNG(s)
+      const result = simulateLap(state, rng)
+      if (scInvestigations(result.incidents).length > 0) {
+        firedSeed = s
+        firedIncidents = result.incidents
+        break
+      }
+    }
+
+    expect(firedSeed, 'expected a seed in 1..500 to fire an sc-infraction investigation').toBeGreaterThan(0)
+    const invs = scInvestigations(firedIncidents)
+    expect(invs.length).toBeGreaterThan(0)
+    expect(invs[0].offenceType).toBe('sc-infraction')
+
+    // Determinism sub-assertion: same seed + same initial state → identical sc-infraction stream.
+    const state2 = buildCautionState()
+    const rng2 = createPRNG(firedSeed)
+    const result2 = simulateLap(state2, rng2)
+    const invs2 = scInvestigations(result2.incidents)
+    expect(invs2, 'sc-infraction incidents must be byte-identical across two runs with the same seed').toEqual(invs)
+  })
+
   it('race-end fold: final-lap LapResult positions are consistent with finalPositions', () => {
     // The fold rewrites the final-lap LapResult.position values to match the
     // post-penalty cumulativeTimes ordering. This test verifies the invariant:

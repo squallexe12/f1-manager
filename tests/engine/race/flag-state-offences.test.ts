@@ -56,4 +56,31 @@ describe('evaluateFlagStateBreach', () => {
     }
     expect(fires).toBeLessThan(60) // < ~2%
   })
+
+  // LOW review fix: assert automatic flag matches the spec (VSC=automatic, others=judgment).
+  it('VSC breach is automatic: true; SC breach is automatic: false', () => {
+    // Find a VSC-firing seed for an inexperienced aggressive driver.
+    let vscResult: ReturnType<typeof evaluateFlagStateBreach> | null = null
+    for (let s = 1; s <= 500 && !(vscResult?.decision); s++) {
+      vscResult = evaluateFlagStateBreach(
+        input({ flag: 'vsc', experience: 25, mentality: 25 }),
+        createPRNG(s),
+      )
+    }
+    expect(vscResult?.decision, 'expected a VSC breach within 500 seeds').not.toBeNull()
+    expect(vscResult?.automatic, 'VSC breach must be automatic').toBe(true)
+    expect(vscResult?.decision?.offenceType).toBe('vsc-infraction')
+
+    // Find an SC-firing seed for the same driver profile.
+    let scResult: ReturnType<typeof evaluateFlagStateBreach> | null = null
+    for (let s = 1; s <= 500 && !(scResult?.decision); s++) {
+      scResult = evaluateFlagStateBreach(
+        input({ flag: 'sc', experience: 25, mentality: 25 }),
+        createPRNG(s),
+      )
+    }
+    expect(scResult?.decision, 'expected an SC breach within 500 seeds').not.toBeNull()
+    expect(scResult?.automatic, 'SC breach must NOT be automatic (opens an investigation)').toBe(false)
+    expect(scResult?.decision?.offenceType).toBe('sc-infraction')
+  })
 })
