@@ -202,6 +202,7 @@ export function __handleMessage(msg: unknown): void {
         weather: boot.raceState.weather,
         safetyCar: boot.raceState.safetyCar,
         cautionLapsRemaining: 0,
+        raceSeed: boot.raceSeed,
         trackLimitStrikes: {},
         trackTemp: boot.raceState.trackTemp,
         results: [],

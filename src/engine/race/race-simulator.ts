@@ -61,6 +61,13 @@ export interface SimRaceState {
   safetyCar: RaceFlag
   /** Tier C: laps left on the active caution; 0 when green. Transient. */
   cautionLapsRemaining: number
+  /**
+   * Race seed sourced from the bootstrap `raceSeed`. Used by the end-of-lap
+   * incident layer (IP-2) to derive a per-lap incident PRNG via
+   * `mixSeed(raceSeed, currentLap)`, fully separate from the main loop rng.
+   * Transient — never persisted, never enters `world`.
+   */
+  raceSeed: number
   /** Tier C: per-driver track-limits breach count this race. Transient. Resets per race. */
   trackLimitStrikes: Record<string, number>
   trackTemp: number
@@ -1082,6 +1089,7 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     weather: weatherEngine.getForecast(setup.circuit.laps),
     safetyCar: 'green',
     cautionLapsRemaining: 0,
+    raceSeed: seed,
     trackLimitStrikes: {},
     trackTemp: 35 + rng.range(-5, 10),
     results: [],
