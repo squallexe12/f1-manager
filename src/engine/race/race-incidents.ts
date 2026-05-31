@@ -69,7 +69,7 @@ export interface IncidentRoll {
 export function mixSeed(raceSeed: number, lap: number): number {
   let h = (raceSeed ^ 0x9e3779b9) | 0
   h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) | 0
-  h = (h ^ (lap + 1)) | 0
+  h = (h ^ (lap + 1)) | 0 // lap + 1 so lap 0 does not collapse to the seed-only mix
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) | 0
   return (h ^ (h >>> 16)) | 0
 }
@@ -80,7 +80,7 @@ export interface CrashInput {
   experience: number     // 0-100
   frustration: number    // 0-100 (driver mood.frustration)
   wet: boolean
-  circuitRiskFactor: number // multiplier; 1 = neutral. Future per-circuit hook.
+  circuitRiskFactor: number // multiplier; passed as 1 (neutral) until per-circuit profiles land in IP-4
   config: RaceIncidentConfig
 }
 
