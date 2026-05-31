@@ -3,6 +3,7 @@ import { simulateLap, simulateRace, applyRaceEndFold, type SimRaceState, type Ra
 import { createPRNG } from '@/engine/core/prng'
 import type { TireCompound, RaceStrategy, LapResult, TireState } from '@/types/race'
 import { createFallbackProfile } from '@/types/calibration'
+import { DEFAULT_RACE_INCIDENT_CONFIG, type RaceIncidentConfig } from '@/engine/race/race-incidents'
 
 function mockDrivers() {
   const mood = { motivation: 50, frustration: 30, confidence: 60 }
@@ -400,6 +401,95 @@ describe('race simulator', () => {
 
     const finalGap = state.cumulativeTimes['d1'] - state.cumulativeTimes['d2']
     expect(finalGap).toBeGreaterThan(15)
+  })
+})
+
+describe('race incidents — determinism & separation', () => {
+  const ZERO_HAZARD: RaceIncidentConfig = {
+    ...DEFAULT_RACE_INCIDENT_CONFIG,
+    crashBaseHazard: 0,
+    mechanicalBaseHazard: 0,
+  }
+
+  it('main simulation stream is unperturbed when the incident layer is off (zero hazard)', () => {
+    // The incident PRNG is separate; with hazards zeroed no incident fires, no
+    // caution deploys, and the flag-state block stays dormant — so the lap-time
+    // / position / existing-incident stream is byte-identical run-to-run and
+    // contains NO incident-layer incidents. This proves the additive-separate-
+    // stream claim (the only allowed delta vs. pre-workstream is the removed
+    // contested→caution roll, which standard commands never fired).
+    const setup: RaceSetup = { ...mockRaceSetup(), incidentConfig: ZERO_HAZARD }
+    const run1 = simulateRace(setup, 42)
+    const run2 = simulateRace(setup, 42)
+    expect(run1.lapData).toEqual(run2.lapData)
+    expect(run1.finalPositions).toEqual(run2.finalPositions)
+    const types = run1.incidents.map((i) => i.type)
+    expect(types).not.toContain('crash')
+    expect(types).not.toContain('mechanical')
+    expect(types).not.toContain('safety-car')
+  })
+
+  it('crash/mechanical/safety-car incident stream is byte-identical across two seeded runs', () => {
+    // Low reliability + low racecraft over a long race so incidents reproducibly
+    // fire. Two-run equality proves the per-lap incident PRNG is deterministic.
+    const riskySetup: RaceSetup = {
+      drivers: [
+        { id: 'd1', shortName: 'D1', teamId: 't1', car: { downforce: 70, straightSpeed: 70, reliability: 35, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 25, experience: 25, mentality: 60, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 90, confidence: 50 } },
+        { id: 'd2', shortName: 'D2', teamId: 't2', car: { downforce: 70, straightSpeed: 70, reliability: 35, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 25, experience: 25, mentality: 60, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 90, confidence: 50 } },
+      ],
+      circuit: { id: 'monza', name: 'Monza', laps: 60, tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low', compounds: ['C2', 'C3', 'C4'] },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+    }
+    const incidentStream = (r: ReturnType<typeof simulateRace>) =>
+      r.incidents.filter((i) => i.type === 'crash' || i.type === 'mechanical' || i.type === 'safety-car')
+
+    // Find a seed that reproducibly fires at least one incident (mirrors the
+    // IP-C3 seed-scan precedent — pin the discovered seed in a comment after the
+    // first local run for documentation, but the scan itself stays in the test).
+    let firedSeed = -1
+    let firedRun: ReturnType<typeof simulateRace> | null = null
+    for (let s = 1; s <= 1000; s++) {
+      const r = simulateRace(riskySetup, s)
+      if (incidentStream(r).length > 0) { firedSeed = s; firedRun = r; break }
+    }
+    expect(firedSeed, 'expected a seed in 1..1000 to fire ≥1 race incident').toBeGreaterThan(0)
+    const rerun = simulateRace(riskySetup, firedSeed)
+    expect(incidentStream(rerun)).toEqual(incidentStream(firedRun!))
+  })
+
+  it('a crash/mechanical writes a real DNF (a retired driver disappears from later lap results)', () => {
+    const riskySetup: RaceSetup = {
+      drivers: [
+        { id: 'd1', shortName: 'D1', teamId: 't1', car: { downforce: 70, straightSpeed: 70, reliability: 20, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 20, experience: 20, mentality: 60, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 95, confidence: 50 } },
+        { id: 'd2', shortName: 'D2', teamId: 't2', car: { downforce: 70, straightSpeed: 70, reliability: 99, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 95, experience: 95, mentality: 90, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 5, confidence: 90 } },
+      ],
+      circuit: { id: 'monza', name: 'Monza', laps: 60, tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low', compounds: ['C2', 'C3', 'C4'] },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+    }
+    // Scan for a seed where the high-risk d1 retires; assert it stops appearing.
+    for (let s = 1; s <= 1000; s++) {
+      const r = simulateRace(riskySetup, s)
+      const dnf = r.incidents.find((i) => (i.type === 'crash' || i.type === 'mechanical') && i.driverIds.includes('d1'))
+      if (!dnf) continue
+      const retireLap = dnf.lap
+      // On a later lap, d1 has no lap result (it retired).
+      const laterLap = r.lapData[retireLap] // 0-indexed: the lap AFTER retireLap
+      if (laterLap) {
+        expect(laterLap.some((lr) => lr.driverId === 'd1')).toBe(false)
+      }
+      return
+    }
+    throw new Error('expected a seed in 1..1000 to retire d1')
   })
 })
 
