@@ -951,8 +951,10 @@ export function simulateLap(state: SimRaceState, rng: PRNG, incidentConfig: Race
   // green-flag laps (the vast majority) consume ZERO extra PRNG draws and prior
   // seeded tests stay byte-identical. Aggressive drivers under caution risk a
   // breach; the detector draws no PRNG for non-aggressive drivers. id-sorted for
-  // deterministic PRNG consumption. Placed AFTER advanceRaceFlags so
-  // state.safetyCar reflects this lap's caution.
+  // deterministic PRNG consumption. As of IP-2 advanceRaceFlags runs at
+  // end-of-lap (after this block), so state.safetyCar here reflects the caution
+  // established at the PREVIOUS lap's end — a caution deployed end-of-lap N is
+  // enforced from lap N+1. Intentional (see race-incidents IP-2 Task 2).
   if (state.safetyCar !== 'green') {
     const flag = state.safetyCar as 'yellow' | 'vsc' | 'sc' | 'red'
     const sorted = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
