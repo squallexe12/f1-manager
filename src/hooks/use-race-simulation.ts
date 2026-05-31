@@ -38,6 +38,7 @@ export interface TimingEntry {
   gapToLeader: number
   lastLapTime: number | null
   tire: string
+  retired: boolean
 }
 
 export interface DriverLapProgress {
@@ -138,11 +139,25 @@ export function useRaceSimulation({
     metaMap.current = new Map(driverMeta.map((d) => [d.id, d]))
   }, [driverMeta])
 
-  // Build the derived timing tower from raw lap results.
+  // Drivers retired via a crash/mechanical incident. The incident stream is
+  // already collected by the store reducer; retired cars drop out of
+  // `lastLapResults`, so we re-introduce them here as RET rows.
+  const retiredDriverIds = useMemo(() => {
+    const out = new Set<string>()
+    for (const inc of runtime.incidents) {
+      if (inc.type === 'crash' || inc.type === 'mechanical') {
+        for (const id of inc.driverIds) out.add(id)
+      }
+    }
+    return out
+  }, [runtime.incidents])
+
+  // Build the derived timing tower from raw lap results, then append retired
+  // drivers (not present in this lap's results) as dimmed RET rows at the bottom.
   const timing: TimingEntry[] = useMemo(() => {
     if (runtime.lastLapResults.length === 0) return []
     const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
-    return sorted.map((r) => {
+    const running: TimingEntry[] = sorted.map((r) => {
       const meta = metaMap.current.get(r.driverId)
       return {
         position: r.position,
@@ -153,9 +168,30 @@ export function useRaceSimulation({
         gapToLeader: r.gapToLeader,
         lastLapTime: r.lapTime,
         tire: runtime.tireStates[r.driverId]?.label ?? 'medium',
+        retired: false,
       }
     })
-  }, [runtime.lastLapResults, runtime.tireStates])
+
+    const present = new Set(running.map((e) => e.driverId))
+    let pos = running.length
+    const retiredRows: TimingEntry[] = []
+    for (const id of retiredDriverIds) {
+      if (present.has(id)) continue
+      const meta = metaMap.current.get(id)
+      retiredRows.push({
+        position: ++pos,
+        driverId: id,
+        driverName: meta?.shortName ?? id.substring(0, 3).toUpperCase(),
+        teamColor: meta?.teamColor ?? '#666666',
+        isPlayer: meta?.isPlayer ?? false,
+        gapToLeader: 0,
+        lastLapTime: null,
+        tire: runtime.tireStates[id]?.label ?? 'medium',
+        retired: true,
+      })
+    }
+    return [...running, ...retiredRows]
+  }, [runtime.lastLapResults, runtime.tireStates, retiredDriverIds])
 
   // Battle forecasts: pairs within 2s gap to the car ahead, capped at 3.
   const battles: BattleForecast[] = useMemo(() => {
