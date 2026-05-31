@@ -24,6 +24,14 @@ import { aggregateCrewRatings } from '@/engine/staff/pit-crew'
 import type { PitCrewChief, PitCrewMember } from '@/types/staff'
 import { pickRadioMessage, isBroadcastWorthy, type RadioContext } from './radio-picker'
 import { advanceRaceFlags, DEFAULT_CAUTION_CONFIG } from './race-flags'
+import {
+  rollLapIncidents,
+  cautionFromIncidents,
+  mixSeed,
+  DEFAULT_RACE_INCIDENT_CONFIG,
+  type RaceIncidentConfig,
+  type CautionSeverity,
+} from './race-incidents'
 import { evaluateTrackLimitBreach, applyTrackLimitStrike, DEFAULT_TRACK_LIMITS_CONFIG } from './track-limits'
 import { evaluateRejoinCollision, DEFAULT_REJOIN_CONFIG } from './rejoin-collision'
 import { evaluateFlagStateBreach, DEFAULT_FLAG_OFFENCE_CONFIG } from './flag-state-offences'
@@ -164,6 +172,12 @@ export interface RaceSetup {
   /** Tier B v2 — per-team pit-crew snapshot. Optional — empty map → all teams aggregate to 70/70/70. */
   teamCrews?: Record<string, { chief: PitCrewChief | null; members: PitCrewMember[] }>
 
+  /**
+   * Optional incident-layer config override. Omitted in production (worker +
+   * default `simulateRace`) → `DEFAULT_RACE_INCIDENT_CONFIG`. Tests pass a
+   * zero-hazard config to isolate behaviour from the additive incident layer.
+   */
+  incidentConfig?: RaceIncidentConfig
 }
 
 export interface LapSimResult {
@@ -277,12 +291,15 @@ function calculateBaseLapTime(driver: RaceDriver, tirePerf: number, weather: Wea
   return carTime + driverTime + tireTime + weatherPenalty
 }
 
-export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
+export function simulateLap(state: SimRaceState, rng: PRNG, incidentConfig: RaceIncidentConfig = DEFAULT_RACE_INCIDENT_CONFIG): LapSimResult {
   const lapResults: LapResult[] = []
   const commentary: CommentaryEntry[] = []
   const incidents: RaceIncident[] = []
   const pitLaneEvents: PitLaneEvent[] = []
-  let seriousIncidentThisLap = false
+  // The only mid-lap → end-of-lap caution link. Set true by a major/egregious
+  // unsafe rejoin (detected mid-lap); read by the end-of-lap caution arbiter.
+  // Replaces the removed `seriousIncidentThisLap` (contested + dead-store rejoin).
+  let cautionWorthyRejoinThisLap = false
 
   // Tier B v2 — failure-to-serve check at lap start. Any driver whose
   // drive-through / stop-go service-deadline lapsed before this lap began is
@@ -771,10 +788,6 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         decideOnLap: inv.decideOnLap,
       })
 
-      if (evaluation.decision.severity === 'major' || evaluation.decision.severity === 'egregious') {
-        seriousIncidentThisLap = true
-      }
-
       // Radio: FIA voice opens an investigation. `turn` is synthesised from
       // PRNG since the simulator does not yet model corner numbers; templates
       // referencing {turn} resolve cleanly.
@@ -835,38 +848,6 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
   }
   if (state.weather.current === 'dry') {
     state.radioFlags.weatherTransitionAnnounced = false
-  }
-
-  // Tier C: advance the caution FSM. Mutates state.safetyCar in place so the
-  // existing prevSafetyCar diff below fires the deploy/clear radio for free.
-  const flagTransition = advanceRaceFlags(
-    { safetyCar: state.safetyCar, cautionLapsRemaining: state.cautionLapsRemaining },
-    rng,
-    seriousIncidentThisLap,
-    DEFAULT_CAUTION_CONFIG,
-  )
-  state.safetyCar = flagTransition.safetyCar
-  state.cautionLapsRemaining = flagTransition.cautionLapsRemaining
-  if (flagTransition.deployed !== null) {
-    incidents.push({
-      lap: state.currentLap,
-      type: 'safety-car',
-      driverIds: [],
-      description: `${flagTransition.deployed.toUpperCase()} deployed`,
-    })
-  }
-
-  // Safety-car transitions (dormant in v1 — simulator does not currently
-  // change `state.safetyCar`). Wired here so v2 inherits SC radio for free.
-  if (state.safetyCar !== 'green' && prevSafetyCar === 'green') {
-    for (const d of state.drivers) {
-      emitRadio(state, commentary, positions, rng, d, 'safety_car_deploy', 'fia')
-    }
-  }
-  if (state.safetyCar === 'green' && prevSafetyCar !== 'green') {
-    for (const d of state.drivers) {
-      emitRadio(state, commentary, positions, rng, d, 'safety_car_in', 'fia')
-    }
   }
 
   // Tier C: track-limits breaches. End-of-lap so existing within-lap PRNG draws
@@ -956,7 +937,9 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
               decideOnLap: inv.decideOnLap,
             })
             if (rejoin.decision.severity === 'major' || rejoin.decision.severity === 'egregious') {
-              seriousIncidentThisLap = true
+              // Now actually read at end-of-lap by the caution arbiter (was a
+              // dead store — set after advanceRaceFlags had already run).
+              cautionWorthyRejoinThisLap = true
             }
           }
         }
@@ -1040,6 +1023,75 @@ export function simulateLap(state: SimRaceState, rng: PRNG): LapSimResult {
         })
       }
     }
+  }
+
+  // ── Race-incident layer (end-of-lap, on a SEPARATE per-lap PRNG) ──────────
+  // Derived from (raceSeed, currentLap) so it consumes ZERO draws from the main
+  // loop rng — the existing seeded simulation stays byte-identical.
+  const incidentRng = createPRNG(mixSeed(state.raceSeed, state.currentLap))
+  const incidentDrivers = state.drivers.map((d) => ({
+    id: d.id,
+    racecraft: d.attributes.racecraft,
+    experience: d.attributes.experience,
+    frustration: d.mood.frustration,
+    reliability: d.car.reliability,
+  }))
+  const rolls = rollLapIncidents(
+    {
+      drivers: incidentDrivers,
+      dnfDriverIds: state.dnfDriverIds,
+      currentLap: state.currentLap,
+      totalLaps: state.totalLaps,
+      wet: state.weather.current !== 'dry',
+      circuitRiskFactor: 1,
+      config: incidentConfig,
+    },
+    incidentRng,
+  )
+  for (const roll of rolls) {
+    if (roll.retired) state.dnfDriverIds[roll.driverId] = true
+    if (roll.kind === 'crash') {
+      incidents.push({ lap: state.currentLap, type: 'crash', driverIds: [roll.driverId], description: `${roll.driverId.toUpperCase()} crashes out of the race` })
+      commentary.push({ lap: state.currentLap, text: `${roll.driverId.toUpperCase()} crashes — out of the race`, severity: 'critical', driverId: roll.driverId })
+    } else {
+      incidents.push({ lap: state.currentLap, type: 'mechanical', driverIds: [roll.driverId], description: `${roll.driverId.toUpperCase()} retires — mechanical failure` })
+      commentary.push({ lap: state.currentLap, text: `${roll.driverId.toUpperCase()} stops — mechanical failure`, severity: 'info', driverId: roll.driverId })
+    }
+  }
+
+  // Caution arbiter: worst incident severity OR'd with the rejoin contribution
+  // (a major/egregious unsafe rejoin → a 'minor' caution: a collision is a
+  // VSC/yellow, not a heavy-shunt SC).
+  const incidentSeverity = cautionFromIncidents(rolls)
+  // A major/egregious unsafe rejoin contributes only a 'minor' caution (a
+  // collision is a VSC/yellow, never a heavy-shunt SC) — so only the incident
+  // layer can raise a 'major' trigger.
+  const rejoinSeverity: CautionSeverity | null = cautionWorthyRejoinThisLap ? 'minor' : null
+  const cautionTrigger: CautionSeverity | null =
+    incidentSeverity === 'major'
+      ? 'major'
+      : incidentSeverity === 'minor' || rejoinSeverity === 'minor'
+        ? 'minor'
+        : null
+
+  // Advance the caution FSM on the incident PRNG (cause-biased flag selection).
+  const flagTransition = advanceRaceFlags(
+    { safetyCar: state.safetyCar, cautionLapsRemaining: state.cautionLapsRemaining },
+    incidentRng,
+    cautionTrigger,
+    DEFAULT_CAUTION_CONFIG,
+  )
+  state.safetyCar = flagTransition.safetyCar
+  state.cautionLapsRemaining = flagTransition.cautionLapsRemaining
+  if (flagTransition.deployed !== null) {
+    incidents.push({ lap: state.currentLap, type: 'safety-car', driverIds: [], description: `${flagTransition.deployed.toUpperCase()} deployed` })
+  }
+  // SC deploy/clear radio diff vs the lap-start flag captured in prevSafetyCar.
+  if (state.safetyCar !== 'green' && prevSafetyCar === 'green') {
+    for (const d of state.drivers) emitRadio(state, commentary, positions, rng, d, 'safety_car_deploy', 'fia')
+  }
+  if (state.safetyCar === 'green' && prevSafetyCar !== 'green') {
+    for (const d of state.drivers) emitRadio(state, commentary, positions, rng, d, 'safety_car_in', 'fia')
   }
 
   return { lapResults, commentary, incidents, pitLaneEvents }
@@ -1130,7 +1182,7 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     weatherEngine.tick()
     state.weather = weatherEngine.getForecast(setup.circuit.laps - lap)
 
-    const { lapResults, commentary, incidents } = simulateLap(state, rng)
+    const { lapResults, commentary, incidents } = simulateLap(state, rng, setup.incidentConfig ?? DEFAULT_RACE_INCIDENT_CONFIG)
 
     allLapData.push(lapResults)
     allCommentary.push(...commentary)
