@@ -11,6 +11,7 @@ interface TimingTowerEntry {
   gapToLeader: number
   lastLapTime: number | null
   tire: string
+  retired?: boolean
 }
 
 interface TimingTowerProps {
@@ -75,13 +76,15 @@ export function TimingTower({ entries, className = '' }: TimingTowerProps) {
             layout
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             role="row"
-            aria-label={`P${entry.position} ${entry.driverName}`}
+            aria-label={`P${entry.position} ${entry.driverName}${entry.retired ? ' (retired)' : ''}`}
             className={`
               relative grid gap-2 px-3 py-[7px] border-b border-line-hair items-center
               transition-[background] duration-[120ms]
-              ${entry.isPlayer
-                ? 'bg-[oklch(0.20_0.03_25_/_0.35)]'
-                : 'hover:bg-surface-raised'
+              ${entry.retired
+                ? 'opacity-45'
+                : entry.isPlayer
+                  ? 'bg-[oklch(0.20_0.03_25_/_0.35)]'
+                  : 'hover:bg-surface-raised'
               }
             `}
             style={{ gridTemplateColumns: '32px 8px 48px 1fr 70px 64px 40px' }}
@@ -118,15 +121,17 @@ export function TimingTower({ entries, className = '' }: TimingTowerProps) {
               </span>
             </div>
 
-            {/* Gap */}
+            {/* Gap (or DNF for a retired car) */}
             <span
               className={`text-right text-[11px] tabular-nums ${
-                isLeader
-                  ? 'text-sig-amber font-bold tracking-[0.1em]'
-                  : 'text-ink-body'
+                entry.retired
+                  ? 'text-sig-red font-bold tracking-[0.08em]'
+                  : isLeader
+                    ? 'text-sig-amber font-bold tracking-[0.1em]'
+                    : 'text-ink-body'
               }`}
             >
-              {isLeader ? 'LEADER' : `+${entry.gapToLeader.toFixed(3)}`}
+              {entry.retired ? 'DNF' : isLeader ? 'LEADER' : `+${entry.gapToLeader.toFixed(3)}`}
             </span>
 
             {/* Last lap */}
