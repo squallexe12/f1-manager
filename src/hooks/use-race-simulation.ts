@@ -156,37 +156,43 @@ export function useRaceSimulation({
   // drivers (not present in this lap's results) as dimmed RET rows at the bottom.
   const timing: TimingEntry[] = useMemo(() => {
     if (runtime.lastLapResults.length === 0) return []
-    const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
-    const running: TimingEntry[] = sorted.map((r) => {
-      const meta = metaMap.current.get(r.driverId)
-      return {
-        position: r.position,
-        driverId: r.driverId,
-        driverName: meta?.shortName ?? r.driverId.substring(0, 3).toUpperCase(),
-        teamColor: meta?.teamColor ?? '#666666',
-        isPlayer: meta?.isPlayer ?? false,
-        gapToLeader: r.gapToLeader,
-        lastLapTime: r.lapTime,
-        tire: runtime.tireStates[r.driverId]?.label ?? 'medium',
-        retired: false,
-      }
-    })
 
-    const present = new Set(running.map((e) => e.driverId))
-    let pos = running.length
-    const retiredRows: TimingEntry[] = []
-    for (const id of retiredDriverIds) {
-      if (present.has(id)) continue
+    // Shared per-driver metadata + tire fallbacks — identical for running and
+    // RET rows, so the only difference between the two is position/gap/retired.
+    const baseRow = (id: string) => {
       const meta = metaMap.current.get(id)
-      retiredRows.push({
-        position: ++pos,
+      return {
         driverId: id,
         driverName: meta?.shortName ?? id.substring(0, 3).toUpperCase(),
         teamColor: meta?.teamColor ?? '#666666',
         isPlayer: meta?.isPlayer ?? false,
+        tire: runtime.tireStates[id]?.label ?? 'medium',
+      }
+    }
+
+    const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
+    const running: TimingEntry[] = sorted.map((r) => ({
+      ...baseRow(r.driverId),
+      position: r.position,
+      gapToLeader: r.gapToLeader,
+      lastLapTime: r.lapTime,
+      retired: false,
+    }))
+
+    // Number RET rows strictly below every running car — keyed off the max
+    // running position, not the count, since running positions need not be a
+    // contiguous 1..N (a mid-field retirement leaves the surviving cars' own
+    // positions intact).
+    const present = new Set(running.map((e) => e.driverId))
+    let pos = running.reduce((max, e) => Math.max(max, e.position), 0)
+    const retiredRows: TimingEntry[] = []
+    for (const id of retiredDriverIds) {
+      if (present.has(id)) continue
+      retiredRows.push({
+        ...baseRow(id),
+        position: ++pos,
         gapToLeader: 0,
         lastLapTime: null,
-        tire: runtime.tireStates[id]?.label ?? 'medium',
         retired: true,
       })
     }
