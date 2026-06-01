@@ -171,4 +171,19 @@ describe('race-incidents season frequency harness helpers', () => {
     expect(totals.fullSc).toBeGreaterThanOrEqual(0)
     expect(totals.anyCaution).toBeGreaterThanOrEqual(totals.fullSc)
   })
+
+  it('a low-reliability car retires more over a season than a high-reliability one (player at risk)', () => {
+    // Single-car seasons isolate the per-car retirement rate. Sum across seeds.
+    const lowRel: RaceIncidentDriver = { id: 'p1', racecraft: 70, experience: 70, frustration: 40, reliability: 25 }
+    const highRel: RaceIncidentDriver = { id: 'p1', racecraft: 95, experience: 95, frustration: 20, reliability: 99 }
+    let low = 0
+    let high = 0
+    for (let s = 0; s < 60; s++) {
+      low += replaySeasonIncidents([lowRel], 70_000 + s).retirements
+      high += replaySeasonIncidents([highRel], 70_000 + s).retirements
+    }
+    // The risky car must DNF a non-zero amount AND materially more than the safe one.
+    expect(low, 'low-reliability/low-racecraft car must DNF across seeds').toBeGreaterThan(0)
+    expect(low, 'risky car DNFs materially more than the safe car').toBeGreaterThan(high)
+  })
 })
