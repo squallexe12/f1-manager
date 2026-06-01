@@ -88,13 +88,15 @@ export function processPostRace(
     if (!result) return driver
     if (driver.seasonStats.lastProcessedRound >= currentRound) return driver
 
-    const points = pointsTable[result.position] ?? 0
-    const fastestLapBonus = result.fastestLap && result.position <= 10 ? 1 : 0
+    // DNF drivers now reach the processor (classified, dnf:true). Guard all
+    // position-based credit so attrition can't grant phantom points/podiums.
+    const points = result.dnf ? 0 : (pointsTable[result.position] ?? 0)
+    const fastestLapBonus = !result.dnf && result.fastestLap && result.position <= 10 ? 1 : 0
 
     const stats = { ...driver.seasonStats }
     stats.points += points + fastestLapBonus
-    if (result.position === 1) stats.wins++
-    if (result.position <= 3) stats.podiums++
+    if (!result.dnf && result.position === 1) stats.wins++
+    if (!result.dnf && result.position <= 3) stats.podiums++
     if (result.dnf) stats.dnfs++
     if (!result.dnf && (stats.bestFinish === 0 || result.position < stats.bestFinish)) {
       stats.bestFinish = result.position
@@ -167,11 +169,18 @@ export function processPostRace(
     const result = results.find(r => r.driverId === driver.id)
     if (!result) return driver
 
+    // A DNF gets only the dnf mood event — a low attrition-classified position
+    // must never read as a "points-finish"/"podium"/"race-win".
     const moodEvents: MoodEvent[] = []
-    if (result.position === 1) moodEvents.push({ type: 'race-win' })
-    else if (result.position <= 3) moodEvents.push({ type: 'podium' })
-    else if (result.position <= 10) moodEvents.push({ type: 'points-finish' })
-    if (result.dnf) moodEvents.push({ type: 'dnf' })
+    if (result.dnf) {
+      moodEvents.push({ type: 'dnf' })
+    } else if (result.position === 1) {
+      moodEvents.push({ type: 'race-win' })
+    } else if (result.position <= 3) {
+      moodEvents.push({ type: 'podium' })
+    } else if (result.position <= 10) {
+      moodEvents.push({ type: 'points-finish' })
+    }
 
     // Teammate comparison
     const teammate = updatedDrivers.find(d =>

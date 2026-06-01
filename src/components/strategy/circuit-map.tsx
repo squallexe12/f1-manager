@@ -12,6 +12,9 @@ export interface CarPosition {
   isPlayer: boolean
   position: number
   lapProgress: number
+  /** Retired (DNF) cars are never drawn. The interpolation hook already
+   *  excludes them, so this is defence-in-depth at the render site. */
+  retired?: boolean
 }
 
 interface CircuitMapProps {
@@ -84,6 +87,7 @@ function drawCars(
   const sorted = [...cars].sort((a, b) => b.position - a.position)
 
   for (const car of sorted) {
+    if (car.retired) continue
     const pos = getSplinePosition(spline, car.lapProgress)
     const cp = toCanvas(pos)
 

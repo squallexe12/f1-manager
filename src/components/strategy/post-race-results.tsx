@@ -9,6 +9,7 @@ interface DriverResultDisplay {
   position: number
   gapToLeader: number
   lapTime: number | null
+  retired: boolean
 }
 
 interface PostRaceResultsProps {
@@ -46,11 +47,12 @@ export function PostRaceResults({ results, fastestLap, raceName, onContinue, cla
     ? results.find(r => r.driverId === fastestLap.driverId)
     : null
 
-  // Top 10 with points for championship snapshot sidebar
+  // Top 10 with points for championship snapshot sidebar. Retired (DNF) cars
+  // score nothing even if attrition classifies them inside the top 10.
   const pointsRows = results.slice(0, 10).map(r => ({
     ...r,
-    points: POINTS_TABLE[r.position] ?? 0,
-    hasFastestLap: fastestLap?.driverId === r.driverId,
+    points: r.retired ? 0 : (POINTS_TABLE[r.position] ?? 0),
+    hasFastestLap: !r.retired && fastestLap?.driverId === r.driverId,
   }))
 
   return (
@@ -140,10 +142,17 @@ export function PostRaceResults({ results, fastestLap, raceName, onContinue, cla
                     </div>
 
                     {/* Time / gap */}
-                    <div className="font-mono text-[13px] text-ink-body tabular-nums mt-1">
-                      {pos === 1
-                        ? '—'
-                        : `+${result.gapToLeader.toFixed(3)}s`}
+                    <div
+                      className={[
+                        'font-mono text-[13px] tabular-nums mt-1',
+                        result.retired ? 'text-sig-red font-bold' : 'text-ink-body',
+                      ].join(' ')}
+                    >
+                      {result.retired
+                        ? 'DNF'
+                        : pos === 1
+                          ? '—'
+                          : `+${result.gapToLeader.toFixed(3)}s`}
                     </div>
                   </div>
                 )
@@ -166,8 +175,8 @@ export function PostRaceResults({ results, fastestLap, raceName, onContinue, cla
             </div>
 
             {results.map((r) => {
-              const racePoints = POINTS_TABLE[r.position] ?? 0
-              const hasFl = fastestLap?.driverId === r.driverId
+              const racePoints = r.retired ? 0 : (POINTS_TABLE[r.position] ?? 0)
+              const hasFl = !r.retired && fastestLap?.driverId === r.driverId
               const totalPoints = racePoints + (hasFl && r.position <= 10 ? 1 : 0)
               const isLast = r.position === results.length
 
@@ -177,6 +186,7 @@ export function PostRaceResults({ results, fastestLap, raceName, onContinue, cla
                   className={[
                     'grid gap-3 px-4 py-2.5 font-mono text-[12px] items-center',
                     isLast ? '' : 'border-b border-line-hair',
+                    r.retired ? 'opacity-60' : '',
                   ].join(' ')}
                   style={{
                     gridTemplateColumns: '38px 1fr 80px 90px',
@@ -219,8 +229,17 @@ export function PostRaceResults({ results, fastestLap, raceName, onContinue, cla
                   </div>
 
                   {/* Gap */}
-                  <div className="text-right text-ink-body tabular-nums">
-                    {r.position === 1 ? 'WINNER' : `+${r.gapToLeader.toFixed(1)}s`}
+                  <div
+                    className={[
+                      'text-right tabular-nums',
+                      r.retired ? 'text-sig-red font-bold' : 'text-ink-body',
+                    ].join(' ')}
+                  >
+                    {r.retired
+                      ? 'DNF'
+                      : r.position === 1
+                        ? 'WINNER'
+                        : `+${r.gapToLeader.toFixed(1)}s`}
                   </div>
 
                   {/* Points */}

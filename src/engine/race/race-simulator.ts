@@ -684,6 +684,7 @@ export function simulateLap(state: SimRaceState, rng: PRNG, incidentConfig: Race
       gapToAhead: 0,
       tire: { ...currentTire },
       pitted,
+      retired: false,
     })
   }
 
@@ -1096,7 +1097,37 @@ export function simulateLap(state: SimRaceState, rng: PRNG, incidentConfig: Race
     for (const d of state.drivers) emitRadio(state, commentary, positions, rng, d, 'safety_car_in', 'fia')
   }
 
+  // Retirement rows: a driver who crashed/mechanical'd THIS lap keeps their
+  // real running row but flips retired:true (out as of this lap). Every other
+  // DNF driver (already retired, or FTS this lap) gets a frozen RET row so each
+  // lapUpdate is self-contained and the UI reads ONE authoritative flag.
+  // Deterministic — no PRNG draw. Per-lap RET positions are approximate (live
+  // display only); applyRaceEndFold renumbers the final lap cleanly.
+  for (const r of lapResults) {
+    if (state.dnfDriverIds[r.driverId]) r.retired = true
+  }
+  const present = new Set(lapResults.map((r) => r.driverId))
+  let retPos = lapResults.reduce((m, r) => Math.max(m, r.position), 0)
+  for (const driverId of Object.keys(state.dnfDriverIds)) {
+    if (present.has(driverId)) continue
+    lapResults.push(buildRetiredRow(state, driverId, state.currentLap, ++retPos))
+  }
+
   return { lapResults, commentary, incidents, pitLaneEvents }
+}
+
+/** Build a frozen RET row for a retired driver from current state. Path-
+ *  independent (reads tireStates, always populated). lapTime 0 so fastest-lap
+ *  scans (guarded on >0) ignore it. Caller assigns `position`. */
+function buildRetiredRow(state: SimRaceState, driverId: string, lap: number, position: number): LapResult {
+  const tire = state.tireStates[driverId]
+  const fallbackCompound: TireCompound = state.circuit.compounds?.[1] ?? 'C3'
+  return {
+    lap, driverId, lapTime: 0, sector1: 0, sector2: 0, sector3: 0,
+    position, gapToLeader: 0, gapToAhead: 0,
+    tire: tire ? { ...tire } : { compound: fallbackCompound, label: 'medium', wear: 0, lapsFitted: 0 },
+    pitted: false, retired: true,
+  }
 }
 
 export interface RaceResult {
@@ -1190,8 +1221,10 @@ export function simulateRace(setup: RaceSetup, seed: number): RaceResult {
     allCommentary.push(...commentary)
     allIncidents.push(...incidents)
 
-    // Track fastest lap
+    // Track fastest lap. RET rows carry lapTime 0, so guard on >0 to exclude
+    // them (keeps the fastest-lap value byte-identical to the pre-RET baseline).
     for (const result of lapResults) {
+      if (!(result.lapTime > 0)) continue
       if (result.lapTime < fastestLap.time) {
         fastestLap = { driverId: result.driverId, time: result.lapTime }
       }
@@ -1237,10 +1270,16 @@ export function applyRaceEndFold(
     }
   }
 
-  // Position re-sort by cumulative time
-  const newPositions = [...state.positions].sort(
-    (a, b) => (state.cumulativeTimes[a] ?? 0) - (state.cumulativeTimes[b] ?? 0),
-  )
+  // Position re-sort: finishers ahead of DNFs (by cumulative asc); DNFs behind
+  // all finishers, ordered by cumulative DESC (a later retirement accrued more
+  // race time ⇒ classified ahead of an earlier retirement).
+  const dnf = state.dnfDriverIds
+  const newPositions = [...state.positions].sort((a, b) => {
+    const aDnf = !!dnf[a], bDnf = !!dnf[b]
+    if (aDnf !== bDnf) return aDnf ? 1 : -1
+    if (aDnf && bDnf) return (state.cumulativeTimes[b] ?? 0) - (state.cumulativeTimes[a] ?? 0)
+    return (state.cumulativeTimes[a] ?? 0) - (state.cumulativeTimes[b] ?? 0)
+  })
   state.positions = newPositions
 
   // Rewrite final-lap position so emitted data reflects post-penalty grid

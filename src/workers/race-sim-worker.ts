@@ -67,6 +67,8 @@ function simulateNextLap(): void {
     let fastestLap = { driverId: '', time: Infinity }
     for (const lapResults of state.results) {
       for (const result of lapResults) {
+        // RET rows carry lapTime 0; guard on >0 so they never win fastest lap.
+        if (!(result.lapTime > 0)) continue
         if (result.lapTime < fastestLap.time) {
           fastestLap = { driverId: result.driverId, time: result.lapTime }
         }

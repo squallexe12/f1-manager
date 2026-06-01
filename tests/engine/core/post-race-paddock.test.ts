@@ -126,6 +126,51 @@ describe('processPostRace — Paddock hero fields', () => {
     expect(pia.lastRaceResult).toBeNull()
   })
 
+  it('grants no points/podium/win/mood to a DNF classified at a podium position (attrition)', () => {
+    // §2.4 guard: with RET rows now reaching the processor, a heavily attritioned
+    // race can classify a DNF at a points- or podium-scoring slot. The dnf flag
+    // — not the position — must drive credit: 0 points, no win, no podium, no
+    // fastest-lap bonus, and a DNF-direction mood (never podium/race-win).
+    const world = initializeGame('mclaren', 'golden-era', 1)
+    const norrisId = 'norris'
+    const piastriId = 'piastri'
+    const otherIds = world.drivers
+      .filter(d => d.teamId && !d.isReserve && !d.isF2 && d.id !== norrisId && d.id !== piastriId)
+      .map(d => d.id)
+
+    // piastri retired but is classified P2 (podium slot) under attrition, and
+    // is flagged as holding the fastest lap. None of it may credit.
+    const results: RaceResult[] = [
+      { driverId: norrisId, position: 1, dnf: false, fastestLap: false },
+      { driverId: piastriId, position: 2, dnf: true, fastestLap: true },
+      ...otherIds.map((id, i) => ({ driverId: id, position: i + 3, dnf: false, fastestLap: false })),
+    ]
+
+    const moodBefore = world.drivers.find(d => d.id === piastriId)!.mood
+
+    const update = processPostRace(
+      world.teams, world.drivers, world.finance,
+      [], {}, results, null, false, 1,
+      world.gameState.season,
+      'mclaren',
+      createPRNG(7),
+    )
+
+    const pia = update.drivers.find(d => d.id === piastriId)!
+    // No phantom credit from the P2 classification.
+    expect(pia.seasonStats.points).toBe(0)
+    expect(pia.seasonStats.wins).toBe(0)
+    expect(pia.seasonStats.podiums).toBe(0)
+    // DNF accounting still applies.
+    expect(pia.seasonStats.dnfs).toBe(1)
+    expect(pia.form).toEqual([21]) // FORM_DNF sentinel
+    expect(pia.lastRaceResult).toBeNull()
+    // Mood moved in the DNF direction (frustration up, confidence down), NOT
+    // the podium direction (which would lower frustration and raise confidence).
+    expect(pia.mood.frustration).toBeGreaterThan(moodBefore.frustration)
+    expect(pia.mood.confidence).toBeLessThan(moodBefore.confidence)
+  })
+
   it('caps driver.form at the rolling window size across many rounds', async () => {
     const { FORM_WINDOW } = await import('@/engine/drivers/form-history')
     const world = initializeGame('mclaren', 'golden-era', 1)

@@ -320,7 +320,7 @@ describe('raceEnd event JSON round-trip', () => {
         sector1: 30, sector2: 30, sector3: 30.5,
         position: 1, gapToLeader: 0, gapToAhead: 0,
         tire: { compound: 'C2' as const, label: 'medium' as const, wear: 50, lapsFitted: 25 },
-        pitted: false,
+        pitted: false, retired: false,
       }],
       fastestLap: { driverId: 'd1', time: 89.5 },
       appliedPenaltiesByDriver: {
@@ -336,5 +336,59 @@ describe('raceEnd event JSON round-trip', () => {
     }
     const cloned = roundTrip(event)
     expect(cloned).toEqual(event)
+  })
+
+  it('raceEnd finalResults is a complete grid (finishers + DNFs) and round-trips with retired intact', () => {
+    // Drive the real worker to raceEnd. One driver is fragile (low reliability,
+    // high frustration, low racecraft) over a longer race to provoke a DNF; the
+    // other is bulletproof. We scan payload seeds until finalResults carries a
+    // retired:true row, then assert the grid is complete and JSON-safe.
+    const fragileDrivers: RaceWorkerStartPayload['drivers'] = [
+      {
+        id: 'drv-a', teamId: 'team-1', shortName: 'DRA',
+        attributes: { pace: 70, racecraft: 20, experience: 20, mentality: 60, marketability: 60, developmentPotential: 60 },
+        car: { downforce: 70, straightSpeed: 70, reliability: 20, tireManagement: 70, braking: 70, cornering: 70 },
+        mood: { motivation: 50, frustration: 95, confidence: 50 },
+      },
+      {
+        id: 'drv-b', teamId: 'team-2', shortName: 'DRB',
+        attributes: { pace: 70, racecraft: 95, experience: 95, mentality: 90, marketability: 60, developmentPotential: 60 },
+        car: { downforce: 70, straightSpeed: 70, reliability: 99, tireManagement: 70, braking: 70, cornering: 70 },
+        mood: { motivation: 50, frustration: 5, confidence: 90 },
+      },
+    ]
+    const longCircuit: Circuit = { ...BAHRAIN, laps: 40 }
+
+    let end: Extract<WorkerOutEvent, { type: 'raceEnd' }> | undefined
+    for (let seed = 1; seed <= 400; seed++) {
+      postedMessages.length = 0
+      __resetForTest()
+      __handleMessage(buildStartMessage(makeStartPayload({ seed, circuit: longCircuit, drivers: fragileDrivers })))
+      // Advance well past the full race so raceEnd fires.
+      vi.advanceTimersByTime(longCircuit.laps * 2000 + 5000)
+      const candidate = findEvent('raceEnd')
+      if (candidate && candidate.finalResults.some((r) => r.retired)) {
+        end = candidate
+        break
+      }
+    }
+
+    expect(end, 'expected a payload seed in 1..400 to produce a DNF in finalResults').toBeDefined()
+    const grid = end!.finalResults
+    // Complete grid: every driver present exactly once (finishers + DNFs).
+    expect(grid.map((r) => r.driverId).sort()).toEqual(['drv-a', 'drv-b'])
+    // At least one finisher and one retired row.
+    expect(grid.some((r) => !r.retired)).toBe(true)
+    expect(grid.some((r) => r.retired)).toBe(true)
+    // Positions are contiguous 1..N (finishers ahead of DNFs).
+    expect([...grid.map((r) => r.position)].sort((a, b) => a - b)).toEqual([1, 2])
+    // The retired row survives JSON round-trip with the flag intact. lapTime is 0
+    // for a frozen RET row (retired on an earlier lap) or >0 for a driver who
+    // retired ON the final lap (real row flipped to retired) — both are valid.
+    const ret = grid.find((r) => r.retired)!
+    expect(ret.lapTime).toBeGreaterThanOrEqual(0)
+    const cloned = roundTrip(end!)
+    expect(cloned).toEqual(end!)
+    expect(cloned.finalResults.find((r) => r.driverId === ret.driverId)?.retired).toBe(true)
   })
 })

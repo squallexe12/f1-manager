@@ -139,70 +139,34 @@ export function useRaceSimulation({
     metaMap.current = new Map(driverMeta.map((d) => [d.id, d]))
   }, [driverMeta])
 
-  // Drivers retired via a crash/mechanical incident. The incident stream is
-  // already collected by the store reducer; retired cars drop out of
-  // `lastLapResults`, so we re-introduce them here as RET rows.
-  const retiredDriverIds = useMemo(() => {
-    const out = new Set<string>()
-    for (const inc of runtime.incidents) {
-      if (inc.type === 'crash' || inc.type === 'mechanical') {
-        for (const id of inc.driverIds) out.add(id)
-      }
-    }
-    return out
-  }, [runtime.incidents])
-
-  // Build the derived timing tower from raw lap results, then append retired
-  // drivers (not present in this lap's results) as dimmed RET rows at the bottom.
+  // Build the derived timing tower directly from raw lap results. The engine
+  // now emits a row for every driver — running cars carry `retired:false`,
+  // retired (DNF) cars carry `retired:true` with lapTime 0 — so the timing
+  // tower reads ONE authoritative flag per row. No incident re-derivation.
   const timing: TimingEntry[] = useMemo(() => {
     if (runtime.lastLapResults.length === 0) return []
 
-    // Shared per-driver metadata + tire fallbacks — identical for running and
-    // RET rows, so the only difference between the two is position/gap/retired.
-    const baseRow = (id: string) => {
-      const meta = metaMap.current.get(id)
+    const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
+    return sorted.map((r) => {
+      const meta = metaMap.current.get(r.driverId)
       return {
-        driverId: id,
-        driverName: meta?.shortName ?? id.substring(0, 3).toUpperCase(),
+        driverId: r.driverId,
+        driverName: meta?.shortName ?? r.driverId.substring(0, 3).toUpperCase(),
         teamColor: meta?.teamColor ?? '#666666',
         isPlayer: meta?.isPlayer ?? false,
-        tire: runtime.tireStates[id]?.label ?? 'medium',
+        position: r.position,
+        gapToLeader: r.gapToLeader,
+        lastLapTime: r.retired ? null : r.lapTime,
+        tire: runtime.tireStates[r.driverId]?.label ?? 'medium',
+        retired: r.retired,
       }
-    }
-
-    const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
-    const running: TimingEntry[] = sorted.map((r) => ({
-      ...baseRow(r.driverId),
-      position: r.position,
-      gapToLeader: r.gapToLeader,
-      lastLapTime: r.lapTime,
-      retired: false,
-    }))
-
-    // Number RET rows strictly below every running car — keyed off the max
-    // running position, not the count, since running positions need not be a
-    // contiguous 1..N (a mid-field retirement leaves the surviving cars' own
-    // positions intact).
-    const present = new Set(running.map((e) => e.driverId))
-    let pos = running.reduce((max, e) => Math.max(max, e.position), 0)
-    const retiredRows: TimingEntry[] = []
-    for (const id of retiredDriverIds) {
-      if (present.has(id)) continue
-      retiredRows.push({
-        ...baseRow(id),
-        position: ++pos,
-        gapToLeader: 0,
-        lastLapTime: null,
-        retired: true,
-      })
-    }
-    return [...running, ...retiredRows]
-  }, [runtime.lastLapResults, runtime.tireStates, retiredDriverIds])
+    })
+  }, [runtime.lastLapResults, runtime.tireStates])
 
   // Battle forecasts: pairs within 2s gap to the car ahead, capped at 3.
   const battles: BattleForecast[] = useMemo(() => {
     const out: BattleForecast[] = []
-    const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
+    const sorted = runtime.lastLapResults.filter((r) => !r.retired).sort((a, b) => a.position - b.position)
     for (let i = 1; i < sorted.length && out.length < 3; i++) {
       const gap = Math.abs(sorted[i].gapToAhead)
       if (gap < 2.0) {
@@ -249,7 +213,9 @@ export function useRaceSimulation({
     const interval = TICK_INTERVALS[String(runtime.simSpeed)] ?? 2000
     nextTickTimeRef.current = now + interval
 
-    const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
+    // Exclude retired (DNF) cars: they have no interpolation anchor, so they
+    // are absent from `lapProgressRef` and therefore never animated.
+    const sorted = runtime.lastLapResults.filter((r) => !r.retired).sort((a, b) => a.position - b.position)
     const leaderLapTime = sorted.length > 0 ? sorted[0].lapTime : 90
     const progressMap: Record<string, { progress: number; baseLapTime: number }> = {}
     for (let i = 0; i < sorted.length; i++) {

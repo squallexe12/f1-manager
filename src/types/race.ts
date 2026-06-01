@@ -115,6 +115,10 @@ export interface LapResult {
   gapToAhead: number
   tire: TireState
   pitted: boolean
+  /** True when this row represents a retired (DNF) driver. RET rows carry
+   *  lapTime 0 and are classified behind all finishers. Transient — never
+   *  persisted. */
+  retired: boolean
 }
 
 export interface RaceStrategy {

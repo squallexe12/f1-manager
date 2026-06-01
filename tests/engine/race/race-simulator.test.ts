@@ -462,7 +462,7 @@ describe('race incidents — determinism & separation', () => {
     expect(incidentStream(rerun)).toEqual(incidentStream(firedRun!))
   })
 
-  it('a crash/mechanical writes a real DNF (a retired driver disappears from later lap results)', () => {
+  it('a crash/mechanical writes a real DNF (a retired driver has only a retired row on later laps)', () => {
     const riskySetup: RaceSetup = {
       drivers: [
         { id: 'd1', shortName: 'D1', teamId: 't1', car: { downforce: 70, straightSpeed: 70, reliability: 20, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 20, experience: 20, mentality: 60, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 95, confidence: 50 } },
@@ -482,10 +482,16 @@ describe('race incidents — determinism & separation', () => {
       const dnf = r.incidents.find((i) => (i.type === 'crash' || i.type === 'mechanical') && i.driverIds.includes('d1'))
       if (!dnf) continue
       const retireLap = dnf.lap
-      // On a later lap, d1 has no lap result (it retired).
+      // On a later lap, d1 now carries ONLY a retired RET row (no running row).
       const laterLap = r.lapData[retireLap] // 0-indexed: the lap AFTER retireLap
       if (laterLap) {
-        expect(laterLap.some((lr) => lr.driverId === 'd1')).toBe(false)
+        const d1Rows = laterLap.filter((lr) => lr.driverId === 'd1')
+        // No running (retired:false) d1 row on later laps.
+        expect(d1Rows.some((lr) => !lr.retired)).toBe(false)
+        // The d1 row present on later laps is a retired RET row (lapTime 0).
+        expect(d1Rows.length).toBe(1)
+        expect(d1Rows[0].retired).toBe(true)
+        expect(d1Rows[0].lapTime).toBe(0)
       }
       return
     }
@@ -603,6 +609,138 @@ describe('race incidents — determinism & separation', () => {
       if (flagOffenceCount(r.incidents) > 0) { enforcedOnNext = true; break }
     }
     expect(enforcedOnNext, 'flag-state offences must be enforceable on lap N+1 (under the active caution)').toBe(true)
+  })
+})
+
+describe('retired (RET) rows — LapResult.retired pipeline', () => {
+  it('emits a frozen RET row (retired:true, lapTime:0) for an already-retired driver, positioned after the running cars', () => {
+    // d3 retired on a prior lap. simulateLap must append a self-contained RET
+    // row so each lapUpdate carries the full grid for the UI's single flag.
+    const state = mockRaceState()
+    state.dnfDriverIds = { d3: true }
+    const { lapResults } = simulateLap(state, createPRNG(7))
+
+    const running = lapResults.filter((r) => !r.retired)
+    const retired = lapResults.filter((r) => r.retired)
+    // Running cars are the 3 non-DNF drivers; d3 is the single RET row.
+    expect(running.map((r) => r.driverId).sort()).toEqual(['d1', 'd2', 'd4'])
+    expect(retired).toHaveLength(1)
+    const ret = retired[0]
+    expect(ret.driverId).toBe('d3')
+    expect(ret.lapTime).toBe(0)
+    expect(ret.retired).toBe(true)
+    // The RET row sits behind every running car.
+    const maxRunning = Math.max(...running.map((r) => r.position))
+    expect(ret.position).toBeGreaterThan(maxRunning)
+    // Running rows are never flagged retired.
+    expect(running.every((r) => r.lapTime > 0)).toBe(true)
+  })
+
+  it('a failure-to-serve DNF appears as a retired row (no crash/mechanical incident involved) — bug #1 proof', () => {
+    // Mark a driver DNF directly (the failure-to-serve path sets dnfDriverIds
+    // without emitting a crash/mechanical incident). It must still surface as a
+    // RET row purely from the dnfDriverIds-driven append.
+    const ZERO_HAZARD: RaceIncidentConfig = {
+      ...DEFAULT_RACE_INCIDENT_CONFIG, crashBaseHazard: 0, mechanicalBaseHazard: 0,
+    }
+    const state = mockRaceState()
+    state.dnfDriverIds = { d2: true }
+    const { lapResults, incidents } = simulateLap(state, createPRNG(11), ZERO_HAZARD)
+
+    // No crash/mechanical incident fired (failure-to-serve emits none).
+    expect(incidents.some((i) => i.type === 'crash' || i.type === 'mechanical')).toBe(false)
+    // d2 is nonetheless present as a retired row.
+    const d2Rows = lapResults.filter((r) => r.driverId === 'd2')
+    expect(d2Rows).toHaveLength(1)
+    expect(d2Rows[0].retired).toBe(true)
+    expect(d2Rows[0].lapTime).toBe(0)
+  })
+
+  it('a driver who crashes THIS lap keeps a real running row flipped to retired:true, then a RET row next lap', () => {
+    // Force a guaranteed crash this lap (saturate hazard, all-crash). The crash
+    // is marked at end-of-lap AFTER the push, so the driver still has a real
+    // running row — which the retired-row pass flips to retired:true.
+    const FORCE_CRASH: RaceIncidentConfig = {
+      ...DEFAULT_RACE_INCIDENT_CONFIG, crashBaseHazard: 1, mechanicalBaseHazard: 0, crashCautionShare: 0, crashMajorShare: 0,
+    }
+    const state = mockRaceState()
+    const { lapResults, incidents } = simulateLap(state, createPRNG(3), FORCE_CRASH)
+
+    const crash = incidents.find((i) => i.type === 'crash')
+    expect(crash, 'expected a forced crash this lap').toBeTruthy()
+    const victim = crash!.driverIds[0]
+    const thisLapRow = lapResults.find((r) => r.driverId === victim)!
+    // This lap: the driver kept their real running row but it is now flagged retired.
+    expect(thisLapRow.retired).toBe(true)
+    // It is the real running row (real lap time), not the synthesized RET row.
+    expect(thisLapRow.lapTime).toBeGreaterThan(0)
+    // Exactly one row for the victim this lap (no duplicate RET append).
+    expect(lapResults.filter((r) => r.driverId === victim)).toHaveLength(1)
+
+    // Next lap: the driver is in dnfDriverIds, so they get a frozen RET row.
+    const next = simulateLap(state, createPRNG(3), FORCE_CRASH)
+    const nextRows = next.lapResults.filter((r) => r.driverId === victim)
+    expect(nextRows).toHaveLength(1)
+    expect(nextRows[0].retired).toBe(true)
+    expect(nextRows[0].lapTime).toBe(0)
+  })
+
+  it('full-race lapData (RET rows included) is byte-identical across two seeded runs with incidents', () => {
+    // Determinism gate extended to cover RET rows: they are PRNG-free, so two
+    // seeded runs that produce retirements must yield identical lapData.
+    const riskySetup: RaceSetup = {
+      drivers: [
+        { id: 'd1', shortName: 'D1', teamId: 't1', car: { downforce: 70, straightSpeed: 70, reliability: 30, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 25, experience: 25, mentality: 60, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 90, confidence: 50 } },
+        { id: 'd2', shortName: 'D2', teamId: 't2', car: { downforce: 70, straightSpeed: 70, reliability: 30, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 25, experience: 25, mentality: 60, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 90, confidence: 50 } },
+      ],
+      circuit: { id: 'monza', name: 'Monza', laps: 60, tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low', compounds: ['C2', 'C3', 'C4'] },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+    }
+    // Find a seed that produces at least one RET row, then assert two-run equality.
+    let firedSeed = -1
+    let firedRun: ReturnType<typeof simulateRace> | null = null
+    for (let s = 1; s <= 1000; s++) {
+      const r = simulateRace(riskySetup, s)
+      if (r.lapData.some((lap) => lap.some((lr) => lr.retired))) { firedSeed = s; firedRun = r; break }
+    }
+    expect(firedSeed, 'expected a seed in 1..1000 to produce a RET row').toBeGreaterThan(0)
+    const rerun = simulateRace(riskySetup, firedSeed)
+    expect(rerun.lapData).toEqual(firedRun!.lapData)
+  })
+
+  it('fastest lap is unaffected by RET rows (lapTime 0 never wins; value stays >0)', () => {
+    // A race with retirements still reports a real (>0) fastest lap from a
+    // running car — the 0-time RET rows are excluded by the >0 guard.
+    const riskySetup: RaceSetup = {
+      drivers: [
+        { id: 'd1', shortName: 'D1', teamId: 't1', car: { downforce: 70, straightSpeed: 70, reliability: 30, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 25, experience: 25, mentality: 60, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 90, confidence: 50 } },
+        { id: 'd2', shortName: 'D2', teamId: 't2', car: { downforce: 70, straightSpeed: 70, reliability: 99, tireManagement: 70, braking: 70, cornering: 70 }, attributes: { pace: 70, racecraft: 95, experience: 95, mentality: 90, marketability: 60, developmentPotential: 60 }, mood: { motivation: 50, frustration: 5, confidence: 90 } },
+      ],
+      circuit: { id: 'monza', name: 'Monza', laps: 60, tireWear: 'medium', overtakingDifficulty: 'medium', weatherVariability: 'low', compounds: ['C2', 'C3', 'C4'] },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+    }
+    for (let s = 1; s <= 1000; s++) {
+      const r = simulateRace(riskySetup, s)
+      const hasRet = r.lapData.some((lap) => lap.some((lr) => lr.retired))
+      if (!hasRet) continue
+      // A real fastest lap was recorded, with a strictly positive lap time and a
+      // non-empty driver id (never the 0-time RET row).
+      expect(r.fastestLap.time).toBeGreaterThan(0)
+      expect(r.fastestLap.time).toBeLessThan(Infinity)
+      expect(r.fastestLap.driverId).not.toBe('')
+      return
+    }
+    throw new Error('expected a seed in 1..1000 to produce a RET row')
   })
 })
 
@@ -1047,6 +1185,7 @@ describe('applyRaceEndFold', () => {
       gapToAhead: 0,
       tire: tireState(),
       pitted: false,
+      retired: false,
     }
   }
 
@@ -1167,5 +1306,36 @@ describe('applyRaceEndFold', () => {
 
     expect(state.positions).toEqual(['d1', 'd2', 'd3', 'd4'])
     expect(state.cumulativeTimes).toEqual({ d1: 5400, d2: 5402, d3: 5410, d4: 5415 })
+  })
+
+  it('classifies DNFs behind all finishers, ordered by cumulative DESC, and renumbers the grid 1..N', () => {
+    // d2 + d3 are DNFs. d3 retired LATER (more cumulative time) ⇒ classified
+    // ahead of d2. Finishers d1, d4 keep the front rows by cumulative asc.
+    const state = makeMinimalState({
+      positions: ['d1', 'd2', 'd3', 'd4'],
+      cumulativeTimes: { d1: 5400, d2: 1200, d3: 3500, d4: 5415 },
+      pendingTimePenalties: {},
+    })
+    state.dnfDriverIds = { d2: true, d3: true }
+    const finalLap: LapResult[] = [
+      lapResult('d1', 1),
+      lapResult('d4', 2),
+      // RET rows for the DNF drivers (positions reassigned by the fold).
+      { ...lapResult('d3', 3), lapTime: 0, retired: true },
+      { ...lapResult('d2', 4), lapTime: 0, retired: true },
+    ]
+
+    applyRaceEndFold(state, finalLap)
+
+    // Finishers first (d1 < d4 by cumulative), then DNFs by cumulative desc
+    // (d3 at 3500 ahead of d2 at 1200).
+    expect(state.positions).toEqual(['d1', 'd4', 'd3', 'd2'])
+    const byId = Object.fromEntries(finalLap.map(r => [r.driverId, r.position]))
+    expect(byId.d1).toBe(1)
+    expect(byId.d4).toBe(2)
+    expect(byId.d3).toBe(3)
+    expect(byId.d2).toBe(4)
+    // Grid is contiguous 1..N with no gaps/dupes.
+    expect([...finalLap.map(r => r.position)].sort((a, b) => a - b)).toEqual([1, 2, 3, 4])
   })
 })

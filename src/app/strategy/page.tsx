@@ -34,6 +34,26 @@ import { applyBanSubstitution, applyGridDrops } from '@/engine/race/race-bootstr
 // Kept local to avoid importing engine values into the UI layer (AGENTS.md rule).
 const TRACK_LIMIT_THRESHOLD = 4
 
+// ─── finalResultsToRaceResults ───────────────────────────────────────────────
+// Pure mapper from the worker's complete final grid (every driver, including
+// RET rows) to the `RaceResult[]` the orchestrator consumes. `dnf` is read
+// from the authoritative `retired` flag — the post-race processor then zeroes
+// points / podiums / mood for DNFs regardless of classified position.
+// Extracted (and exported) so it is unit-testable without the React tree.
+export function finalResultsToRaceResults(
+  finalResults: import('@/types/race').LapResult[],
+  fastestLap: { driverId: string; time: number },
+  appliedPenaltiesByDriver: Record<string, import('@/types/race').AppliedPenalty[]>,
+) {
+  return finalResults.map((r) => ({
+    driverId: r.driverId,
+    position: r.position,
+    dnf: r.retired,
+    fastestLap: !r.retired && r.driverId === fastestLap.driverId,
+    appliedPenalties: appliedPenaltiesByDriver[r.driverId] ?? [],
+  }))
+}
+
 // ─── GapChartRow ─────────────────────────────────────────────────────────────
 // Inline helper component — collapsible secondary row below the live race grid.
 // Local UI state only; no Zustand involvement.
@@ -56,7 +76,7 @@ function GapChartRow({ timing, isOpen, onToggle }: {
       {isOpen && (
         <div className="px-4 pb-4 border-t border-line-hair">
           <GapChart
-            entries={timing.slice(0, 10).map(t => ({
+            entries={timing.filter(t => !t.retired).slice(0, 10).map(t => ({
               driverId: t.driverId,
               driverName: t.driverName,
               teamColor: t.teamColor,
@@ -127,13 +147,7 @@ export default function StrategyPage() {
     fastestLap: { driverId: string; time: number },
     appliedPenaltiesByDriver: Record<string, import('@/types/race').AppliedPenalty[]>,
   ) => {
-    const raceResults = finalResults.map(r => ({
-      driverId: r.driverId,
-      position: r.position,
-      dnf: false,
-      fastestLap: r.driverId === fastestLap.driverId,
-      appliedPenalties: appliedPenaltiesByDriver[r.driverId] ?? [],
-    }))
+    const raceResults = finalResultsToRaceResults(finalResults, fastestLap, appliedPenaltiesByDriver)
     const isSprint = gameState?.phase === 'sprint'
     submitRaceResults(raceResults, fastestLap, isSprint ?? false)
   }, [gameState?.phase, submitRaceResults])
@@ -335,6 +349,7 @@ export default function StrategyPage() {
             position: t.position,
             gapToLeader: t.gapToLeader,
             lapTime: t.lastLapTime,
+            retired: t.retired,
           }
         })
       : []
@@ -480,7 +495,7 @@ export default function StrategyPage() {
               circuitName={currentRace?.circuit.name ?? ''}
               currentLap={raceSim.currentLap}
               totalLaps={raceSim.totalLaps}
-              drivers={raceSim.timing.map(t => ({
+              drivers={raceSim.timing.filter(t => !t.retired).map(t => ({
                 driverId: t.driverId,
                 driverName: t.driverName,
                 teamColor: t.teamColor,
