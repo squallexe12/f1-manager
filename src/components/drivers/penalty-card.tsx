@@ -6,19 +6,8 @@ import {
   OFFENCE_LABELS,
   bandForPoints,
   colorForBand,
+  labelForBand,
 } from '@/components/strategy/penalty-labels'
-
-type Band = ReturnType<typeof bandForPoints>
-
-function labelForBand(b: Band): string {
-  const labels: Record<Band, string> = {
-    clean: 'CLEAN',
-    approaching: 'APPROACHING',
-    warning: 'WARNING ZONE',
-    critical: 'BAN PENDING',
-  }
-  return labels[b]
-}
 
 const SEGMENTS = [
   { threshold: 3, band: 'clean' },

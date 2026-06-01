@@ -73,8 +73,8 @@ export function colorForBand(band: PenaltyRiskBand): string {
 export function labelForBand(band: PenaltyRiskBand): string {
   switch (band) {
     case 'clean':       return 'CLEAN'
-    case 'approaching': return 'WARNING'
-    case 'warning':     return 'CRITICAL'
-    case 'critical':    return 'BANNED'
+    case 'approaching': return 'APPROACHING'
+    case 'warning':     return 'WARNING ZONE'
+    case 'critical':    return 'BAN PENDING'
   }
 }

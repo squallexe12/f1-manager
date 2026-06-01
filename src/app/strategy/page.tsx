@@ -337,19 +337,19 @@ export default function StrategyPage() {
   // Post-race
   if (phase === 'post-race' || isRaceFinished) {
     const results = raceSim.finalResults
-      ? raceSim.timing.map((t) => {
-          const driver = drivers.find((d) => d.id === t.driverId)
+      ? raceSim.finalResults.map((r) => {
+          const driver = drivers.find((d) => d.id === r.driverId)
           const team = teams.find((tm) => tm.id === driver?.teamId)
           return {
-            driverId: t.driverId,
-            driverName: driver ? `${driver.firstName} ${driver.lastName}` : t.driverName,
+            driverId: r.driverId,
+            driverName: driver ? `${driver.firstName} ${driver.lastName}` : r.driverId,
             teamName: team?.name ?? '',
-            teamColor: t.teamColor,
-            isPlayer: t.isPlayer,
-            position: t.position,
-            gapToLeader: t.gapToLeader,
-            lapTime: t.lastLapTime,
-            retired: t.retired,
+            teamColor: team?.color ?? '#666',
+            isPlayer: driver?.teamId === playerTeam.id,
+            position: r.position,
+            gapToLeader: r.gapToLeader,
+            lapTime: r.lapTime,
+            retired: r.retired,
           }
         })
       : []
