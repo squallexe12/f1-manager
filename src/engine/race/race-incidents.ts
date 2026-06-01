@@ -80,7 +80,7 @@ export interface CrashInput {
   experience: number     // 0-100
   frustration: number    // 0-100 (driver mood.frustration)
   wet: boolean
-  circuitRiskFactor: number // multiplier; passed as 1 (neutral) until per-circuit profiles land in IP-4
+  circuitRiskFactor: number // multiplier; passed as 1 (neutral) until per-circuit risk profiles are added (deferred — see current-state-baseline IP-13 follow-ups)
   config: RaceIncidentConfig
 }
 

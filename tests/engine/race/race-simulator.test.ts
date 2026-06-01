@@ -566,17 +566,24 @@ describe('race incidents — determinism & separation', () => {
       return s
     }
 
-    // Lap N: across every seed whose lap-N deploys a caution from green, assert
-    // ZERO flag offences fired (the block was green-gated at lap start).
+    // Lap N: the incident roll is DETERMINISTIC here — the incident PRNG derives
+    // from the fixed state.raceSeed + currentLap (via mixSeed), NOT the per-iteration
+    // createPRNG(seed) — so FORCE_DEPLOY deploys the SAME caution on every iteration
+    // (deployCount === 200). The per-iteration seed varies the MAIN-LOOP rng that
+    // drives the flag-state-offence detector. Because the flag is green at lap start,
+    // that block is skipped, so ZERO flag offences may fire on the deploy lap across
+    // all 200 detector seeds. THIS toBe(0) is the real guard: a regression moving
+    // advanceRaceFlags ahead of the flag-offence block would expose the freshly-
+    // deployed SC on lap N, and at least one of these 200 seeds would fire an offence.
     let deployCount = 0
     for (let seed = 1; seed <= 200; seed++) {
       const s = greenAggressive()
       const r = simulateLap(s, createPRNG(seed), FORCE_DEPLOY)
-      if (s.safetyCar === 'green') continue // no deploy this seed
+      if (s.safetyCar === 'green') continue // never taken: the deploy is deterministic
       deployCount++
       expect(flagOffenceCount(r.incidents), `seed ${seed}: no flag offence may fire on the deploy lap (N->N+1)`).toBe(0)
     }
-    expect(deployCount, 'expected most seeds to deploy a caution on lap N (non-vacuous gate)').toBeGreaterThan(100)
+    expect(deployCount, 'sanity: the forced caution deploys on lap N every iteration (keeps the toBe(0) gate non-vacuous)').toBe(200)
 
     // Lap N+1: under the now-active caution the flag-offence block runs. Mirror
     // the post-deploy condition (caution active, next lap, no fresh incidents) and

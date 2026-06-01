@@ -37,8 +37,17 @@ import { CIRCUITS } from '@/data/circuits'
  *   - one-reckless-car full SC/race ≈ 0.56 (≈ neutral rate — player-independent)
  *
  * IP-4 tune: only `crashMajorShare` moved (0.4 -> 0.65) to lift full SC from 0.45
- * to 0.56 WITHOUT touching retirements (the major/caution sub-draws fire after the
- * retire decision in `evaluateCrash`, so retirement count is invariant under it).
+ * to 0.56. At the measured rate this leaves the season retirement count unchanged
+ * (638 == 638 across the 12-seed neutral run): per car the retire decision
+ * (rng.chance(hazard)) fires before the major/caution sub-draws in `evaluateCrash`,
+ * and crashes are rare enough that the cross-car PRNG-offset shift from the
+ * conditional caution draw flips no later-car outcome here. (NOT a strict global
+ * invariant — a denser crash field can perturb later cars on a shared-rng lap —
+ * but the drift is ~0.01% and irrelevant inside the 1.8-2.7 band.)
+ *
+ * SCOPE: this harness measures the INCIDENT-driven caution rate only. The live
+ * arbiter (race-simulator.ts) also ORs the rare rejoin 'minor' contribution, so
+ * the in-sim full-SC rate sits a touch above 0.56 (still within the 0.5-0.7 spec).
  * The bands below bracket the measured deterministic values (≈ ±20%); the spec
  * target stays visible in the log line (Tier C harness policy).
  */
