@@ -355,5 +355,6 @@ sim-engine (types in src/types/race.ts) → game-state (adapter + worker) → ve
 | IP-10 | Press conference & media management | Complete |
 | IP-11 | 2026 regulations Factory wedge (content module, 3 derived metrics, ribbons/tiles/info-bubbles) | Complete |
 | IP-12 | Penalty system Tier C (track-state offences: RaceFlags caution FSM + 6 offence families — track-limits, rejoin-collision, yellow/sc/vsc/red flag, pit-line-crossing; 7 new OffenceTypes; no schema bump) | Complete |
+| IP-13 | Race incidents & safety-car realism (world-driven crash + mechanical DNFs on a separate per-lap PRNG; caution arbiter feeding cause-biased flags — heavy shunt → full SC; contested→caution trigger removed; IP-C3 rejoin dead-store fixed; no schema bump, v13) | Complete |
 
 When starting work on a new IP phase, read `docs/architecture/current-state-baseline.md` first. It defines what is frozen and what is open.

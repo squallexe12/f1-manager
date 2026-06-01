@@ -374,8 +374,9 @@ function replayFlagOffencesForDriver(
           activeFlag = null
         }
       } else if (rng.chance(lapTriggerProb)) {
-        // Deploy a new caution — draw flag type from severity bands.
-        const flag = rollCautionFlag(rng, DEFAULT_CAUTION_CONFIG)
+        // Deploy a new caution — draw flag type from the minor-severity bands
+        // (track-state cautions are minor; this preserves the pre-IP-2 bands).
+        const flag = rollCautionFlag(rng, DEFAULT_CAUTION_CONFIG, 'minor')
         activeFlag = flag
         cautionLapsRemaining = DEFAULT_CAUTION_CONFIG.durationLaps[flag] - 1
       }
