@@ -491,6 +491,112 @@ describe('race incidents — determinism & separation', () => {
     }
     throw new Error('expected a seed in 1..1000 to retire d1')
   })
+
+  it('IP-4: an unsafe rejoin deploys a caution end-to-end with the incident layer OFF (IP-C3 dead-store fix)', () => {
+    // The IP-C3 rejoin caution trigger was a DEAD STORE before this workstream
+    // (seriousIncidentThisLap was set AFTER advanceRaceFlags had already run).
+    // IP-2 wired it into the end-of-lap arbiter via `cautionWorthyRejoinThisLap`.
+    // With crash + mechanical hazards ZEROED, the ONLY remaining caution source
+    // is a major/egregious unsafe rejoin -> a 'safety-car' incident here proves
+    // the rejoin path deploys a caution end-to-end (no crash/mechanical possible).
+    const recklessSilverstone: RaceSetup = {
+      drivers: [
+        { id: 'd1', shortName: 'D1', teamId: 't1', car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 }, attributes: { pace: 80, racecraft: 25, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 }, mood: { motivation: 50, frustration: 95, confidence: 60 } },
+        { id: 'd2', shortName: 'D2', teamId: 't2', car: { downforce: 80, straightSpeed: 80, reliability: 99, tireManagement: 80, braking: 80, cornering: 80 }, attributes: { pace: 80, racecraft: 25, experience: 20, mentality: 80, marketability: 70, developmentPotential: 60 }, mood: { motivation: 50, frustration: 95, confidence: 60 } },
+      ],
+      circuit: { id: 'silverstone', name: 'British Grand Prix', laps: 52, tireWear: 'low', overtakingDifficulty: 'low', weatherVariability: 'low', compounds: ['C3', 'C4', 'C5'] },
+      strategies: [
+        { driverId: 'd1', plannedStops: [], currentCommand: 'standard' },
+        { driverId: 'd2', plannedStops: [], currentCommand: 'standard' },
+      ],
+      weather: 'dry',
+      gridOrder: ['d1', 'd2'],
+      calibration: { ...createFallbackProfile('silverstone'), overtake: { overtakeModifier: 0.3, drsEffectiveness: 0.3 } },
+      incidentConfig: ZERO_HAZARD,
+    }
+
+    const safetyCars = (r: ReturnType<typeof simulateRace>) => r.incidents.filter((i) => i.type === 'safety-car')
+    const crashMech = (r: ReturnType<typeof simulateRace>) => r.incidents.filter((i) => i.type === 'crash' || i.type === 'mechanical')
+    const rejoinInvs = (r: ReturnType<typeof simulateRace>) =>
+      r.incidents.filter((i) => i.type === 'investigation-opened' && 'offenceType' in i && i.offenceType === 'rejoin-collision')
+
+    // Seed scan: a major/egregious rejoin from green ALWAYS deploys a flag (the
+    // arbiter receives a non-null 'minor' trigger), which emits a 'safety-car'
+    // incident regardless of the band rolled. Find the first such race.
+    let firedSeed = -1
+    let firedRun: ReturnType<typeof simulateRace> | null = null
+    for (let s = 1; s <= 1500; s++) {
+      const r = simulateRace(recklessSilverstone, s)
+      if (safetyCars(r).length > 0) { firedSeed = s; firedRun = r; break }
+    }
+    expect(firedSeed, 'expected a seed in 1..1500 where an unsafe rejoin deploys a caution (incident layer off)').toBeGreaterThan(0)
+    // Incident layer off -> NO crash/mechanical incident can exist, so the caution
+    // MUST have come from the rejoin path (this is the dead-store-fix proof).
+    expect(crashMech(firedRun!), 'no crash/mechanical incidents may exist with the incident layer zeroed').toEqual([])
+    // A rejoin-collision investigation must accompany the caution (its source).
+    expect(rejoinInvs(firedRun!).length, 'the deploying race must contain a rejoin-collision investigation').toBeGreaterThan(0)
+    // Determinism: same seed -> byte-identical safety-car stream.
+    const rerun = simulateRace(recklessSilverstone, firedSeed)
+    expect(safetyCars(rerun)).toEqual(safetyCars(firedRun!))
+  })
+
+  it('IP-4 (N->N+1): a caution deployed at end-of-lap N enforces NO flag offence on lap N; the flag is live from N+1', () => {
+    // IP-2 relocated advanceRaceFlags to the END of simulateLap. The flag-state
+    // offence block reads state.safetyCar at LAP START, so a caution that deploys
+    // at end-of-lap N is invisible to that block on lap N and first enforced on
+    // lap N+1. A regression moving advanceRaceFlags back ahead of the flag-offence
+    // block would let offences fire on the deploy lap -> this pins the ordering.
+    const FLAG_OFFENCE_TYPES = new Set(['yellow-flag-breach', 'sc-infraction', 'vsc-infraction', 'red-flag-breach'])
+    const flagOffenceCount = (incidents: ReturnType<typeof simulateLap>['incidents']) =>
+      incidents.filter((i) => 'offenceType' in i && i.offenceType && FLAG_OFFENCE_TYPES.has(i.offenceType as string)).length
+
+    // Deterministically force a caution to deploy at end-of-lap N: saturate crash
+    // hazard and make every crash a heavy shunt (-> 'major' trigger -> guaranteed
+    // deploy from green). Aggressive, low-discipline drivers so the flag-offence
+    // detector WOULD fire on lap N if the block (incorrectly) saw the new caution.
+    const FORCE_DEPLOY: RaceIncidentConfig = {
+      ...DEFAULT_RACE_INCIDENT_CONFIG, crashBaseHazard: 0.9, mechanicalBaseHazard: 0, crashCautionShare: 1, crashMajorShare: 1,
+    }
+    const greenAggressive = (): SimRaceState => {
+      const s = mockRaceState()
+      s.safetyCar = 'green'
+      s.cautionLapsRemaining = 0
+      for (const st of s.strategies) st.currentCommand = 'overtake'
+      for (const d of s.drivers) { d.attributes.experience = 25; d.attributes.mentality = 25 }
+      return s
+    }
+
+    // Lap N: across every seed whose lap-N deploys a caution from green, assert
+    // ZERO flag offences fired (the block was green-gated at lap start).
+    let deployCount = 0
+    for (let seed = 1; seed <= 200; seed++) {
+      const s = greenAggressive()
+      const r = simulateLap(s, createPRNG(seed), FORCE_DEPLOY)
+      if (s.safetyCar === 'green') continue // no deploy this seed
+      deployCount++
+      expect(flagOffenceCount(r.incidents), `seed ${seed}: no flag offence may fire on the deploy lap (N->N+1)`).toBe(0)
+    }
+    expect(deployCount, 'expected most seeds to deploy a caution on lap N (non-vacuous gate)').toBeGreaterThan(100)
+
+    // Lap N+1: under the now-active caution the flag-offence block runs. Mirror
+    // the post-deploy condition (caution active, next lap, no fresh incidents) and
+    // confirm enforcement is LIVE -> a flag offence can now fire.
+    const onCautionNextLap = (): SimRaceState => {
+      const s = greenAggressive()
+      s.safetyCar = 'sc'          // the caution that deployed at end-of-lap N
+      s.cautionLapsRemaining = 5  // survives the end-of-(N+1) FSM decrement
+      s.currentLap = 11           // N+1
+      return s
+    }
+    const ZERO_CRASH: RaceIncidentConfig = { ...DEFAULT_RACE_INCIDENT_CONFIG, crashBaseHazard: 0, mechanicalBaseHazard: 0 }
+    let enforcedOnNext = false
+    for (let seed = 1; seed <= 500; seed++) {
+      const s = onCautionNextLap()
+      const r = simulateLap(s, createPRNG(seed), ZERO_CRASH)
+      if (flagOffenceCount(r.incidents) > 0) { enforcedOnNext = true; break }
+    }
+    expect(enforcedOnNext, 'flag-state offences must be enforceable on lap N+1 (under the active caution)').toBe(true)
+  })
 })
 
 // ---------------------------------------------------------------------------
