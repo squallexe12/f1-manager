@@ -29,14 +29,18 @@ import { CIRCUITS } from '@/data/circuits'
  *   - retirements/race:  ~1-3
  *   - full SC/race:      ~0.5-0.7   (plus occasional VSC/yellow)
  *
- * MEASURED (DEFAULT_RACE_INCIDENT_CONFIG, 20-car neutral field, 12-seed mean):
- *   - retirements/race ≈ _.__   (fill from first run)
- *   - full SC/race     ≈ _.__   (fill from first run)
- *   - any caution/race ≈ _.__
+ * MEASURED (DEFAULT_RACE_INCIDENT_CONFIG after IP-4 tune, 20-car neutral field,
+ * SEED_BASE=90000, 12-seed mean — deterministic):
+ *   - retirements/race ≈ 2.22   (spec 1-3 — on target)
+ *   - full SC/race     ≈ 0.56   (spec 0.5-0.7 — on target)
+ *   - any caution/race ≈ 1.28
+ *   - one-reckless-car full SC/race ≈ 0.56 (≈ neutral rate — player-independent)
  *
- * After the first run, tune DEFAULT_RACE_INCIDENT_CONFIG (Task 2) to land in the
- * spec envelope, then set the bands below to the measured envelope (±20%) with
- * the spec target visible in the log line.
+ * IP-4 tune: only `crashMajorShare` moved (0.4 -> 0.65) to lift full SC from 0.45
+ * to 0.56 WITHOUT touching retirements (the major/caution sub-draws fire after the
+ * retire decision in `evaluateCrash`, so retirement count is invariant under it).
+ * The bands below bracket the measured deterministic values (≈ ±20%); the spec
+ * target stays visible in the log line (Tier C harness policy).
  */
 
 const RUN_HARNESS = process.env.RACE_INCIDENTS_FREQUENCY === '1'
@@ -132,13 +136,12 @@ describe.skipIf(!RUN_HARNESS)('race-incidents season frequency harness (RACE_INC
       `any caution≈${cautionPerRace.toFixed(2)}/race`,
     )
 
-    // STARTING bands = spec envelope. After the first measured run + the Task 2
-    // tune, set these to the measured envelope (±20%) with the spec target kept
-    // in the log line above (Tier C harness policy).
-    expect(retPerRace, 'retirements/race (spec target 1-3)').toBeGreaterThanOrEqual(1)
-    expect(retPerRace, 'retirements/race').toBeLessThanOrEqual(3)
-    expect(scPerRace, 'full SC/race (spec target 0.5-0.7)').toBeGreaterThanOrEqual(0.4)
-    expect(scPerRace, 'full SC/race').toBeLessThanOrEqual(0.8)
+    // Bands bracket the MEASURED deterministic values (≈ ±20%) so they catch a
+    // config regression while the log line keeps the spec target visible.
+    expect(retPerRace, 'retirements/race (measured ≈2.22; spec 1-3)').toBeGreaterThanOrEqual(1.8)
+    expect(retPerRace, 'retirements/race').toBeLessThanOrEqual(2.7)
+    expect(scPerRace, 'full SC/race (measured ≈0.56; spec 0.5-0.7)').toBeGreaterThanOrEqual(0.45)
+    expect(scPerRace, 'full SC/race').toBeLessThanOrEqual(0.7)
   })
 
   it('the rate is mostly independent of one entrant: a single aggressive car barely moves the season SC rate', () => {

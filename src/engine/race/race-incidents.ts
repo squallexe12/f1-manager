@@ -33,7 +33,7 @@ export const DEFAULT_RACE_INCIDENT_CONFIG: RaceIncidentConfig = {
   crashBaseHazard: 0.0011,
   mechanicalBaseHazard: 0.0009,
   crashCautionShare: 0.6,
-  crashMajorShare: 0.4,
+  crashMajorShare: 0.65,
   mechanicalCautionShare: 0.4,
   wetCrashMultiplier: 2.2,
 }
