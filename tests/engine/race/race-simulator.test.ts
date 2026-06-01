@@ -873,21 +873,23 @@ describe('simulateRace — race-end pendingTimePenalties fold', () => {
       },
     }
 
-    // Seed 2 reproducibly issues 4 track-limits time penalties for this setup
-    // (verified via a seed scan), so the FSM is genuinely exercised.
-    const SEED = 2
     const tlIncidents = (r: ReturnType<typeof simulateRace>) =>
       r.incidents.filter((i) => i.type === 'penalty-issued' && i.offenceType === 'track-limits')
 
-    const run1 = simulateRace(recklessSetup, SEED)
-    const run2 = simulateRace(recklessSetup, SEED)
-    const tl1 = tlIncidents(run1)
-    const tl2 = tlIncidents(run2)
+    // The per-race bad-day exposure model means only some seeds give these reckless
+    // drivers a bad-enough day at spielberg to escalate to a time penalty. Scan for
+    // a firing seed (the file's established pattern) so the gate stays non-vacuous
+    // and robust to future calibration changes — no magic-constant seed.
+    let firedSeed = -1
+    let tlFired: ReturnType<typeof tlIncidents> = []
+    for (let s = 1; s <= 2000; s++) {
+      const tl = tlIncidents(simulateRace(recklessSetup, s))
+      if (tl.length > 0) { firedSeed = s; tlFired = tl; break }
+    }
+    expect(firedSeed, 'expected a seed in 1..2000 where track-limits penalties fire').toBeGreaterThan(0)
 
-    // The setup must actually exercise the FSM, otherwise the gate is vacuous.
-    expect(tl1.length).toBeGreaterThan(0)
     // Byte-identical track-limits penalty stream across two seeded runs.
-    expect(tl1).toEqual(tl2)
+    expect(tlIncidents(simulateRace(recklessSetup, firedSeed))).toEqual(tlFired)
   })
 
   it('Tier C IP-C3: rejoin-collision opens an investigation at a high-rejoinRisk monitored corner', () => {

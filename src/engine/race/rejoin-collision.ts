@@ -8,8 +8,14 @@ export interface RejoinCollisionConfig {
   severityBands: { minor: number; serious: number; major: number }
 }
 
+/**
+ * Calibrated to spec §7 (~1–2 rejoin-collision investigations per driver/season).
+ * Base rates scaled to half of the IP-C3 starting values once the track-limits
+ * bad-day exposure model (which gates these rolls) brought the gate-open rate to
+ * its intended level; measured (racecraft=60/exp=70/frus=40, 12-seed mean) ≈1.58.
+ */
 export const DEFAULT_REJOIN_CONFIG: RejoinCollisionConfig = {
-  baseRateByRisk: { low: 0.05, med: 0.18, high: 0.32 },
+  baseRateByRisk: { low: 0.025, med: 0.09, high: 0.16 },
   severityBands: { minor: 0.4, serious: 0.7, major: 0.9 },
 }
 

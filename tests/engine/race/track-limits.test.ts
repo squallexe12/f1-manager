@@ -3,7 +3,9 @@ import { createPRNG } from '@/engine/core/prng'
 import {
   evaluateTrackLimitBreach,
   applyTrackLimitStrike,
+  rollTrackLimitExposure,
   DEFAULT_TRACK_LIMITS_CONFIG,
+  type TrackLimitsConfig,
 } from '@/engine/race/track-limits'
 
 const baseInput = (over: Partial<Parameters<typeof evaluateTrackLimitBreach>[0]> = {}) => ({
@@ -40,6 +42,65 @@ describe('evaluateTrackLimitBreach', () => {
       if (evaluateTrackLimitBreach(baseInput({ experience: 99, frustration: 0, difficultyTier: 1 }), createPRNG(s))) n++
     }
     expect(n).toBeLessThan(250) // < ~5% even worst-case seeds
+  })
+})
+
+describe('rollTrackLimitExposure (per-race "bad day" factor)', () => {
+  it('DEFAULT config holds the normalMult < 1 < badDayMult invariant', () => {
+    // A misconfigured exposure (e.g. badDayMult < 1) would silently distort the
+    // calibration without erroring — pin the documented invariant so a future edit
+    // that breaks it fails loudly here.
+    const e = DEFAULT_TRACK_LIMITS_CONFIG.exposure
+    expect(e.normalMult).toBeLessThan(1)
+    expect(e.badDayMult).toBeGreaterThan(1)
+  })
+
+  it('returns badDayMult on a bad-day draw and normalMult otherwise', () => {
+    const allBad: TrackLimitsConfig = {
+      ...DEFAULT_TRACK_LIMITS_CONFIG,
+      exposure: { badDayProb: 1, badDayMult: 3, normalMult: 0.5 },
+    }
+    expect(rollTrackLimitExposure(createPRNG(1), allBad)).toBe(3)
+    const neverBad: TrackLimitsConfig = {
+      ...DEFAULT_TRACK_LIMITS_CONFIG,
+      exposure: { badDayProb: 0, badDayMult: 3, normalMult: 0.5 },
+    }
+    expect(rollTrackLimitExposure(createPRNG(1), neverBad)).toBe(0.5)
+  })
+
+  it('consumes exactly one PRNG draw', () => {
+    const rng = createPRNG(7)
+    const peek = createPRNG(7)
+    rollTrackLimitExposure(rng, DEFAULT_TRACK_LIMITS_CONFIG)
+    peek.next()
+    expect(rng.next()).toBe(peek.next())
+  })
+
+  it('is deterministic for a seed', () => {
+    expect(rollTrackLimitExposure(createPRNG(42), DEFAULT_TRACK_LIMITS_CONFIG)).toBe(
+      rollTrackLimitExposure(createPRNG(42), DEFAULT_TRACK_LIMITS_CONFIG),
+    )
+  })
+})
+
+describe('evaluateTrackLimitBreach exposure factor', () => {
+  it('a high exposure factor produces more breaches than a low one over many seeds', () => {
+    const count = (exposureFactor: number) => {
+      let n = 0
+      for (let s = 1; s <= 3000; s++) {
+        if (evaluateTrackLimitBreach(baseInput({ exposureFactor }), createPRNG(s))) n++
+      }
+      return n
+    }
+    expect(count(3)).toBeGreaterThan(count(0.2))
+  })
+
+  it('omitting exposureFactor is equivalent to exposureFactor = 1', () => {
+    for (let s = 1; s <= 500; s++) {
+      const withDefault = evaluateTrackLimitBreach(baseInput(), createPRNG(s))
+      const withOne = evaluateTrackLimitBreach(baseInput({ exposureFactor: 1 }), createPRNG(s))
+      expect(withDefault).toBe(withOne)
+    }
   })
 })
 

@@ -3,8 +3,10 @@ import { createPRNG } from '@/engine/core/prng'
 import {
   evaluateTrackLimitBreach,
   applyTrackLimitStrike,
+  rollTrackLimitExposure,
   DEFAULT_TRACK_LIMITS_CONFIG,
 } from '@/engine/race/track-limits'
+import { mixSeed } from '@/engine/race/race-incidents'
 import {
   evaluateRejoinCollision,
   DEFAULT_REJOIN_CONFIG,
@@ -38,28 +40,29 @@ import { CIRCUITS } from '@/data/circuits'
  *   - B&W flags (strike 4):    ~2–3
  *   - time penalties (5+):     ~3–5
  *
- * MEASURED (DEFAULT_TRACK_LIMITS_CONFIG, exp=70/frus=40, 12-seed mean):
- *   - warnings ≈ 32   (HIGH — target 12–18)
- *   - B&W flags ≈ 3.0 (on target)
- *   - time penalties ≈ 2.4 (slightly LOW — target 3–5)
+ * MEASURED (DEFAULT_TRACK_LIMITS_CONFIG, exp=70/frus=40, 12-seed mean) — all
+ * three bands now land in spec after the bad-day exposure co-tune:
+ *   - warnings ≈ 16.8 (in band — target 12–18)
+ *   - B&W flags ≈ 2.5 (in band — target 2–3)
+ *   - time penalties ≈ 4.3 (in band — target 3–5)
  *
- * KNOWN CALIBRATION TENSION (flagged follow-up — see report): warnings overshoot
- * while penalties undershoot. A seed scan confirms NO single `baseRateByTier`
- * knob reconciles all three bands, because strikes RESET per race: lowering the
- * base rate brings warnings down but starves B&W/penalty escalation (rate×0.6 →
- * warn≈22, bw≈0.9, pen≈0.4); lowering the FSM thresholds to 3/4 fixes penalties
- * but is a frozen-FSM change (the unit tests pin 4/5). Reconciling §7 needs a
- * dedicated sim-engine tuning task (rate + threshold co-tune, or non-resetting
- * accrual), out of scope for the IP-C2 VERIFY gate. The bands below are therefore
- * set to the MEASURED envelope so the gated harness records the true numbers and
- * catches a future regression, with the spec target kept visible in the log line.
+ * RESOLVED CALIBRATION TENSION: independent per-corner Bernoulli with per-race
+ * strike reset couples warning volume to escalation depth — no single
+ * `baseRateByTier` knob hits warnings 12–18 AND penalties 3–5 at once (the old
+ * default overshot warnings to ≈32). The per-race "bad day" exposure model
+ * (`TrackLimitsConfig.exposure`, `rollTrackLimitExposure`) breaks that coupling:
+ * each driver gets a per-race multiplier (badDayMult on `badDayProb` of races,
+ * else normalMult<1) from an isolated PRNG, concentrating strikes into the
+ * occasional bad race so escalation rises while routine warnings fall. Bands
+ * below are the MEASURED envelope (spec target also shown in the log line).
  *
  * The replay drives the SAME pure engine functions (`evaluateTrackLimitBreach`
- * + `applyTrackLimitStrike`) the simulator's end-of-lap loop uses, in the same
- * consumption order (per lap → per monitored corner), against the real circuit
- * lap counts and corner profiles. Because the engine consumes one PRNG draw per
- * (driver, corner, lap), modelling a single representative driver per race with
- * a fresh seeded PRNG is a faithful per-driver frequency estimate.
+ * + `applyTrackLimitStrike` + `rollTrackLimitExposure`) the simulator's end-of-lap
+ * loop uses, in the same consumption order (per lap → per monitored corner), with
+ * the per-race exposure factor drawn from an isolated `mixSeed(seed, raceIndex)`
+ * PRNG — mirroring the simulator's `mixSeed(raceSeed, driverHash)` draw. Because
+ * the engine consumes one main-loop draw per (driver, corner, lap), modelling a
+ * single representative driver per race is a faithful per-driver frequency estimate.
  */
 
 const RUN_HARNESS = process.env.TRACK_LIMITS_FREQUENCY === '1'
@@ -89,12 +92,15 @@ function replaySeasonForDriver(
   let timePenalties = 0
   let totalBreaches = 0
 
-  for (const circuit of CIRCUITS) {
+  CIRCUITS.forEach((circuit, ci) => {
     // Strikes reset every race (transient per-race counter).
     strikes = 0
     const profile = CORNER_PROFILES[circuit.id] ?? DEFAULT_CORNER_PROFILE
     const monitored = profile.corners.filter((c) => c.trackLimitMonitored)
-    if (monitored.length === 0) continue
+    if (monitored.length === 0) return
+    // Per-race bad-day exposure factor, drawn from an isolated PRNG keyed by the
+    // race index — mirrors the simulator's `mixSeed(raceSeed, driverHash)` draw.
+    const exposureFactor = rollTrackLimitExposure(createPRNG(mixSeed(seed, ci)), DEFAULT_TRACK_LIMITS_CONFIG)
 
     for (let lap = 0; lap < circuit.laps; lap++) {
       for (const corner of monitored) {
@@ -103,6 +109,7 @@ function replaySeasonForDriver(
             difficultyTier: corner.difficultyTier,
             experience,
             frustration,
+            exposureFactor,
             config: DEFAULT_TRACK_LIMITS_CONFIG,
           },
           rng,
@@ -116,7 +123,7 @@ function replaySeasonForDriver(
         else warnings++
       }
     }
-  }
+  })
 
   return { warnings, bwFlags, timePenalties, totalBreaches }
 }
@@ -152,17 +159,16 @@ describe.skipIf(!RUN_HARNESS)('track-limits season frequency harness (TRACK_LIMI
       `totalBreaches≈${avgBreaches.toFixed(1)}`,
     )
 
-    // Bands reflect the MEASURED envelope (see file header) — NOT the raw spec
-    // §7 target, which the current DEFAULT_TRACK_LIMITS_CONFIG does not yet hit
-    // (warnings overshoot, penalties slightly undershoot; reconciling needs a
-    // dedicated tuning task). These bands catch a base-rate regression while the
-    // log line keeps the spec target visible for the follow-up tuning pass.
-    expect(avgWarnings, 'warnings/season (measured ≈32; spec target 12–18 — follow-up tuning)').toBeGreaterThanOrEqual(24)
-    expect(avgWarnings, 'warnings/season').toBeLessThanOrEqual(40)
-    expect(avgBw, 'B&W flags/season (on spec target 2–3)').toBeGreaterThanOrEqual(2)
-    expect(avgBw, 'B&W flags/season').toBeLessThanOrEqual(5)
-    expect(avgPenalties, 'time penalties/season (measured ≈2.4; spec target 3–5 — follow-up tuning)').toBeGreaterThanOrEqual(1)
-    expect(avgPenalties, 'time penalties/season').toBeLessThanOrEqual(7)
+    // Bands are the MEASURED envelope around the spec §7 target, now all in band
+    // after the bad-day exposure co-tune (measured ≈16.8 / 2.5 / 4.3, 12-seed mean).
+    // Wide enough to absorb seed variance, tight enough to catch a regression to the
+    // pre-co-tune behaviour (warnings ≈32, penalties ≈2.4).
+    expect(avgWarnings, 'warnings/season (measured ≈16.8; spec 12–18)').toBeGreaterThanOrEqual(12)
+    expect(avgWarnings, 'warnings/season').toBeLessThanOrEqual(20)
+    expect(avgBw, 'B&W flags/season (measured ≈2.5; spec 2–3)').toBeGreaterThanOrEqual(1.8)
+    expect(avgBw, 'B&W flags/season').toBeLessThanOrEqual(3.4)
+    expect(avgPenalties, 'time penalties/season (measured ≈4.3; spec 3–5)').toBeGreaterThanOrEqual(3)
+    expect(avgPenalties, 'time penalties/season').toBeLessThanOrEqual(6)
   })
 
   it('a calm veteran breaches materially less than a frustrated rookie', () => {
@@ -192,17 +198,13 @@ describe.skipIf(!RUN_HARNESS)('track-limits season frequency harness (TRACK_LIMI
  * Spec §7 target: ~1–2 rejoin-collision investigations per driver/season.
  *
  * MEASURED (DEFAULT_REJOIN_CONFIG, racecraft=60/exp=70/frus=40, 12-seed mean):
- *   rejoin-collisions ≈ 3.92 (HIGH — target 1–2)
+ *   rejoin-collisions ≈ 1.58 (in band — target 1–2)
  *
- * KNOWN CALIBRATION TENSION: the measured rate overshoots the spec target.
- * Root cause: the track-limits breach rate (warnings ≈32, overshoot noted in
- * IP-C2) provides more gate-open events than the spec assumed; combined with
- * DEFAULT_REJOIN_CONFIG.baseRateByRisk={low:0.05,med:0.18,high:0.32} this
- * compounds into ~2× the intended investigation frequency. Reconciling needs
- * a co-tune of the breach base rate and the rejoin base rates, out of scope
- * for the IP-C3 VERIFY gate. The band below is set to the MEASURED envelope
- * so the harness acts as a regression gate; the spec target is kept visible
- * in the log line for the follow-up tuning pass (same policy as IP-C2).
+ * RESOLVED in the Tier C frequency co-tune. The gate-1 breach now carries the
+ * track-limits bad-day exposure factor (so the gate-open rate dropped from the
+ * pre-co-tune overshoot), and `DEFAULT_REJOIN_CONFIG.baseRateByRisk` was halved to
+ * {low:0.025,med:0.09,high:0.16}. Together these land the investigation rate inside
+ * the spec band (was ≈3.92). The band below is the measured envelope.
  */
 
 function replayRejoinCollisionForDriver(
@@ -214,10 +216,13 @@ function replayRejoinCollisionForDriver(
   const rng = createPRNG(seed)
   let rejoinInvestigations = 0
 
-  for (const circuit of CIRCUITS) {
+  CIRCUITS.forEach((circuit, ci) => {
     const profile = CORNER_PROFILES[circuit.id] ?? DEFAULT_CORNER_PROFILE
     const monitored = profile.corners.filter((c) => c.trackLimitMonitored)
-    if (monitored.length === 0) continue
+    if (monitored.length === 0) return
+    // Gate-1 breaches now carry the per-race bad-day exposure factor too (the
+    // simulator applies it before the rejoin roll), so the gate-open rate matches.
+    const exposureFactor = rollTrackLimitExposure(createPRNG(mixSeed(seed, ci)), DEFAULT_TRACK_LIMITS_CONFIG)
 
     for (let lap = 0; lap < circuit.laps; lap++) {
       for (const corner of monitored) {
@@ -227,6 +232,7 @@ function replayRejoinCollisionForDriver(
             difficultyTier: corner.difficultyTier,
             experience,
             frustration,
+            exposureFactor,
             config: DEFAULT_TRACK_LIMITS_CONFIG,
           },
           rng,
@@ -260,7 +266,7 @@ function replayRejoinCollisionForDriver(
         }
       }
     }
-  }
+  })
 
   return rejoinInvestigations
 }
@@ -280,16 +286,14 @@ describe.skipIf(!RUN_HARNESS)('rejoin-collision season frequency harness (TRACK_
     console.log(
       `[IP-C3-frequency] samples=${SAMPLES} racecraft=60 exp=70 frus=40 → ` +
       `rejoin-collisions≈${avg.toFixed(2)}/driver/season ` +
-      `(spec target 1–2; measured ≈3.92 — follow-up tuning needed)`,
+      `(spec target 1–2; measured ≈1.58 after co-tune)`,
     )
 
-    // Bands reflect the MEASURED envelope (see file header) — NOT the raw spec
-    // target of 1–2, which DEFAULT_REJOIN_CONFIG does not yet hit (overshoots
-    // due to the underlying track-limits breach rate also being high). These
-    // bands catch a base-rate regression while the log line keeps the spec
-    // target visible for the follow-up co-tune pass.
-    expect(avg, 'rejoin-collisions/driver/season (measured ≈3.92; spec target 1–2 — follow-up tuning)').toBeGreaterThanOrEqual(0.5)
-    expect(avg, 'rejoin-collisions/driver/season').toBeLessThanOrEqual(6)
+    // Bands are the MEASURED envelope around the spec §7 target (1–2), now in band
+    // after the co-tune (measured ≈1.58). Catches a regression to the pre-co-tune
+    // overshoot (≈3.92) or to under-firing.
+    expect(avg, 'rejoin-collisions/driver/season (measured ≈1.58; spec 1–2)').toBeGreaterThanOrEqual(0.8)
+    expect(avg, 'rejoin-collisions/driver/season').toBeLessThanOrEqual(2.6)
   })
 
   it('a low-racecraft driver has more rejoin-collision events than a high-racecraft driver', () => {
@@ -328,15 +332,15 @@ describe.skipIf(!RUN_HARNESS)('rejoin-collision season frequency harness (TRACK_
  * Spec §7 target: ~0–1 of each flag offence type per driver/season.
  *
  * MEASURED (DEFAULT_FLAG_OFFENCE_CONFIG, exp=70/ment=70, aggressive on 30% of
- * caution laps, 12-seed mean, MEAN_CAUTION_EVENTS_PER_RACE=2):
- *   - yellow-flag-breach ≈ 0.X per driver/season  (to be filled from first run)
- *   - sc-infraction      ≈ 0.X per driver/season
- *   - vsc-infraction     ≈ 0.X per driver/season
- *   - red-flag-breach    ≈ 0.X per driver/season
+ * caution laps, 12-seed mean, MEAN_CAUTION_EVENTS_PER_RACE=2) — all in band after
+ * the yellow co-tune (baseRateByFlag.yellow 0.06 → 0.018):
+ *   - yellow-flag-breach ≈ 0.67 per driver/season (in band — was ≈2.5)
+ *   - sc-infraction      ≈ 0.25 per driver/season (already on target — unchanged)
+ *   - vsc-infraction     ≈ 0.00 per driver/season
+ *   - red-flag-breach    ≈ 0.00 per driver/season
  *
- * Bands are set generously (0–3 each) on the first pass and tightened after
- * the first measured run. The log line shows measured values so the follow-up
- * tuning pass can tighten or adjust baseRateByFlag entries.
+ * Bands below are the measured envelope around the spec §7 target (~0–1 each);
+ * yellow tightened to catch a regression to the pre-co-tune ≈2.5 overshoot.
  */
 
 /** Mean number of caution EVENTS per race. Each event lasts durationLaps[flag] laps. */
@@ -434,11 +438,12 @@ describe.skipIf(!RUN_HARNESS)('flag-state offences season frequency harness (TRA
       `(spec target ~0–1 each)`,
     )
 
-    // Generous bands on first pass — set to 0..3 each to capture the measured
-    // envelope before tightening. If any value overshoots 3, tune baseRateByFlag
-    // downward proportionally; if any is 0.0 average, tune upward.
-    expect(avgYellow, 'yellow-flag-breach/season (spec target ~0–1)').toBeGreaterThanOrEqual(0)
-    expect(avgYellow, 'yellow-flag-breach/season').toBeLessThanOrEqual(3)
+    // Bands are the measured envelope around the spec §7 target (~0–1 each). Yellow
+    // tightened to ≤1.6 after the co-tune (measured ≈0.67) to catch a regression to
+    // the pre-co-tune ≈2.5 overshoot; sc/vsc/red kept at the wider ≤3 (unchanged,
+    // measured ≈0.25/0/0 — comfortably inside).
+    expect(avgYellow, 'yellow-flag-breach/season (measured ≈0.67; spec ~0–1)').toBeGreaterThanOrEqual(0)
+    expect(avgYellow, 'yellow-flag-breach/season').toBeLessThanOrEqual(1.6)
     expect(avgVsc,    'vsc-infraction/season (spec target ~0–1)').toBeGreaterThanOrEqual(0)
     expect(avgVsc,    'vsc-infraction/season').toBeLessThanOrEqual(3)
     expect(avgSc,     'sc-infraction/season (spec target ~0–1)').toBeGreaterThanOrEqual(0)

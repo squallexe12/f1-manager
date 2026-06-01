@@ -32,7 +32,7 @@ import {
   type RaceIncidentConfig,
   type CautionSeverity,
 } from './race-incidents'
-import { evaluateTrackLimitBreach, applyTrackLimitStrike, DEFAULT_TRACK_LIMITS_CONFIG } from './track-limits'
+import { evaluateTrackLimitBreach, applyTrackLimitStrike, rollTrackLimitExposure, DEFAULT_TRACK_LIMITS_CONFIG } from './track-limits'
 import { evaluateRejoinCollision, DEFAULT_REJOIN_CONFIG } from './rejoin-collision'
 import { evaluateFlagStateBreach, DEFAULT_FLAG_OFFENCE_CONFIG } from './flag-state-offences'
 import { cornersForCircuit, DEFAULT_CORNER_PROFILE } from '@/data/corner-profiles'
@@ -860,12 +860,24 @@ export function simulateLap(state: SimRaceState, rng: PRNG, incidentConfig: Race
     const sortedDrivers = [...state.drivers].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     for (const driver of sortedDrivers) {
       if (state.dnfDriverIds[driver.id]) continue
+      // Per-race "bad day" track-limits exposure: drawn ONCE per driver per race
+      // from an ISOLATED PRNG (mixSeed(raceSeed, driverHash)) so the main loop
+      // stream stays byte-identical. Concentrates strikes into occasional bad
+      // races — the spec §7 warning/penalty split. Recomputed each lap from the
+      // same seed → identical value all race; avoids a transient state field.
+      let driverHash = 0
+      for (let i = 0; i < driver.id.length; i++) driverHash = (Math.imul(driverHash, 31) + driver.id.charCodeAt(i)) | 0
+      const exposureFactor = rollTrackLimitExposure(
+        createPRNG(mixSeed(state.raceSeed, driverHash)),
+        DEFAULT_TRACK_LIMITS_CONFIG,
+      )
       for (const corner of monitored) {
         const breached = evaluateTrackLimitBreach(
           {
             difficultyTier: corner.difficultyTier,
             experience: driver.attributes.experience,
             frustration: driver.mood.frustration,
+            exposureFactor,
             config: DEFAULT_TRACK_LIMITS_CONFIG,
           },
           rng,

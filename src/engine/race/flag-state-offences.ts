@@ -10,9 +10,14 @@ export interface FlagOffenceConfig {
   severityBands: { minor: number; serious: number; major: number }
 }
 
-/** Calibrated toward ~0–1 of each flag offence per driver/season. */
+/**
+ * Calibrated to spec §7 (~0–1 of each flag offence per driver/season). `yellow`
+ * lowered 0.06 → 0.018 in the Tier C frequency co-tune; measured (exp=70/ment=70,
+ * aggressive 30% of caution laps, 12-seed mean) ≈0.67 yellow. sc/vsc/red were
+ * already on target and are unchanged.
+ */
 export const DEFAULT_FLAG_OFFENCE_CONFIG: FlagOffenceConfig = {
-  baseRateByFlag: { yellow: 0.06, vsc: 0.05, sc: 0.07, red: 0.04 },
+  baseRateByFlag: { yellow: 0.018, vsc: 0.05, sc: 0.07, red: 0.04 },
   severityBands: { minor: 0.45, serious: 0.75, major: 0.92 },
 }
 
@@ -53,7 +58,8 @@ export function evaluateFlagStateBreach(input: FlagBreachInput, rng: PRNG): Flag
   const base = input.config.baseRateByFlag[input.flag]
   // Experience + mentality both reduce the rate (average of the two deficits).
   const discipline = (input.experience + input.mentality) / 2
-  // 0.85 (raised from spec's 0.7) tightens veteran discipline; yellow still ~2.5×/season — tracked for a baseRateByFlag co-tune pass
+  // 0.85 (raised from spec's 0.7) tightens veteran discipline. Combined with the
+  // baseRateByFlag.yellow co-tune (0.06 → 0.018), yellow now lands ≈0.67/season.
   const disciplineFactor = 1 - (discipline / 100) * 0.85
   const prob = Math.min(base * disciplineFactor, 0.4)
   if (!rng.chance(prob)) {
