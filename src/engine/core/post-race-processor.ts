@@ -18,6 +18,9 @@ import { applyRaceCareerDeltas } from '@/engine/drivers/career-stats'
 import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
 import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 import { computeChampionshipSummary } from '@/engine/drivers/championship-summary'
+import { SPONSORS } from '@/data/sponsors'
+import { evaluateSponsorSeason, type SponsorSeasonContext } from '@/engine/finance/sponsor-kpi'
+import type { Sponsor } from '@/types/finance'
 
 // Points per position (standard race)
 const RACE_POINTS: Record<number, number> = {
@@ -69,6 +72,7 @@ export function processPostRace(
   currentRound: number,
   currentSeason: number,
   playerTeamId: string,
+  totalRounds: number,
   rng: PRNG,
 ): PostRaceUpdate {
   const pointsTable = isSprint ? SPRINT_POINTS : RACE_POINTS
@@ -260,6 +264,7 @@ export function processPostRace(
 
   // 4. Update finance — per-race operational spend
   const updatedFinance: Record<string, FinanceState> = {}
+  const sponsorNotes: NarrativeEvent[] = []
   for (const [teamId, fs] of Object.entries(finance)) {
     let budget = fs.budget
     // Per-race operational cost: ~$2.5M for operations, ~$1M for travel
@@ -281,9 +286,28 @@ export function processPostRace(
       mediaNegativeEvents: 0,
     })
 
+    // Sponsor KPI evaluation — player team only. AI sponsors are never
+    // surfaced; mirrors the player-only measureUpgradeOutcome precedent.
+    let sponsors = fs.sponsors
+    if (teamId === playerTeamId) {
+      const ctx = buildSponsorContext(
+        team?.constructorPosition ?? 11, teamDrivers, budget, currentRound, totalRounds,
+      )
+      sponsors = fs.sponsors.map(prior => {
+        const next = evaluateSponsorSeason(prior, metricsForSponsor(prior.id), ctx)
+        const wasMet = prior.kpis.length > 0 && prior.kpis.every(k => k.met)
+        const nowMet = next.kpis.length > 0 && next.kpis.every(k => k.met)
+        if (!wasMet && nowMet && next.bonusValue > 0) {
+          sponsorNotes.push(buildSponsorBonusNote(next, currentRound))
+        }
+        return next
+      })
+    }
+
     updatedFinance[teamId] = {
       ...fs,
       budget,
+      sponsors,
       prestigeScore,
       prestige: scoreToRating(prestigeScore),
       prizeMoneyEstimate: estimatePrizeMoney(team?.constructorPosition ?? 11),
@@ -311,7 +335,11 @@ export function processPostRace(
 
   // Generate new events
   const { newEvents, updatedCooldowns } = generateEvents(ctx, resolved, eventCooldowns, rng)
-  const allEvents = [...resolved.filter(e => !e.resolved || e.triggeredAtRound >= currentRound - 3), ...newEvents]
+  const allEvents = [
+    ...resolved.filter(e => !e.resolved || e.triggeredAtRound >= currentRound - 3),
+    ...newEvents,
+    ...sponsorNotes,
+  ]
 
   // Recompute per-driver narrative pulse and scout signal after all
   // mutations have settled. Both are pure derivations from observable state;
@@ -346,4 +374,55 @@ function estimatePrizeMoney(position: number): number {
     6: 38_000_000, 7: 34_000_000, 8: 30_000_000, 9: 26_000_000, 10: 22_000_000, 11: 18_000_000,
   }
   return baseShare + (performancePrize[position] ?? 15_000_000)
+}
+
+/** Per-sponsor metric kinds, index-aligned to the static template KPIs. */
+function metricsForSponsor(sponsorId: string): (import('@/data/sponsors').SponsorMetricKind | undefined)[] {
+  const template = SPONSORS.find(t => t.id === sponsorId)
+  return template ? template.kpiTemplates.map(k => k.metric) : []
+}
+
+function buildSponsorContext(
+  constructorPosition: number,
+  drivers: Driver[],
+  budget: { totalSpent: number; cap: number },
+  currentRound: number,
+  totalRounds: number,
+): SponsorSeasonContext {
+  const teamPoints = drivers.reduce((s, d) => s + d.seasonStats.points, 0)
+  const teamWins = drivers.reduce((s, d) => s + d.seasonStats.wins, 0)
+  const teamPodiums = drivers.reduce((s, d) => s + d.seasonStats.podiums, 0)
+  const teamDnfs = drivers.reduce((s, d) => s + d.seasonStats.dnfs, 0)
+  const driverMarketabilityAvg = drivers.length
+    ? drivers.reduce((s, d) => s + d.attributes.marketability, 0) / drivers.length
+    : 0
+  const minDriverRaceFinishes = drivers.length
+    ? Math.min(...drivers.map(d => currentRound - d.seasonStats.dnfs))
+    : 0
+  const bothDriversScored: 0 | 1 =
+    drivers.length >= 2 && drivers.every(d => d.seasonStats.points > 0) ? 1 : 0
+  return {
+    constructorPosition,
+    teamPoints, teamWins, teamPodiums, teamDnfs,
+    driverMarketabilityAvg, minDriverRaceFinishes, bothDriversScored,
+    capBreached: budget.totalSpent > budget.cap,
+    currentRound, totalRounds,
+  }
+}
+
+function buildSponsorBonusNote(sponsor: Sponsor, currentRound: number): NarrativeEvent {
+  const bonusM = (sponsor.bonusValue / 1_000_000).toFixed(1)
+  return {
+    id: `sponsor-bonus-${sponsor.id}-r${currentRound}`,
+    thread: 'sponsor-drama',
+    severity: 'news',
+    headline: `${sponsor.name} bonus secured`,
+    body: `All KPI targets met for ${sponsor.name}. The $${bonusM}M performance bonus is unlocked.`,
+    options: null,
+    defaultOutcome: null,
+    arcId: null,
+    triggeredAtRound: currentRound,
+    expiresAtRound: currentRound + 3,
+    resolved: false,
+  }
 }

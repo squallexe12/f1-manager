@@ -76,7 +76,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       [], {}, results, null, false,
       1,        // currentRound
       2026,     // currentSeason
-      'mclaren', createPRNG(42),
+      'mclaren', world.gameState.totalRaces, createPRNG(42),
     )
 
     const driver = update.drivers.find(d => d.id === focusId)!
@@ -100,7 +100,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       world.teams, world.drivers, world.finance,
       [], {}, results, null, false,
       1, 2026,
-      'mclaren', createPRNG(43),
+      'mclaren', world.gameState.totalRaces, createPRNG(43),
     )
 
     const driver = update.drivers.find(d => d.id === focusId)!
@@ -137,7 +137,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       world.teams, seededDrivers, world.finance,
       [], {}, results, null, false,
       12, 2026,
-      'mclaren', createPRNG(44),
+      'mclaren', world.gameState.totalRaces, createPRNG(44),
     )
 
     const driver = update.drivers.find(d => d.id === focusId)!
@@ -165,7 +165,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       world.teams, seededDrivers, world.finance,
       [], {}, results, null, false,
       1, 2026,
-      'mclaren', createPRNG(45),
+      'mclaren', world.gameState.totalRaces, createPRNG(45),
     )
 
     const driver = update.drivers.find(d => d.id === focusId)!
@@ -191,7 +191,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       world.teams, seededDrivers, world.finance,
       [], {}, results, null, false,
       5, 2026, // currentRound === banUntilRound
-      'mclaren', createPRNG(46),
+      'mclaren', world.gameState.totalRaces, createPRNG(46),
     )
 
     const driver = update.drivers.find(d => d.id === focusId)!
@@ -215,7 +215,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       world.teams, seededDrivers, world.finance,
       [], {}, results, null, false,
       5, 2026, // currentRound < banUntilRound — should NOT clear
-      'mclaren', createPRNG(47),
+      'mclaren', world.gameState.totalRaces, createPRNG(47),
     )
 
     const driver = update.drivers.find(d => d.id === focusId)!
@@ -235,7 +235,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       world.teams, world.drivers, world.finance,
       [], {}, results, null, false,
       1, 2026,
-      'mclaren', createPRNG(48),
+      'mclaren', world.gameState.totalRaces, createPRNG(48),
     )
 
     const secondPass = processPostRace(
@@ -243,7 +243,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       firstPass.narrativeEvents, firstPass.eventCooldowns,
       results, null, false,
       1, 2026, // same round — idempotency guard must fire
-      'mclaren', createPRNG(48),
+      'mclaren', world.gameState.totalRaces, createPRNG(48),
     )
 
     const first = firstPass.drivers.find(d => d.id === focusId)!
@@ -279,7 +279,7 @@ describe('processPostRace — appliedPenalties fold', () => {
       world.teams, seededDrivers, world.finance,
       [], {}, results, null, false,
       1, 2027,  // one full season later → age === 22 → entry expires
-      'mclaren', createPRNG(49),
+      'mclaren', world.gameState.totalRaces, createPRNG(49),
     )
 
     const driver = update.drivers.find(d => d.id === focusId)!

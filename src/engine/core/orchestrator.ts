@@ -205,6 +205,7 @@ export function processPostRacePhase(
     world.gameState.currentRound,
     world.gameState.season,
     world.gameState.playerTeamId,
+    world.gameState.totalRaces,
     rng,
   )
 
