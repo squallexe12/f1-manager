@@ -9,6 +9,8 @@ import { RND_TREE } from '@/data/rnd-tree'
 import { applySeasonEndCareerDeltas } from '@/engine/drivers/career-stats'
 import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
 import { computeScoutSignal } from '@/engine/drivers/scout-signal'
+import { SPONSORS } from '@/data/sponsors'
+import { isSponsorAtRisk, getAvailableSponsors, signSponsor } from '@/engine/finance/sponsor-engine'
 
 export interface SeasonEndResult {
   teams: Team[]
@@ -145,9 +147,31 @@ export function processSeasonEnd(
   })
 
   // 3. Reset finances for new season
+  const nextSeason = currentSeason + 1
   const updatedFinance: Record<string, FinanceState> = {}
   for (const [teamId, fs] of Object.entries(finance)) {
     const prize = prizeMoney[teamId] ?? 0
+
+    // Sponsor lifecycle — player team only: depart at-risk (satisfaction < 30)
+    // or contract-expired sponsors, then auto-backfill open slots from the
+    // available pool (prestige-gated, deterministic by value then id).
+    let sponsors = fs.sponsors
+    if (playerTeamId && teamId === playerTeamId) {
+      const originalCount = fs.sponsors.length
+      const retained = fs.sponsors.filter(
+        s => !isSponsorAtRisk(s) && s.contractEndSeason > currentSeason,
+      )
+      // Exclude ALL original ids (retained + departed) so a just-departed
+      // unhappy sponsor cannot immediately re-sign this same season.
+      const existingIds = fs.sponsors.map(s => s.id)
+      const available = getAvailableSponsors(SPONSORS, fs.prestige, existingIds)
+        .slice()
+        .sort((a, b) => b.annualValue - a.annualValue || a.id.localeCompare(b.id))
+      const needed = Math.max(0, originalCount - retained.length)
+      const backfill = available.slice(0, needed).map(t => signSponsor(t, nextSeason))
+      sponsors = [...retained, ...backfill]
+    }
+
     updatedFinance[teamId] = {
       ...fs,
       budget: {
@@ -157,8 +181,8 @@ export function processSeasonEnd(
         penaltyRisk: false,
         projectedEndOfSeason: 0,
       },
+      sponsors,
       prizeMoneyEstimate: prize,
-      // Sponsors carry over (would be checked/removed in full implementation)
     }
   }
 
@@ -206,7 +230,6 @@ export function processSeasonEnd(
   }))
 
   // 5. Apply next season's regulation changes
-  const nextSeason = currentSeason + 1
   const regResult = applySeasonRegulations(updatedTeams, updatedFinance, nextSeason)
   updatedTeams = regResult.teams
   const finalFinance = regResult.finance
