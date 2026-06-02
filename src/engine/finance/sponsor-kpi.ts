@@ -97,3 +97,31 @@ export function evaluateSponsorKpi(
     }
   }
 }
+
+/**
+ * Evaluate all of a sponsor's KPIs against the season context and return a
+ * new Sponsor with updated current/met values and a satisfaction score
+ * (mean pace01 across KPIs, 0–100). `metrics[i]` aligns to `sponsor.kpis[i]`
+ * (both derive 1:1 from the static template). Missing metric → KPI untouched.
+ */
+export function evaluateSponsorSeason(
+  sponsor: Sponsor,
+  metrics: (SponsorMetricKind | undefined)[],
+  ctx: SponsorSeasonContext,
+): Sponsor {
+  const evals = sponsor.kpis.map((kpi, i) => {
+    const kind = metrics[i]
+    return kind
+      ? evaluateSponsorKpi(kind, kpi.target, ctx)
+      : { current: kpi.current, met: kpi.met, pace01: kpi.met ? 1 : 0 }
+  })
+  const kpis = sponsor.kpis.map((kpi, i) => ({
+    ...kpi,
+    current: evals[i].current,
+    met: evals[i].met,
+  }))
+  const satisfaction = Math.round(
+    (evals.reduce((sum, e) => sum + e.pace01, 0) / Math.max(1, evals.length)) * 100,
+  )
+  return { ...sponsor, kpis, satisfaction }
+}

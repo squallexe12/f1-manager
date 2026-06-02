@@ -77,3 +77,44 @@ describe('evaluateSponsorKpi', () => {
     expect(evaluateSponsorKpi('teamPoints', 300, ctx)).toEqual(evaluateSponsorKpi('teamPoints', 300, ctx))
   })
 })
+
+import { evaluateSponsorSeason } from '@/engine/finance/sponsor-kpi'
+import type { Sponsor } from '@/types/finance'
+
+function makeSponsor(): Sponsor {
+  return {
+    id: 'sp-test', name: 'Test', tier: 'title',
+    annualValue: 1_000_000, bonusValue: 100_000,
+    kpis: [
+      { description: 'points', target: 300, current: 0, met: false },
+      { description: 'wins', target: 3, current: 0, met: false },
+    ],
+    satisfaction: 60, contractEndSeason: 3, minimumPrestige: 'A',
+  }
+}
+
+describe('evaluateSponsorSeason', () => {
+  it('updates current/met per KPI and sets satisfaction to mean pace×100', () => {
+    const ctx: SponsorSeasonContext = {
+      ...base, teamPoints: 150, teamWins: 3, currentRound: 11, totalRounds: 22,
+    }
+    const updated = evaluateSponsorSeason(makeSponsor(), ['teamPoints', 'teamWins'], ctx)
+    expect(updated.kpis[0].current).toBe(150)
+    expect(updated.kpis[0].met).toBe(false) // 150 < 300
+    expect(updated.kpis[1].current).toBe(3)
+    expect(updated.kpis[1].met).toBe(true) // 3 >= 3
+    // points pace01 = (150/300)/0.5 = 1 ; wins pace01 = met → 1 ; mean = 1 → 100
+    expect(updated.satisfaction).toBe(100)
+  })
+
+  it('all KPIs met → every kpi.met true', () => {
+    const ctx: SponsorSeasonContext = { ...base, teamPoints: 320, teamWins: 4, currentRound: 22, totalRounds: 22 }
+    const updated = evaluateSponsorSeason(makeSponsor(), ['teamPoints', 'teamWins'], ctx)
+    expect(updated.kpis.every(k => k.met)).toBe(true)
+  })
+
+  it('leaves a KPI unchanged when no metric is supplied for its index', () => {
+    const updated = evaluateSponsorSeason(makeSponsor(), ['teamPoints'], { ...base, teamPoints: 10 })
+    expect(updated.kpis[1].current).toBe(0) // index 1 had no metric
+  })
+})
