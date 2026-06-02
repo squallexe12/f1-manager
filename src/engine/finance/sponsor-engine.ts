@@ -1,31 +1,10 @@
-import type { Sponsor, SponsorKPI, PrestigeRating } from '@/types/finance'
+import type { Sponsor, PrestigeRating } from '@/types/finance'
 import type { SponsorTemplate } from '@/data/sponsors'
 
 const PRESTIGE_ORDER: PrestigeRating[] = ['A+', 'A', 'B+', 'B', 'C+', 'C', 'D', 'F']
 
 function prestigeLevel(rating: PrestigeRating): number {
   return PRESTIGE_ORDER.indexOf(rating)
-}
-
-/**
- * Update KPI progress for a sponsor after a race.
- */
-export function updateSponsorKPIs(
-  sponsor: Sponsor,
-  kpiUpdates: Record<number, number>, // kpi index → new current value
-): Sponsor {
-  const kpis = sponsor.kpis.map((kpi, idx) => {
-    if (idx in kpiUpdates) {
-      const current = kpiUpdates[idx]
-      return { ...kpi, current, met: current >= kpi.target }
-    }
-    return kpi
-  })
-
-  const metCount = kpis.filter(k => k.met).length
-  const satisfaction = Math.round((metCount / Math.max(1, kpis.length)) * 100)
-
-  return { ...sponsor, kpis, satisfaction }
 }
 
 /**
