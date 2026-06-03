@@ -73,7 +73,9 @@ function makeV12Save(): FullGameState {
     stagedStrategies: {},
     staffMarket: { chiefs: [], members: [], lastRefreshedSeason: 0 },
     poachingAttempts: [],
-  }
+    // boardExpectations is absent intentionally — this is a pre-v14 fixture.
+    // The cast below satisfies TS; the field would be added by a future migration.
+  } as unknown as FullGameState
 }
 
 function makeV12SaveWithChampionshipLeader(driverId: string) {
