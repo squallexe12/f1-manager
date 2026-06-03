@@ -267,8 +267,17 @@ export function processPostRace(
   const sponsorNotes: NarrativeEvent[] = []
   for (const [teamId, fs] of Object.entries(finance)) {
     let budget = fs.budget
-    // Per-race operational cost: ~$2.5M for operations, ~$1M for travel
-    budget = recordSpend(budget, 'Operations', 2_500_000)
+    // Per-race operational cost (~$2.5M). Guarded by the same idempotency rule
+    // as the driver-stats (`:93`) and team-snapshot (`:215`) blocks: a team
+    // already credited for `currentRound` must not be debited again on a
+    // double-fire of submitRaceResults. `teams` is the pre-update input, so its
+    // lastProcessedRound still reflects prior rounds (updatedTeams is stamped to
+    // currentRound above and would defeat the guard).
+    const inputTeam = teams.find(t => t.id === teamId)
+    const alreadyProcessed = (inputTeam?.lastProcessedRound ?? -1) >= currentRound
+    if (!alreadyProcessed) {
+      budget = recordSpend(budget, 'Operations', 2_500_000)
+    }
 
     // Update prestige for player team
     const team = updatedTeams.find(t => t.id === teamId)
@@ -289,16 +298,27 @@ export function processPostRace(
     // Sponsor KPI evaluation — player team only. AI sponsors are never
     // surfaced; mirrors the player-only measureUpgradeOutcome precedent.
     let sponsors = fs.sponsors
+    // Cash banked this round = bonusValue of every player sponsor whose KPIs are
+    // fully met and that has NOT already banked its bonus this season. `met` is
+    // a hard threshold test that genuinely oscillates round-to-round (e.g.
+    // constructorPosition slipping past target), so a rising-edge alone would
+    // double-bank on a met→unmet→met re-flip. The per-season `bonusPaidSeason`
+    // latch banks each sponsor's annual bonus exactly once per season (re-arms
+    // next season) and is also immune to a same-round double-fire of
+    // submitRaceResults (the latch is already set on the second pass).
+    let bankedThisRound = 0
     if (teamId === playerTeamId) {
       const ctx = buildSponsorContext(
         team?.constructorPosition ?? 11, teamDrivers, budget, currentRound, totalRounds,
       )
       sponsors = fs.sponsors.map(prior => {
         const next = evaluateSponsorSeason(prior, metricsForSponsor(prior.id), ctx)
-        const wasMet = prior.kpis.length > 0 && prior.kpis.every(k => k.met)
         const nowMet = next.kpis.length > 0 && next.kpis.every(k => k.met)
-        if (!wasMet && nowMet && next.bonusValue > 0) {
+        const alreadyPaidThisSeason = prior.bonusPaidSeason === currentSeason
+        if (nowMet && next.bonusValue > 0 && !alreadyPaidThisSeason) {
           sponsorNotes.push(buildSponsorBonusNote(next, currentRound))
+          bankedThisRound += next.bonusValue
+          return { ...next, bonusPaidSeason: currentSeason }
         }
         return next
       })
@@ -308,6 +328,7 @@ export function processPostRace(
       ...fs,
       budget,
       sponsors,
+      bankedBonuses: fs.bankedBonuses + bankedThisRound,
       prestigeScore,
       prestige: scoreToRating(prestigeScore),
       prizeMoneyEstimate: estimatePrizeMoney(team?.constructorPosition ?? 11),

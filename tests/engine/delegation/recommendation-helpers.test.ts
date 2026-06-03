@@ -17,6 +17,7 @@ function makeSponsor(id: string, satisfaction: number): Sponsor {
     satisfaction,
     contractEndSeason: 2,
     minimumPrestige: 'C',
+    bonusPaidSeason: null,
   }
 }
 
@@ -34,6 +35,7 @@ function makeFinance(sponsors: Sponsor[]): FinanceState {
     prestigeScore: 60,
     prizeMoneyEstimate: 0,
     marketingBudget: 0,
+    bankedBonuses: 0,
   }
 }
 

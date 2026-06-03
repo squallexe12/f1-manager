@@ -54,6 +54,7 @@ function makeFinance(budget: number): FinanceState {
     prestigeScore: 65,
     prizeMoneyEstimate: 0,
     marketingBudget: 0,
+    bankedBonuses: 0,
   }
 }
 

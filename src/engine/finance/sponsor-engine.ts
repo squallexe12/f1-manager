@@ -48,5 +48,6 @@ export function signSponsor(template: SponsorTemplate, currentSeason: number): S
     satisfaction: 60, // neutral starting satisfaction
     contractEndSeason: currentSeason + template.contractLength,
     minimumPrestige: template.minimumPrestige,
+    bonusPaidSeason: null,
   }
 }

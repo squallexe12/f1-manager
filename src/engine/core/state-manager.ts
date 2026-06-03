@@ -128,11 +128,16 @@ function buildTeam(teamData: TeamData, startingSeason: number): Team {
   }
 }
 
-function createInitialFinance(team: TeamData, budgetModifier: number, prestige: string, usedSponsorIds: Set<string>): FinanceState {
+function createInitialFinance(budgetModifier: number, prestige: string): FinanceState {
   const prestigeRating = prestige as PrestigeRating
 
-  // Assign initial sponsors based on prestige
-  const available = getAvailableSponsors(SPONSORS, prestigeRating, [...usedSponsorIds])
+  // Assign initial sponsors based on prestige. Sponsors are per-team contracts
+  // and only the player's are ever surfaced (the KPI loop is player-only), so
+  // each team draws independently from its full prestige-appropriate pool.
+  // A previous shared used-id set, consumed in TEAMS order, starved every
+  // low-prestige team: the premium teams drained all 6 minor templates first,
+  // leaving ~6 teams with zero sponsors and the sponsor KPI loop inert for them.
+  const available = getAvailableSponsors(SPONSORS, prestigeRating, [])
 
   // Pick 1 title (if available), 1-2 major, 1-2 minor
   const titleSponsors = available.filter(s => s.tier === 'title')
@@ -144,10 +149,7 @@ function createInitialFinance(team: TeamData, budgetModifier: number, prestige: 
   picked.push(...majorSponsors.slice(0, 2))
   picked.push(...minorSponsors.slice(0, 2))
 
-  const sponsors = picked.map(t => {
-    usedSponsorIds.add(t.id)
-    return signSponsor(t, 1)
-  })
+  const sponsors = picked.map(t => signSponsor(t, 1))
 
   return {
     budget: {
@@ -168,6 +170,7 @@ function createInitialFinance(team: TeamData, budgetModifier: number, prestige: 
     prestigeScore: prestigeToScore(prestige),
     prizeMoneyEstimate: 0,
     marketingBudget: 15_000_000 * budgetModifier,
+    bankedBonuses: 0,
   }
 }
 
@@ -224,14 +227,13 @@ export function initializeGame(
   }))
 
   const finance: Record<string, FinanceState> = {}
-  const usedSponsorIds = new Set<string>()
   for (const team of TEAMS) {
     const isPlayer = team.id === teamId
     const budgetMod = isPlayer ? scenario.budgetModifier : 1.0
     const prestige = isPlayer && scenario.prestigeOverride
       ? scenario.prestigeOverride
       : defaultPrestigeForTeam(team.id)
-    finance[team.id] = createInitialFinance(team, budgetMod, prestige, usedSponsorIds)
+    finance[team.id] = createInitialFinance(budgetMod, prestige)
   }
 
   return {

@@ -4,8 +4,8 @@ import type { Driver } from '@/types/driver'
 import type { FullGameState } from '@/engine/core/state-manager'
 
 describe('migration v12 → v13', () => {
-  it('SCHEMA_VERSION is 13', () => {
-    expect(SCHEMA_VERSION).toBe(13)
+  it('SCHEMA_VERSION is at least 13 (the version this migration targets)', () => {
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(13)
   })
 
   it('MIGRATIONS[12] exists', () => {

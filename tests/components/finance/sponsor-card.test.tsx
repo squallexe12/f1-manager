@@ -12,6 +12,7 @@ function sponsor(partial: Partial<Sponsor> = {}): Sponsor {
       { description: 'Win at least 3 races', target: 3, current: 1, met: false },
     ],
     satisfaction: 80, contractEndSeason: 3, minimumPrestige: 'A',
+    bonusPaidSeason: null,
     ...partial,
   }
 }

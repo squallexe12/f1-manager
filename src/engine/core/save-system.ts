@@ -14,7 +14,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -376,6 +376,30 @@ export const MIGRATIONS: Record<number, Migration> = {
       })),
     }
   },
+  /**
+   * v13 → v14 (Sponsorship KPI cash banking): Adds `finance[*].bankedBonuses`
+   * (career-cumulative banked bonus cash, default 0) and a per-sponsor
+   * `bonusPaidSeason` latch (default null) that gates banking to once per
+   * season per sponsor. Legacy saves start with an empty ledger / no latch and
+   * accrue from the next post-race bonus that fires. Existing values preserved
+   * verbatim. Pure and idempotent.
+   */
+  13: (data) => ({
+    ...data,
+    finance: Object.fromEntries(
+      Object.entries(data.finance ?? {}).map(([teamId, fs]) => [
+        teamId,
+        {
+          ...fs,
+          bankedBonuses: fs.bankedBonuses ?? 0,
+          sponsors: (fs.sponsors ?? []).map((s) => ({
+            ...s,
+            bonusPaidSeason: s.bonusPaidSeason ?? null,
+          })),
+        },
+      ]),
+    ),
+  }),
   3: (data) => {
     const currentRound = Math.max(0, (data.gameState?.currentRound ?? 1) - 1)
     // Modern F1: P1=25 + FL bonus 1, P2=18. Team max per race = 44.

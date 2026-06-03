@@ -948,7 +948,95 @@ describe('track-limits offence type loads without a schema bump (Tier C IP-C2)',
     // forced and no migration mangled the entry.
     const listed = await save.listSlots()
     expect(listed.find(s => s.slotId === 'track-limits-save')?.schemaVersion).toBe(SCHEMA_VERSION)
-    expect(SCHEMA_VERSION).toBe(13)
+    // The 'track-limits' offence type has existed since v13 with no schema bump
+    // of its own; later features may bump the version, so assert >= 13 rather
+    // than pinning the literal (which would break on every unrelated bump).
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(13)
+  })
+})
+
+describe('v13 → v14 migration (Sponsorship KPI cash banking)', () => {
+  function v13Finance(extra: Record<string, unknown> = {}) {
+    return {
+      budget: { cap: 215_000_000, totalSpent: 0, categories: [], projectedEndOfSeason: 0, penaltyRisk: false },
+      sponsors: [],
+      prestige: 'A',
+      prestigeScore: 85,
+      prizeMoneyEstimate: 0,
+      marketingBudget: 15_000_000,
+      ...extra,
+    }
+  }
+
+  it('current SCHEMA_VERSION is 14 and MIGRATIONS[13] is registered', () => {
+    expect(SCHEMA_VERSION).toBe(14)
+    expect(typeof MIGRATIONS[13]).toBe('function')
+  })
+
+  it('back-fills bankedBonuses: 0 on every finance entry', () => {
+    const v13State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 13 },
+      teams: [], drivers: [],
+      finance: { mclaren: v13Finance(), ferrari: v13Finance({ prestige: 'B', prestigeScore: 65 }) },
+    }
+    const { data, migrated } = migrateToCurrent(v13State as unknown as FullGameState, 13)
+    expect(migrated).toBe(true)
+    for (const fs of Object.values(data.finance)) {
+      expect(fs.bankedBonuses).toBe(0)
+    }
+  })
+
+  it('back-fills bonusPaidSeason: null on every sponsor', () => {
+    const v13State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 13 },
+      teams: [], drivers: [],
+      finance: {
+        mclaren: v13Finance({
+          sponsors: [
+            { id: 'sp-x', name: 'X', tier: 'major', annualValue: 1, bonusValue: 1, kpis: [], satisfaction: 60, contractEndSeason: 3, minimumPrestige: 'B' },
+          ],
+        }),
+      },
+    }
+    const { data } = migrateToCurrent(v13State as unknown as FullGameState, 13)
+    expect(data.finance.mclaren.sponsors[0].bonusPaidSeason).toBeNull()
+  })
+
+  it('preserves an existing bonusPaidSeason value verbatim', () => {
+    const v13State = {
+      gameState: { season: 2, currentRound: 5, schemaVersion: 13 },
+      teams: [], drivers: [],
+      finance: {
+        mclaren: v13Finance({
+          sponsors: [
+            { id: 'sp-x', name: 'X', tier: 'major', annualValue: 1, bonusValue: 1, kpis: [], satisfaction: 60, contractEndSeason: 3, minimumPrestige: 'B', bonusPaidSeason: 1 },
+          ],
+        }),
+      },
+    }
+    const { data } = migrateToCurrent(v13State as unknown as FullGameState, 13)
+    expect(data.finance.mclaren.sponsors[0].bonusPaidSeason).toBe(1)
+  })
+
+  it('preserves an existing bankedBonuses value verbatim', () => {
+    const v13State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 13 },
+      teams: [], drivers: [],
+      finance: { mclaren: v13Finance({ bankedBonuses: 4_000_000 }) },
+    }
+    const { data } = migrateToCurrent(v13State as unknown as FullGameState, 13)
+    expect(data.finance.mclaren.bankedBonuses).toBe(4_000_000)
+  })
+
+  it('is idempotent — running twice yields the same result', () => {
+    const v13State = {
+      gameState: { season: 1, currentRound: 5, schemaVersion: 13 },
+      teams: [], drivers: [],
+      finance: { mclaren: v13Finance() },
+    }
+    const once = migrateToCurrent(v13State as unknown as FullGameState, 13).data
+    const twice = migrateToCurrent(once, SCHEMA_VERSION).data
+    expect(twice).toEqual(once)
   })
 })
 

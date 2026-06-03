@@ -90,6 +90,7 @@ function makeSponsor(): Sponsor {
       { description: 'wins', target: 3, current: 0, met: false },
     ],
     satisfaction: 60, contractEndSeason: 3, minimumPrestige: 'A',
+    bonusPaidSeason: null,
   }
 }
 

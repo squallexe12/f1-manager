@@ -34,6 +34,32 @@ describe('initializeGame', () => {
   })
 })
 
+describe('createInitialFinance — sponsor allocation', () => {
+  it('gives every team at least one sponsor (no shared-pool starvation)', () => {
+    const state = initializeGame('mclaren', 'golden-era', 42)
+    for (const team of state.teams) {
+      expect(
+        state.finance[team.id].sponsors.length,
+        `team ${team.id} should start with >=1 sponsor`,
+      ).toBeGreaterThan(0)
+    }
+  })
+
+  it('gives a low-prestige team a multi-sponsor set even when premium teams allocate first', () => {
+    // 'audi' defaults to prestige 'C' and sits late in the TEAMS order. Under
+    // the old shared-pool logic the premium teams drained every minor template
+    // before audi was reached, leaving it (and ~5 others) with zero sponsors.
+    const state = initializeGame('mclaren', 'golden-era', 42)
+    expect(state.finance['audi'].sponsors.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('keeps initialization deterministic for a fixed seed', () => {
+    const a = initializeGame('mclaren', 'golden-era', 42)
+    const b = initializeGame('mclaren', 'golden-era', 42)
+    expect(a.finance).toEqual(b.finance)
+  })
+})
+
 describe('advancePhase', () => {
   it('transitions from management to practice', () => {
     const state = initializeGame('mclaren', 'golden-era', 42)

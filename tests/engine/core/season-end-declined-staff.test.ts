@@ -44,6 +44,7 @@ function makeFinance(): FinanceState {
   return {
     budget: { cap: 215_000_000, totalSpent: 0, categories: [], projectedEndOfSeason: 200_000_000, penaltyRisk: false },
     sponsors: [], prestige: 'B', prestigeScore: 65, prizeMoneyEstimate: 0, marketingBudget: 0,
+    bankedBonuses: 0,
   }
 }
 

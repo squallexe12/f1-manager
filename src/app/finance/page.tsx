@@ -48,6 +48,8 @@ export default function FinancePage() {
             <span>Total Annual Income: <span className="font-mono text-[var(--accent-lime)]">{formatMoney(totalSponsorIncome)}</span></span>
             <span className="text-[var(--text-dim)]">|</span>
             <span>Prize Money Est: <span className="font-mono text-[var(--accent-cyan)]">{formatMoney(finance.prizeMoneyEstimate)}</span></span>
+            <span className="text-[var(--text-dim)]">|</span>
+            <span>Bonuses Banked: <span className="font-mono text-[var(--accent-lime)]">{formatMoney(finance.bankedBonuses)}</span></span>
           </div>
 
           {/* Title Sponsors */}
