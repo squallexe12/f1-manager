@@ -206,6 +206,7 @@ export function processPostRacePhase(
     world.gameState.season,
     world.gameState.playerTeamId,
     world.gameState.totalRaces,
+    world.boardExpectations,
     rng,
   )
 
@@ -216,6 +217,7 @@ export function processPostRacePhase(
       drivers: update.drivers,
       finance: update.finance,
       narrativeEvents: update.narrativeEvents,
+      boardExpectations: update.boardExpectations,
     },
     eventCooldowns: update.eventCooldowns,
   }

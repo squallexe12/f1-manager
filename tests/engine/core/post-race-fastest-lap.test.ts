@@ -32,7 +32,7 @@ describe('processPostRace — fastestLapHistory append', () => {
       world.teams, world.drivers, world.finance,
       [], {}, results,
       { driverId: 'norris', time: 78_421 },
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     const mcl = update.teams.find((t) => t.id === 'mclaren')!
@@ -47,7 +47,7 @@ describe('processPostRace — fastestLapHistory append', () => {
       world.teams, world.drivers, world.finance,
       [], {}, results,
       { driverId: 'verstappen', time: 78_100 },
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     const mcl = update.teams.find((t) => t.id === 'mclaren')!
@@ -77,7 +77,7 @@ describe('processPostRace — fastestLapHistory append', () => {
       seededTeams, world.drivers, world.finance,
       [], {}, results,
       { driverId: 'norris', time: 78_600 },
-      false, 7, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 7, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     const mcl = update.teams.find((t) => t.id === 'mclaren')!
@@ -94,7 +94,7 @@ describe('processPostRace — fastestLapHistory append', () => {
       world.teams, world.drivers, world.finance,
       [], {}, results,
       null,
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     for (const team of update.teams) {
@@ -110,14 +110,14 @@ describe('processPostRace — fastestLapHistory append', () => {
     const firstPass = processPostRace(
       world.teams, world.drivers, world.finance,
       [], {}, results, fastestLap,
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     const secondPass = processPostRace(
       firstPass.teams, firstPass.drivers, firstPass.finance,
       firstPass.narrativeEvents, firstPass.eventCooldowns,
       results, fastestLap,
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     const first = firstPass.teams.find((t) => t.id === 'mclaren')!

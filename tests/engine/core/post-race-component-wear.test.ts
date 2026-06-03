@@ -17,7 +17,7 @@ describe('processPostRace — tickComponentWear', () => {
     const update = processPostRace(
       world.teams, world.drivers, world.finance,
       [], {}, results, null,
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     for (const team of update.teams) {
@@ -41,13 +41,13 @@ describe('processPostRace — tickComponentWear', () => {
     const firstPass = processPostRace(
       world.teams, world.drivers, world.finance,
       [], {}, results, null,
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
     const secondPass = processPostRace(
       firstPass.teams, firstPass.drivers, firstPass.finance,
       firstPass.narrativeEvents, firstPass.eventCooldowns,
       results, null,
-      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, createPRNG(5),
+      false, 1, world.gameState.season, 'mclaren', world.gameState.totalRaces, world.boardExpectations, createPRNG(5),
     )
 
     // Re-submitting same round must not double-tick wear.
