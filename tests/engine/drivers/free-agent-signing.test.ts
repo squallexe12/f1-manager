@@ -254,4 +254,69 @@ describe('signFreeAgent', () => {
       displaceDriverId: null,
     })).toThrow(/slot.*occupied|displace/i)
   })
+
+  it('points team.driverIds[0] at the signed driver for a CAR-01 sign (with displacement)', () => {
+    const world = buildWorld()
+    const playerTeamId = world.gameState.playerTeamId
+    const occupant = world.drivers.filter(d => d.teamId === playerTeamId && !d.isReserve)[0]
+    const fa = world.drivers.find(d => d.teamId === null && !d.isF2)!
+
+    const res = signFreeAgent(world, playerTeamId, {
+      driverId: fa.id,
+      offer: { salary: 5_000_000, termYears: 2 },
+      slotChoice: 'CAR-01',
+      displaceDriverId: occupant.id,
+    })
+
+    const team = res.world.teams.find(t => t.id === playerTeamId)!
+    expect(team.driverIds[0]).toBe(fa.id)
+    expect(team.driverIds).not.toContain(occupant.id)
+  })
+
+  it('points team.reserveDriverId at the signed driver for an empty RESERVE sign', () => {
+    const world = buildWorld()
+    const playerTeamId = world.gameState.playerTeamId
+    // Ensure the reserve slot is empty (mirror the existing empty-RESERVE setup).
+    const reserveBefore = world.drivers.find(d => d.teamId === playerTeamId && d.isReserve)
+    const setupWorld: FullGameState = reserveBefore
+      ? {
+          ...world,
+          drivers: world.drivers.map(d =>
+            d.id === reserveBefore.id ? { ...d, teamId: null, contract: null, isReserve: false } : d
+          ),
+          teams: world.teams.map(t =>
+            t.id === playerTeamId ? { ...t, reserveDriverId: null } : t
+          ),
+        }
+      : world
+
+    const fa = setupWorld.drivers.find(d => d.teamId === null && !d.isF2)!
+    const res = signFreeAgent(setupWorld, playerTeamId, {
+      driverId: fa.id,
+      offer: { salary: 3_000_000, termYears: 1 },
+      slotChoice: 'RESERVE',
+      displaceDriverId: null,
+    })
+
+    const team = res.world.teams.find(t => t.id === playerTeamId)!
+    expect(team.reserveDriverId).toBe(fa.id)
+    expect(res.world.drivers.find(d => d.id === fa.id)!.isReserve).toBe(true)
+  })
+
+  it('does not mutate the input world.teams (purity)', () => {
+    const world = buildWorld()
+    const playerTeamId = world.gameState.playerTeamId
+    const snapshot = JSON.stringify(world)
+    const fa = world.drivers.find(d => d.teamId === null && !d.isF2)!
+    const reserve = world.drivers.find(d => d.teamId === playerTeamId && d.isReserve)
+
+    signFreeAgent(world, playerTeamId, {
+      driverId: fa.id,
+      offer: { salary: 3_000_000, termYears: 1 },
+      slotChoice: 'RESERVE',
+      displaceDriverId: reserve?.id ?? null,
+    })
+
+    expect(JSON.stringify(world)).toBe(snapshot)
+  })
 })
