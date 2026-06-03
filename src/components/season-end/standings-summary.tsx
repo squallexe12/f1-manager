@@ -13,6 +13,8 @@ interface StandingsSummaryProps {
   season: number
   seasonEndResult: SeasonEndResult
   onContinue: () => void
+  /** Overrides the continue-button label (e.g. "Start New Career" on a terminal sack). */
+  continueLabel?: string
   className?: string
 }
 
@@ -22,7 +24,7 @@ function formatMoney(value: number): string {
 }
 
 export function StandingsSummary({
-  teams, drivers, playerTeamId, season, seasonEndResult, onContinue, className = '',
+  teams, drivers, playerTeamId, season, seasonEndResult, onContinue, continueLabel, className = '',
 }: StandingsSummaryProps) {
   const playerTeam = teams.find(t => t.id === playerTeamId)!
   const playerDrivers = drivers
@@ -208,7 +210,7 @@ export function StandingsSummary({
       {/* Continue */}
       <div className="flex justify-center">
         <Button size="lg" onClick={onContinue}>
-          Continue to Season {season + 1}
+          {continueLabel ?? `Continue to Season ${season + 1}`}
         </Button>
       </div>
     </div>

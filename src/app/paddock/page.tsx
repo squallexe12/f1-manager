@@ -1,9 +1,13 @@
 'use client'
 
+import { useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useGameStore } from '@/stores/game-store'
+import { useShallow } from 'zustand/react/shallow'
 import { useRequireGame, useGameSlice } from '@/hooks/use-require-game'
 import { PageShell } from '@/components/layout/page-shell'
+import { StandingsSummary } from '@/components/season-end/standings-summary'
+import { BoardVerdictPanel } from '@/components/season-end/board-verdict-panel'
 import { TeamHeroCard } from '@/components/paddock/team-hero-card'
 import { NextRaceCard } from '@/components/paddock/next-race-card'
 import { ConstructorFormCard } from '@/components/paddock/constructor-form-card'
@@ -50,11 +54,34 @@ export default function PaddockPage() {
   const router = useRouter()
   useRequireGame()
   const advancePhase = useGameStore((s) => s.advancePhase)
+  const processSeasonEnd = useGameStore((s) => s.processSeasonEnd)
+  const clearSeasonEnd = useGameStore((s) => s.clearSeasonEnd)
   const resolveEvent = useGameStore((s) => s.resolveEvent)
   const applyRecommendation = useGameStore((s) => s.applyRecommendation)
   const dismissRecommendation = useGameStore((s) => s.dismissRecommendation)
   const matchPoachingOffer = useGameStore((s) => s.matchPoachingOffer)
   const declinePoachingOffer = useGameStore((s) => s.declinePoachingOffer)
+
+  // Season-end slice — selected separately so the main paddock body doesn't
+  // rerender when lastSeasonEnd changes (it's only set during season-end phase).
+  const { lastSeasonEnd, phase: gamePhase } = useGameStore(
+    useShallow((s) => ({
+      lastSeasonEnd: s.lastSeasonEnd,
+      phase: s.world?.gameState.phase ?? null,
+    })),
+  )
+
+  const handleNewCareer = useCallback(() => {
+    router.push('/new-game')
+  }, [router])
+
+  // Compute the season-end result as a side-effect (never in render). Gated on
+  // !lastSeasonEnd so it fires exactly once: processSeasonEnd advances a non-sack
+  // season to 'management' but always sets lastSeasonEnd, which the screen below
+  // gates on (so retain/warning verdicts display even though the phase advanced).
+  useEffect(() => {
+    if (gamePhase === 'season-end' && !lastSeasonEnd) processSeasonEnd()
+  }, [gamePhase, lastSeasonEnd, processSeasonEnd])
 
   const slice = useGameSlice((w) => ({
     gameState: w.gameState,
@@ -69,6 +96,36 @@ export default function PaddockPage() {
   }))
 
   if (!slice) return null
+
+  // ── Season-end screen ─────────────────────────────────────────────────────
+  // Gated on lastSeasonEnd (the transient result), NOT on phase: a retain/warning
+  // verdict advances the phase to 'management' immediately, so a phase gate would
+  // hide those verdicts. The screen persists until acknowledged (clearSeasonEnd
+  // for retain/warning; Start New Career for the terminal sack).
+  if (lastSeasonEnd) {
+    const sacked = lastSeasonEnd.boardVerdict?.verdict === 'sack'
+    return (
+      <PageShell theme="broadcast">
+        <div className="se-shell">
+          <StandingsSummary
+            teams={slice.teams}
+            drivers={slice.drivers}
+            playerTeamId={slice.gameState.playerTeamId}
+            season={slice.gameState.season}
+            seasonEndResult={lastSeasonEnd}
+            onContinue={sacked ? handleNewCareer : clearSeasonEnd}
+            continueLabel={sacked ? 'Start New Career' : undefined}
+          />
+          {lastSeasonEnd.boardVerdict && (
+            <BoardVerdictPanel
+              verdict={lastSeasonEnd.boardVerdict}
+              onNewCareer={handleNewCareer}
+            />
+          )}
+        </div>
+      </PageShell>
+    )
+  }
 
   const { gameState, teams, drivers, finance, narrativeEvents, recommendations, poachingAttempts, boardExpectations } = slice
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!

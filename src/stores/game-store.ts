@@ -60,6 +60,7 @@ interface GameStore {
     isSprint: boolean,
   ) => void
   processSeasonEnd: () => void
+  clearSeasonEnd: () => void
   allocateRnD: (upgradeId: string) => void
   pauseRnD: (upgradeId: string) => void
   electComponentSwap: (driverId: string, element: ComponentElement) => void
@@ -206,6 +207,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { world: nextWorld, result } = processSeasonEndPhase(world)
     set({ world: nextWorld, lastSeasonEnd: result, lastRaceResults: null })
   },
+
+  // Dismiss the season-end recap so the player returns to the (now advanced)
+  // management paddock. Session-scoped only — lastSeasonEnd is never persisted.
+  clearSeasonEnd: () => set({ lastSeasonEnd: null }),
 
   allocateRnD: (upgradeId) => {
     const { world } = get()

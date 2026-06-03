@@ -58,4 +58,40 @@ describe('game store board pass-through', () => {
 
     expect(useGameStore.getState().world).not.toBe(before)
   })
+
+  it('carries a non-sack verdict on lastSeasonEnd after the phase advances', () => {
+    // Regression: the season-end screen gates on lastSeasonEnd, NOT phase — a
+    // retain/warning verdict advances phase to 'management' immediately, so a
+    // phase gate would hide those verdicts entirely. A target of P11 is always
+    // met (player position ≤ 11) → outcomeScore 50 ≥ RETAIN_BAR → retain.
+    const base = useGameStore.getState().world!
+    const world = {
+      ...base,
+      gameState: { ...base.gameState, phase: 'season-end' as const },
+      boardExpectations: {
+        ...base.boardExpectations,
+        objectives: base.boardExpectations.objectives.map(o =>
+          o.kind === 'constructorFinish' ? { ...o, target: 11 } : o),
+      },
+    }
+    useGameStore.setState({ world, lastSeasonEnd: null })
+    useGameStore.getState().processSeasonEnd()
+
+    const st = useGameStore.getState()
+    expect(st.world!.gameState.phase).toBe('management')            // season advanced
+    expect(st.lastSeasonEnd?.boardVerdict?.verdict).toBe('retain')  // verdict still reachable
+  })
+
+  it('clearSeasonEnd dismisses the season-end recap', () => {
+    const base = useGameStore.getState().world!
+    useGameStore.setState({
+      world: { ...base, gameState: { ...base.gameState, phase: 'season-end' as const } },
+      lastSeasonEnd: null,
+    })
+    useGameStore.getState().processSeasonEnd()
+    expect(useGameStore.getState().lastSeasonEnd).not.toBeNull()
+
+    useGameStore.getState().clearSeasonEnd()
+    expect(useGameStore.getState().lastSeasonEnd).toBeNull()
+  })
 })
