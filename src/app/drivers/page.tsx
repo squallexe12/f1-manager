@@ -13,6 +13,8 @@ import { ContractCard } from '@/components/drivers/contract-card'
 import { PenaltyCard } from '@/components/drivers/penalty-card'
 import { ContractNegotiationModal } from '@/components/drivers/contract-negotiation-modal'
 import { ReleaseConfirmModal } from '@/components/drivers/release-confirm-modal'
+import { DriverMarketPanel } from '@/components/drivers/driver-market-panel'
+import { FreeAgentApproachModal } from '@/components/drivers/free-agent-approach-modal'
 
 export default function DriversPage() {
   const data = useDriversPageData()
@@ -21,6 +23,8 @@ export default function DriversPage() {
   const closeNegotiation = useCallback(() => setNegotiationDriverId(null), [])
   const [releaseDriverId, setReleaseDriverId] = useState<string | null>(null)
   const closeRelease = useCallback(() => setReleaseDriverId(null), [])
+  const [approachDriverId, setApproachDriverId] = useState<string | null>(null)
+  const closeApproach = useCallback(() => setApproachDriverId(null), [])
 
   if (!data) return null
 
@@ -51,10 +55,15 @@ export default function DriversPage() {
         <DriverTabs
           roster={data.roster}
           teamColor={data.playerTeam.color}
+          freeAgentCount={data.freeAgentCount}
           active={activeTab}
           onChange={setActiveTab}
         />
-        {driver ? (
+        {activeTab === 'MARKET' ? (
+          <div className="drv-grid" style={{ marginTop: 14, gridTemplateColumns: '1fr' }}>
+            <DriverMarketPanel agents={data.freeAgents} onApproach={setApproachDriverId} />
+          </div>
+        ) : driver ? (
           <>
             <DriverHero
               driver={driver}
@@ -104,6 +113,7 @@ export default function DriversPage() {
       </div>
       <ContractNegotiationModal driverId={negotiationDriverId} onClose={closeNegotiation} />
       <ReleaseConfirmModal driverId={releaseDriverId} onClose={closeRelease} />
+      <FreeAgentApproachModal driverId={approachDriverId} onClose={closeApproach} />
     </PageShell>
   )
 }
