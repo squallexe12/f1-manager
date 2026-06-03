@@ -103,7 +103,7 @@ export function evaluateOffer(
   }
 }
 
-type RosterSlot = 'CAR-01' | 'CAR-02' | 'RESERVE'
+export type RosterSlot = 'CAR-01' | 'CAR-02' | 'RESERVE'
 
 export interface SigningParams {
   driverId: string
@@ -183,14 +183,25 @@ export function signFreeAgent(
     ? updatedDrivers.find(d => d.id === params.displaceDriverId) ?? null
     : null
 
+  const updatedTeams = world.teams.map(t => {
+    if (t.id !== playerTeamId) return t
+    if (params.slotChoice === 'RESERVE') {
+      return { ...t, reserveDriverId: params.driverId }
+    }
+    const idx = params.slotChoice === 'CAR-01' ? 0 : 1
+    const driverIds = [...t.driverIds] as [string, string]
+    driverIds[idx] = params.driverId
+    return { ...t, driverIds }
+  })
+
   return {
-    world: { ...world, drivers: updatedDrivers },
+    world: { ...world, drivers: updatedDrivers, teams: updatedTeams },
     signedDriver,
     displacedDriver,
   }
 }
 
-function findSlotOccupant(
+export function findSlotOccupant(
   world: FullGameState,
   playerTeamId: string,
   slot: RosterSlot,
