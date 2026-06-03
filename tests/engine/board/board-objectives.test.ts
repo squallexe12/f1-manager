@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { evaluateObjective, type BoardContext } from '@/engine/board/board-objectives'
+import { evaluateObjective, evaluateBoardConfidence, confidenceBand, type BoardContext } from '@/engine/board/board-objectives'
 import type { BoardObjective } from '@/types/board'
 
 const ctx = (over: Partial<BoardContext> = {}): BoardContext => ({
@@ -49,5 +49,43 @@ describe('evaluateObjective', () => {
     const e = evaluateObjective(obj('beatRival', 1), ctx({ constructorPosition: 6, rivalConstructorPosition: 5 }))
     expect(e.met).toBe(false)
     expect(e.pace01).toBeCloseTo(0.75) // 1 - (6-5)*0.25
+  })
+})
+
+const bundle = (): BoardObjective[] => [
+  { kind: 'constructorFinish', label: '', target: 5, weight: 0.5, current: 0, met: false },
+  { kind: 'pointsTarget', label: '', target: 200, weight: 0.3, current: 0, met: false },
+  { kind: 'beatRival', label: '', target: 1, weight: 0.2, current: 0, met: false },
+]
+
+describe('evaluateBoardConfidence', () => {
+  it('all objectives on pace → confidence 100 and met flags refreshed', () => {
+    const r = evaluateBoardConfidence(bundle(), ctx({
+      constructorPosition: 4, constructorPoints: 100, rivalConstructorPosition: 6,
+      currentRound: 11, totalRounds: 22,
+    }))
+    expect(r.confidence).toBe(100)
+    expect(r.objectives[0].met).toBe(true)   // P4 ≤ P5
+    expect(r.objectives[0].current).toBe(4)
+  })
+  it('weights the primary objective most heavily', () => {
+    // Only the 0.5-weight finish objective on pace; points + rival fully missed.
+    const r = evaluateBoardConfidence(bundle(), ctx({
+      constructorPosition: 4, constructorPoints: 0, rivalConstructorPosition: 1,
+      currentRound: 22, totalRounds: 22,
+    }))
+    // finish pace01=1 (P4≤P5) weight .5; points 0; rival behind P1 → small pace.
+    expect(r.confidence).toBeGreaterThanOrEqual(50)
+    expect(r.confidence).toBeLessThan(70)
+  })
+})
+
+describe('confidenceBand', () => {
+  it('maps to secure / pressure / brink', () => {
+    expect(confidenceBand(75)).toBe('secure')
+    expect(confidenceBand(45)).toBe('pressure')
+    expect(confidenceBand(20)).toBe('brink')
+    expect(confidenceBand(60)).toBe('pressure') // boundary: > 60 is secure
+    expect(confidenceBand(30)).toBe('pressure') // boundary: < 30 is brink
   })
 })

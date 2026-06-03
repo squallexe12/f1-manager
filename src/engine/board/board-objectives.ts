@@ -60,3 +60,26 @@ export function evaluateObjective(obj: BoardObjective, ctx: BoardContext): Objec
     }
   }
 }
+
+/**
+ * Recompute every objective's live value + the weighted board confidence
+ * (0-100). Stateless: a pure function of the objectives and the current
+ * season context — re-derivable each race, naturally idempotent.
+ */
+export function evaluateBoardConfidence(
+  objectives: BoardObjective[],
+  ctx: BoardContext,
+): { objectives: BoardObjective[]; confidence: number } {
+  const evals = objectives.map(o => evaluateObjective(o, ctx))
+  const next = objectives.map((o, i) => ({ ...o, current: evals[i].current, met: evals[i].met }))
+  const totalWeight = objectives.reduce((s, o) => s + o.weight, 0) || 1
+  const weighted = objectives.reduce((s, o, i) => s + o.weight * evals[i].pace01, 0)
+  const confidence = Math.round((weighted / totalWeight) * 100)
+  return { objectives: next, confidence }
+}
+
+export function confidenceBand(confidence: number): 'secure' | 'pressure' | 'brink' {
+  if (confidence > BAND_SECURE) return 'secure'
+  if (confidence < BAND_BRINK) return 'brink'
+  return 'pressure'
+}
