@@ -83,3 +83,36 @@ export function confidenceBand(confidence: number): 'secure' | 'pressure' | 'bri
   if (confidence < BAND_BRINK) return 'brink'
   return 'pressure'
 }
+
+export interface BoardVerdict {
+  verdict: 'retain' | 'warning' | 'sack'
+  outcomeScore: number
+  warningsIssued: number
+  tenureStatus: 'active' | 'warned' | 'sacked'
+  objectives: BoardObjective[]   // refreshed with final met/current for the recap
+}
+
+/**
+ * Season-end verdict from FINAL standings (absolute `met`, not the smoothed
+ * meter). Soft escalation: a miss is a warning the first time, a sack on the
+ * second consecutive miss; a retain clears the warning counter.
+ */
+export function computeBoardVerdict(
+  objectives: BoardObjective[],
+  ctx: BoardContext,
+  warningsIssued: number,
+): BoardVerdict {
+  const evals = objectives.map(o => evaluateObjective(o, ctx))
+  const finalObjectives = objectives.map((o, i) => ({ ...o, current: evals[i].current, met: evals[i].met }))
+  const totalWeight = objectives.reduce((s, o) => s + o.weight, 0) || 1
+  const weightedMet = objectives.reduce((s, o, i) => s + (evals[i].met ? o.weight : 0), 0)
+  const outcomeScore = Math.round((weightedMet / totalWeight) * 100)
+
+  if (outcomeScore >= RETAIN_BAR) {
+    return { verdict: 'retain', outcomeScore, warningsIssued: 0, tenureStatus: 'active', objectives: finalObjectives }
+  }
+  if (warningsIssued === 0) {
+    return { verdict: 'warning', outcomeScore, warningsIssued: 1, tenureStatus: 'warned', objectives: finalObjectives }
+  }
+  return { verdict: 'sack', outcomeScore, warningsIssued, tenureStatus: 'sacked', objectives: finalObjectives }
+}

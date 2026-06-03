@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { evaluateObjective, evaluateBoardConfidence, confidenceBand, type BoardContext } from '@/engine/board/board-objectives'
+import { evaluateObjective, evaluateBoardConfidence, confidenceBand, computeBoardVerdict, type BoardContext } from '@/engine/board/board-objectives'
 import type { BoardObjective } from '@/types/board'
 
 const ctx = (over: Partial<BoardContext> = {}): BoardContext => ({
@@ -87,5 +87,50 @@ describe('confidenceBand', () => {
     expect(confidenceBand(20)).toBe('brink')
     expect(confidenceBand(60)).toBe('pressure') // boundary: > 60 is secure
     expect(confidenceBand(30)).toBe('pressure') // boundary: < 30 is brink
+  })
+})
+
+describe('computeBoardVerdict (soft escalation)', () => {
+  // final ctx: only `met` matters (absolute). Use season-complete ctx.
+  const finalCtx = (over: Partial<BoardContext> = {}): BoardContext => ctx({
+    currentRound: 22, totalRounds: 22, ...over,
+  })
+  it('retains when the primary finish objective alone is met (spine)', () => {
+    const v = computeBoardVerdict(bundle(), finalCtx({
+      constructorPosition: 5, constructorPoints: 0, rivalConstructorPosition: 1,
+    }), 0)
+    expect(v.outcomeScore).toBe(50)       // 0.5 weight met / 1.0 total
+    expect(v.verdict).toBe('retain')
+    expect(v.warningsIssued).toBe(0)
+    expect(v.tenureStatus).toBe('active')
+  })
+  it('points + rival rescue a missed primary', () => {
+    const v = computeBoardVerdict(bundle(), finalCtx({
+      constructorPosition: 8, constructorPoints: 999, rivalConstructorPosition: 11,
+    }), 0)
+    expect(v.outcomeScore).toBe(50)       // 0.3 + 0.2 met
+    expect(v.verdict).toBe('retain')
+  })
+  it('first miss issues a warning', () => {
+    const v = computeBoardVerdict(bundle(), finalCtx({
+      constructorPosition: 11, constructorPoints: 0, rivalConstructorPosition: 1,
+    }), 0)
+    expect(v.outcomeScore).toBeLessThan(50)
+    expect(v.verdict).toBe('warning')
+    expect(v.warningsIssued).toBe(1)
+    expect(v.tenureStatus).toBe('warned')
+  })
+  it('second consecutive miss sacks', () => {
+    const v = computeBoardVerdict(bundle(), finalCtx({
+      constructorPosition: 11, constructorPoints: 0, rivalConstructorPosition: 1,
+    }), 1)
+    expect(v.verdict).toBe('sack')
+    expect(v.tenureStatus).toBe('sacked')
+    expect(v.warningsIssued).toBe(1) // frozen at 1, not incremented further
+  })
+  it('a retain after a warning clears the counter', () => {
+    const v = computeBoardVerdict(bundle(), finalCtx({ constructorPosition: 5 }), 1)
+    expect(v.verdict).toBe('retain')
+    expect(v.warningsIssued).toBe(0)
   })
 })
