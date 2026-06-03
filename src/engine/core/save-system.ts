@@ -14,7 +14,7 @@ const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 14
+export const SCHEMA_VERSION = 15
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -400,6 +400,36 @@ export const MIGRATIONS: Record<number, Migration> = {
       ]),
     ),
   }),
+  /**
+   * v14 → v15 (Board Objectives): Adds top-level `boardExpectations` (player-only
+   * season mandate + live confidence + verdict). Self-contained back-fill: seeds a
+   * single `constructorFinish` objective from the save's own current player
+   * position so a migrated mid-game save renders a non-blank board card; the full
+   * 3-objective mandate re-derives at the next season start. Pure + idempotent.
+   */
+  14: (data) => {
+    if ((data as { boardExpectations?: unknown }).boardExpectations) return data
+    // constructorPosition is 1-based; 0 (pre-season/unranked) or a missing team
+    // both fall through `|| 6` to a neutral mid-grid default.
+    const pos = data.teams.find(t => t.id === data.gameState.playerTeamId)?.constructorPosition || 6
+    return {
+      ...data,
+      boardExpectations: {
+        objectives: [{
+          kind: 'constructorFinish' as const,
+          label: `Finish P${pos} in the Constructors'`,
+          target: pos, weight: 0.5, current: pos, met: true,
+        }],
+        rivalTeamId: '',
+        confidence: 50,
+        confidenceHistory: [],
+        warningsIssued: 0,
+        tenureStatus: 'active' as const,
+        verdict: null,
+        lastProcessedRound: -1,
+      },
+    }
+  },
   3: (data) => {
     const currentRound = Math.max(0, (data.gameState?.currentRound ?? 1) - 1)
     // Modern F1: P1=25 + FL bonus 1, P2=18. Team max per race = 44.
