@@ -2,6 +2,12 @@ import type { ScenarioType } from '@/types/game'
 import type { CarPerformance } from '@/types/team'
 import type { PrestigeRating } from '@/types/finance'
 
+export interface BoardExpectation {
+  positionDelta: number   // shift on the tier-derived target position (− = stricter)
+  pointsFactor: number    // multiplier on the position's baseline points target
+  toneLabel: string       // season framing shown on the board card
+}
+
 export interface Scenario {
   id: ScenarioType
   name: string
@@ -11,6 +17,7 @@ export interface Scenario {
   moraleModifier: number       // added to base morale
   prestigeOverride: PrestigeRating | null
   availableTeams: string[] | 'all'
+  boardExpectation: BoardExpectation
 }
 
 export const SCENARIOS: Scenario[] = [
@@ -23,6 +30,7 @@ export const SCENARIOS: Scenario[] = [
     moraleModifier: 10,
     prestigeOverride: 'A+',
     availableTeams: ['mclaren', 'red-bull', 'ferrari', 'mercedes'],
+    boardExpectation: { positionDelta: -1, pointsFactor: 1.10, toneLabel: 'Title or bust' },
   },
   {
     id: 'rebuild',
@@ -33,6 +41,7 @@ export const SCENARIOS: Scenario[] = [
     moraleModifier: -10,
     prestigeOverride: 'C+',
     availableTeams: ['williams', 'alpine', 'aston-martin'],
+    boardExpectation: { positionDelta: 1, pointsFactor: 0.90, toneLabel: 'Climb the order' },
   },
   {
     id: 'newcomer',
@@ -43,6 +52,7 @@ export const SCENARIOS: Scenario[] = [
     moraleModifier: 5,
     prestigeOverride: 'D',
     availableTeams: ['cadillac', 'audi'],
+    boardExpectation: { positionDelta: 2, pointsFactor: 0.80, toneLabel: 'Find your feet' },
   },
   {
     id: 'crisis',
@@ -53,5 +63,6 @@ export const SCENARIOS: Scenario[] = [
     moraleModifier: -20,
     prestigeOverride: 'F',
     availableTeams: 'all',
+    boardExpectation: { positionDelta: 2, pointsFactor: 0.75, toneLabel: 'Survive the season' },
   },
 ]
