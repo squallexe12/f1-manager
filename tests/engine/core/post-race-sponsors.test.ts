@@ -27,7 +27,7 @@ describe('processPostRace — sponsor KPI evaluation', () => {
       resultsFor(world), null, false,
       1, 1, playerId,
       world.gameState.totalRaces,
-      createPRNG(world.gameState.seed + 999),
+      world.boardExpectations, createPRNG(world.gameState.seed + 999),
     )
 
     // AI sponsors untouched (still 60 from init).
@@ -47,8 +47,8 @@ describe('processPostRace — sponsor KPI evaluation', () => {
       w.teams, w.drivers, w.finance, w.narrativeEvents, {},
       resultsFor(w), null, false, 1, 1, w.gameState.playerTeamId, w.gameState.totalRaces,
     ] as const
-    const a = processPostRace(...args, createPRNG(w.gameState.seed + 999))
-    const b = processPostRace(...args, createPRNG(w.gameState.seed + 999))
+    const a = processPostRace(...args, w.boardExpectations, createPRNG(w.gameState.seed + 999))
+    const b = processPostRace(...args, w.boardExpectations, createPRNG(w.gameState.seed + 999))
     expect(a.finance).toEqual(b.finance)
   })
 })

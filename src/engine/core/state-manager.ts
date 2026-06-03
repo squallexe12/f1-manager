@@ -16,6 +16,7 @@ import { generateTalentPool, DEFAULT_STAFF_POOL_SIZE } from '@/engine/staff/tale
 import type { DepartmentHead } from '@/types/team'
 import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
 import { computeScoutSignal } from '@/engine/drivers/scout-signal'
+import { deriveBoardObjectives } from '@/engine/board/board-target'
 
 /**
  * Default contract window (in seasons) applied to each department head at
@@ -58,6 +59,8 @@ export interface FullGameState {
   staffMarket: import('@/types/staff').StaffMarket
   /** Tier B v2 — open / resolved poaching attempts (logic ships IP-B3). */
   poachingAttempts: import('@/types/staff').PoachingAttempt[]
+  /** Board Objectives — player-only season mandate + live confidence + verdict. */
+  boardExpectations: import('@/types/board').BoardExpectations
 }
 
 function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARIOS['find']>, startingSeason: number): Team {
@@ -236,6 +239,20 @@ export function initializeGame(
     finance[team.id] = createInitialFinance(budgetMod, prestige)
   }
 
+  const { objectives, rivalTeamId } = deriveBoardObjectives(
+    teamId, teams, scenario, CALENDAR.length,
+  )
+  const boardExpectations: import('@/types/board').BoardExpectations = {
+    objectives,
+    rivalTeamId,
+    confidence: 50,
+    confidenceHistory: [],
+    warningsIssued: 0,
+    tenureStatus: 'active',
+    verdict: null,
+    lastProcessedRound: -1,
+  }
+
   return {
     gameState: {
       season: 1,
@@ -258,6 +275,7 @@ export function initializeGame(
     // the engine module exists (Task 6). For IP-B2 init this is the stub.
     staffMarket: generateTalentPool(seed, 1, DEFAULT_STAFF_POOL_SIZE),
     poachingAttempts: [],
+    boardExpectations,
   }
 }
 

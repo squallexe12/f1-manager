@@ -1,0 +1,123 @@
+/* ── Season-end screen shell ──────────────────────────────────────────────── */
+
+.se-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+/* ── Board verdict panel ──────────────────────────────────────────────────── */
+
+.se-verdict {
+  border-radius: var(--rad, 2px);
+  border: 1px solid var(--line-sub);
+  background: var(--bg-paper);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Tone variants — border accent */
+.se-verdict--secure {
+  border-color: var(--sig-green);
+  background: color-mix(in oklch, var(--sig-green) 6%, var(--bg-paper));
+}
+
+.se-verdict--pressure {
+  border-color: var(--sig-amber);
+  background: color-mix(in oklch, var(--sig-amber) 6%, var(--bg-paper));
+}
+
+.se-verdict--brink {
+  border-color: var(--sig-red);
+  background: color-mix(in oklch, var(--sig-red) 8%, var(--bg-paper));
+}
+
+/* Title */
+.se-verdict-title {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-hi);
+}
+
+.se-verdict--secure  .se-verdict-title { color: var(--sig-green); }
+.se-verdict--pressure .se-verdict-title { color: var(--sig-amber); }
+.se-verdict--brink   .se-verdict-title { color: var(--sig-red); }
+
+/* Blurb */
+.se-verdict-blurb {
+  font-size: 0.8125rem;
+  color: var(--ink-mute);
+  line-height: 1.5;
+}
+
+/* Objective list */
+.se-verdict-objectives {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.se-verdict-objectives li {
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: var(--ink-body);
+}
+
+.se-verdict-objectives li.is-met {
+  color: var(--sig-green);
+}
+
+.se-verdict-objectives li.is-missed {
+  color: var(--sig-red);
+}
+
+/* CTA button — sack state only */
+.se-verdict-cta {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: var(--rad, 2px);
+  border: 1px solid var(--sig-red);
+  background: transparent;
+  color: var(--sig-red);
+  cursor: pointer;
+  /* Animate only transform + opacity — no transition-all */
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    opacity 120ms ease,
+    transform 80ms ease;
+}
+
+.se-verdict-cta:hover {
+  background: var(--sig-red);
+  color: var(--ink-hi);
+  transform: translateY(-1px);
+}
+
+.se-verdict-cta:focus-visible {
+  outline: 2px solid var(--sig-red);
+  outline-offset: 3px;
+  opacity: 1;
+}
+
+.se-verdict-cta:active {
+  transform: translateY(0);
+  opacity: 0.85;
+}

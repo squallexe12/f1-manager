@@ -8,6 +8,7 @@ import '../styles/topbar.css'
 import '../styles/paddock.css'
 import '../styles/factory.css'
 import '../styles/regulations.css'
+import '../styles/season-end.css'
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],

@@ -297,6 +297,19 @@ describe('orchestrator — Factory lastUpgradeRound stamping', () => {
   })
 })
 
+describe('processPostRacePhase board threading', () => {
+  it('carries the recomputed board through into world', () => {
+    const base = initializeGame('mclaren', 'golden-era', 1)
+    const world = { ...base, gameState: { ...base.gameState, currentRound: 1 } }
+    const results: RaceResult[] = world.drivers.filter(d => !d.isReserve).map((d, i) => ({
+      driverId: d.id, position: i + 1, dnf: false, fastestLap: false,
+    }))
+    const out = processPostRacePhase(world, {}, results, null, false)
+    expect(out.world.boardExpectations.lastProcessedRound).toBe(1)
+    expect(out.world.boardExpectations.confidenceHistory.length).toBe(1)
+  })
+})
+
 describe('orchestrator — management → practice (Phase 2 swap drain)', () => {
   it('drains pendingComponentSwaps and folds penalties into driver.nextRaceGridDrop', () => {
     let world = initializeGame('mclaren', 'golden-era', 42)

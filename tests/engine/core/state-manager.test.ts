@@ -67,3 +67,20 @@ describe('advancePhase', () => {
     expect(next.gameState.phase).toBe('practice')
   })
 })
+
+describe('initializeGame board expectations', () => {
+  it('seeds a 3-objective mandate at neutral confidence', () => {
+    const w = initializeGame('ferrari', 'golden-era', 42)
+    expect(w.boardExpectations.objectives).toHaveLength(3)
+    expect(w.boardExpectations.objectives.map(o => o.kind))
+      .toEqual(['constructorFinish', 'pointsTarget', 'beatRival'])
+    expect(w.boardExpectations.confidence).toBe(50)
+    expect(w.boardExpectations.tenureStatus).toBe('active')
+    expect(w.boardExpectations.verdict).toBeNull()
+    expect(w.boardExpectations.warningsIssued).toBe(0)
+    expect(w.boardExpectations.lastProcessedRound).toBe(-1)
+    // rival must be a real team on the grid, and never the player
+    expect(w.teams.map(t => t.id)).toContain(w.boardExpectations.rivalTeamId)
+    expect(w.boardExpectations.rivalTeamId).not.toBe('ferrari')
+  })
+})

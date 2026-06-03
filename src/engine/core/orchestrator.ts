@@ -16,6 +16,8 @@ import {
   UPGRADE_OUTCOMES_CAP,
 } from '@/engine/engineering/aero-budget'
 import { windowResetsIn } from '@/engine/engineering/factory-insights'
+import { deriveBoardObjectives } from '@/engine/board/board-target'
+import { SCENARIOS } from '@/data/scenarios'
 
 /**
  * Process management-phase entry: R&D cycles, technical directives, AI teams.
@@ -206,6 +208,7 @@ export function processPostRacePhase(
     world.gameState.season,
     world.gameState.playerTeamId,
     world.gameState.totalRaces,
+    world.boardExpectations,
     rng,
   )
 
@@ -216,6 +219,7 @@ export function processPostRacePhase(
       drivers: update.drivers,
       finance: update.finance,
       narrativeEvents: update.narrativeEvents,
+      boardExpectations: update.boardExpectations,
     },
     eventCooldowns: update.eventCooldowns,
   }
@@ -231,8 +235,41 @@ export function processSeasonEndPhase(world: FullGameState) {
     world.gameState.season,
     world.poachingAttempts,
     world.gameState.playerTeamId,
+    world.boardExpectations,
   )
 
+  // Sack = terminal failure state: do NOT advance the season. Phase stays
+  // 'season-end'; the UI reads tenureStatus === 'sacked' and renders the
+  // end screen. The save persists read-only (no path forward exists).
+  if (result.boardVerdict?.verdict === 'sack') {
+    return {
+      world: {
+        ...world,
+        gameState: {
+          ...world.gameState,
+          phase: 'season-end' as const,
+        },
+        teams: result.teams,
+        drivers: result.drivers,
+        finance: result.finance,
+        poachingAttempts: result.poachingAttempts,
+        boardExpectations: {
+          ...world.boardExpectations,
+          objectives: result.boardVerdict.objectives,
+          verdict: 'sack' as const,
+          tenureStatus: 'sacked' as const,
+          warningsIssued: result.boardVerdict.warningsIssued,
+        },
+      },
+      result,
+    }
+  }
+
+  // Otherwise advance the season and re-derive a fresh mandate.
+  const scenario = SCENARIOS.find(s => s.id === world.gameState.scenario)!
+  const { objectives, rivalTeamId } = deriveBoardObjectives(
+    world.gameState.playerTeamId, result.teams, scenario, world.gameState.totalRaces,
+  )
   const nextWorld: FullGameState = {
     ...world,
     gameState: {
@@ -245,6 +282,18 @@ export function processSeasonEndPhase(world: FullGameState) {
     drivers: result.drivers,
     finance: result.finance,
     poachingAttempts: result.poachingAttempts,
+    boardExpectations: {
+      objectives,
+      rivalTeamId,
+      confidence: 50,
+      confidenceHistory: [],
+      // computeBoardVerdict returns 0 on retain (counter cleared), 1 on warning;
+      // the ?? fallback only fires when there's no player mandate (verdict null).
+      warningsIssued: result.boardVerdict?.warningsIssued ?? world.boardExpectations.warningsIssued,
+      tenureStatus: result.boardVerdict?.tenureStatus ?? 'active',
+      verdict: result.boardVerdict?.verdict ?? null,
+      lastProcessedRound: -1,
+    },
   }
 
   return { world: nextWorld, result }

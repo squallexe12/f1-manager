@@ -2,6 +2,7 @@ import type { Team } from '@/types/team'
 import type { Driver } from '@/types/driver'
 import type { FinanceState } from '@/types/finance'
 import type { PoachingAttempt } from '@/types/staff'
+import type { BoardExpectations } from '@/types/board'
 import { applyAging } from '@/engine/drivers/aging'
 import { calculatePrizeMoney, checkCapBreach } from '@/engine/finance/budget-engine'
 import { applySeasonRegulations } from '@/engine/regulations/regulation-engine'
@@ -11,6 +12,8 @@ import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
 import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 import { SPONSORS } from '@/data/sponsors'
 import { isSponsorAtRisk, getAvailableSponsors, signSponsor } from '@/engine/finance/sponsor-engine'
+import { computeBoardVerdict, type BoardVerdict } from '@/engine/board/board-objectives'
+import type { BoardContext } from '@/engine/board/board-objectives'
 
 export interface SeasonEndResult {
   teams: Team[]
@@ -25,6 +28,9 @@ export interface SeasonEndResult {
    * Caller (`processSeasonEndPhase`) replaces `world.poachingAttempts`.
    */
   poachingAttempts: PoachingAttempt[]
+  /** Board Objectives — season-end retain/warning/sack verdict (player-only).
+   *  null when there is no player team or no active mandate. */
+  boardVerdict: (BoardVerdict & { rivalTeamId: string }) | null
 }
 
 /**
@@ -74,7 +80,26 @@ export function processSeasonEnd(
   currentSeason: number,
   poachingAttempts: PoachingAttempt[] = [],
   playerTeamId?: string,
+  board?: BoardExpectations,
 ): SeasonEndResult {
+  // Board verdict — read FINAL standings BEFORE the per-season reset zeroes them.
+  let boardVerdict: (BoardVerdict & { rivalTeamId: string }) | null = null
+  if (playerTeamId && board && board.objectives.length > 0) {
+    const playerTeam = teams.find(t => t.id === playerTeamId)
+    const rivalTeam = teams.find(t => t.id === board.rivalTeamId)
+    const playerDrivers = drivers.filter(d => d.teamId === playerTeamId && !d.isReserve)
+    const rivalDrivers = drivers.filter(d => d.teamId === board.rivalTeamId && !d.isReserve)
+    const finalCtx: BoardContext = {
+      constructorPosition: playerTeam?.constructorPosition ?? 11,
+      constructorPoints: playerDrivers.reduce((s, d) => s + d.seasonStats.points, 0),
+      rivalConstructorPosition: rivalTeam?.constructorPosition ?? 11,
+      rivalConstructorPoints: rivalDrivers.reduce((s, d) => s + d.seasonStats.points, 0),
+      currentRound: 1, totalRounds: 1, // only absolute `met` is used for the verdict
+    }
+    const v = computeBoardVerdict(board.objectives, finalCtx, board.warningsIssued)
+    boardVerdict = { ...v, rivalTeamId: board.rivalTeamId }
+  }
+
   // Tier B v2 (IP-B4) — apply declined poaching consequences before any
   // other team transformations so the staff exodus is reflected in
   // downstream resets.
@@ -265,5 +290,6 @@ export function processSeasonEnd(
     capBreaches,
     // Tier B v2 (IP-B4) — fresh slate. Matched/declined/expired all resolved.
     poachingAttempts: [],
+    boardVerdict,
   }
 }

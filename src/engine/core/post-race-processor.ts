@@ -21,6 +21,8 @@ import { computeChampionshipSummary } from '@/engine/drivers/championship-summar
 import { SPONSORS } from '@/data/sponsors'
 import { evaluateSponsorSeason, type SponsorSeasonContext } from '@/engine/finance/sponsor-kpi'
 import type { Sponsor } from '@/types/finance'
+import type { BoardExpectations } from '@/types/board'
+import { evaluateBoardConfidence, confidenceBand, CONFIDENCE_HISTORY_CAP, type BoardContext } from '@/engine/board/board-objectives'
 
 // Points per position (standard race)
 const RACE_POINTS: Record<number, number> = {
@@ -55,6 +57,7 @@ export interface PostRaceUpdate {
   finance: Record<string, FinanceState>
   narrativeEvents: NarrativeEvent[]
   eventCooldowns: Record<string, number>
+  boardExpectations: BoardExpectations
 }
 
 /**
@@ -73,6 +76,7 @@ export function processPostRace(
   currentSeason: number,
   playerTeamId: string,
   totalRounds: number,
+  board: BoardExpectations,
   rng: PRNG,
 ): PostRaceUpdate {
   const pointsTable = isSprint ? SPRINT_POINTS : RACE_POINTS
@@ -335,6 +339,44 @@ export function processPostRace(
     }
   }
 
+  // 4b. Board confidence — player team only, stateless recompute.
+  // Idempotency: bail if the INPUT board was already processed for this round
+  // (mirrors the finance Operations-spend guard). Confidence itself is
+  // re-derivable from the already-guarded standings, but the history push and
+  // the band-crossing note must fire exactly once.
+  let nextBoard = board
+  const boardAlreadyProcessed = board.lastProcessedRound >= currentRound
+  if (!boardAlreadyProcessed && board.objectives.length > 0) {
+    const playerTeam = updatedTeams.find(t => t.id === playerTeamId)
+    const rivalTeam = updatedTeams.find(t => t.id === board.rivalTeamId)
+    const playerDrivers = updatedDrivers.filter(d => d.teamId === playerTeamId && !d.isReserve)
+    const rivalDrivers = updatedDrivers.filter(d => d.teamId === board.rivalTeamId && !d.isReserve)
+    const boardCtx: BoardContext = {
+      constructorPosition: playerTeam?.constructorPosition ?? 11,
+      constructorPoints: playerDrivers.reduce((s, d) => s + d.seasonStats.points, 0),
+      rivalConstructorPosition: rivalTeam?.constructorPosition ?? 11,
+      // supplied to satisfy BoardContext; beatRival uses position only (not points)
+      rivalConstructorPoints: rivalDrivers.reduce((s, d) => s + d.seasonStats.points, 0),
+      currentRound, totalRounds,
+    }
+    const { objectives, confidence } = evaluateBoardConfidence(board.objectives, boardCtx)
+    const prevBand = confidenceBand(board.confidence)
+    const nextBand = confidenceBand(confidence)
+    if (prevBand !== nextBand) {
+      sponsorNotes.push(buildBoardNote(nextBand, confidence, currentRound))
+    }
+    const history = [...board.confidenceHistory, confidence]
+    nextBoard = {
+      ...board,
+      objectives,
+      confidence,
+      confidenceHistory: history.length > CONFIDENCE_HISTORY_CAP
+        ? history.slice(history.length - CONFIDENCE_HISTORY_CAP)
+        : history,
+      lastProcessedRound: currentRound,
+    }
+  }
+
   // 5. Generate narrative events
   const recentResults = results.map(r => ({
     driverId: r.driverId,
@@ -385,6 +427,7 @@ export function processPostRace(
     finance: updatedFinance,
     narrativeEvents: allEvents,
     eventCooldowns: updatedCooldowns,
+    boardExpectations: nextBoard,
   }
 }
 
@@ -428,6 +471,36 @@ function buildSponsorContext(
     driverMarketabilityAvg, minDriverRaceFinishes, bothDriversScored,
     capBreached: budget.totalSpent > budget.cap,
     currentRound, totalRounds,
+  }
+}
+
+function buildBoardNote(
+  band: 'secure' | 'pressure' | 'brink',
+  confidence: number,
+  currentRound: number,
+): NarrativeEvent {
+  const headline = band === 'secure'
+    ? 'The board is reassured'
+    : band === 'brink'
+      ? 'The board is losing patience'
+      : 'The board voices concern'
+  const body = band === 'secure'
+    ? `Board confidence climbs to ${confidence}/100. Your seat is secure — keep it up.`
+    : band === 'brink'
+      ? `Board confidence has fallen to ${confidence}/100. You are on the brink — results must improve or your tenure is at risk.`
+      : `Board confidence is ${confidence}/100. The mandate is slipping; the board expects a response.`
+  return {
+    id: `board-confidence-r${currentRound}`,
+    thread: 'media-pressure',
+    severity: band === 'brink' ? 'breaking' : 'news',
+    headline,
+    body,
+    options: null,
+    defaultOutcome: null,
+    arcId: null,
+    triggeredAtRound: currentRound,
+    expiresAtRound: currentRound + 3,
+    resolved: false,
   }
 }
 

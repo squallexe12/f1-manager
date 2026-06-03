@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { initializeGame } from '@/engine/core/state-manager'
 import { processPostRace, type RaceResult } from '@/engine/core/post-race-processor'
 import { createPRNG } from '@/engine/core/prng'
+import type { BoardExpectations } from '@/types/board'
+
+const NO_BOARD: BoardExpectations = {
+  objectives: [], rivalTeamId: '', confidence: 50, confidenceHistory: [],
+  warningsIssued: 0, tenureStatus: 'active', verdict: null, lastProcessedRound: -1,
+}
 
 type World = ReturnType<typeof initializeGame>
 
@@ -34,7 +40,7 @@ describe('processPostRace — sponsor bonus cash banking', () => {
 
     const update = processPostRace(
       world.teams, world.drivers, world.finance, world.narrativeEvents, {},
-      results, null, false, 1, 1, playerId, world.gameState.totalRaces, createPRNG(1),
+      results, null, false, 1, 1, playerId, world.gameState.totalRaces, NO_BOARD, createPRNG(1),
     )
 
     // The bonus note id is `sponsor-bonus-${sponsorId}-r${round}`.
@@ -57,14 +63,14 @@ describe('processPostRace — sponsor bonus cash banking', () => {
 
     const first = processPostRace(
       world.teams, world.drivers, world.finance, world.narrativeEvents, {},
-      results, null, false, 1, 1, playerId, world.gameState.totalRaces, createPRNG(1),
+      results, null, false, 1, 1, playerId, world.gameState.totalRaces, NO_BOARD, createPRNG(1),
     )
     const bankedAfterFirst = first.finance[playerId].bankedBonuses
     expect(bankedAfterFirst).toBeGreaterThan(0)
 
     const second = processPostRace(
       first.teams, first.drivers, first.finance, first.narrativeEvents, {},
-      results, null, false, 1, 1, playerId, world.gameState.totalRaces, createPRNG(1),
+      results, null, false, 1, 1, playerId, world.gameState.totalRaces, NO_BOARD, createPRNG(1),
     )
     expect(second.finance[playerId].bankedBonuses).toBe(bankedAfterFirst)
   })
@@ -76,7 +82,7 @@ describe('processPostRace — sponsor bonus cash banking', () => {
     const results = dominantResults(world, playerId)
     const update = processPostRace(
       world.teams, world.drivers, world.finance, world.narrativeEvents, {},
-      results, null, false, 1, 1, playerId, world.gameState.totalRaces, createPRNG(1),
+      results, null, false, 1, 1, playerId, world.gameState.totalRaces, NO_BOARD, createPRNG(1),
     )
     expect(update.finance[aiId].bankedBonuses).toBe(0)
   })
@@ -90,7 +96,7 @@ describe('processPostRace — sponsor bonus cash banking', () => {
     // Round 1, season 1: dominant → at least one sponsor banks its bonus.
     const r1 = processPostRace(
       world.teams, world.drivers, world.finance, world.narrativeEvents, {},
-      results, null, false, 1, 1, playerId, totalRaces, createPRNG(1),
+      results, null, false, 1, 1, playerId, totalRaces, NO_BOARD, createPRNG(1),
     )
     const banked1 = r1.finance[playerId].bankedBonuses
     expect(banked1).toBeGreaterThan(0)
@@ -115,7 +121,7 @@ describe('processPostRace — sponsor bonus cash banking', () => {
     // qualifying — isolating the re-flip. The per-season latch must block it.
     const r2 = processPostRace(
       r1.teams, r1.drivers, reflipped, r1.narrativeEvents, {},
-      [], null, false, 2, 1, playerId, totalRaces, createPRNG(2),
+      [], null, false, 2, 1, playerId, totalRaces, NO_BOARD, createPRNG(2),
     )
     expect(r2.finance[playerId].bankedBonuses).toBe(banked1) // banked once per season
   })
@@ -128,7 +134,7 @@ describe('processPostRace — sponsor bonus cash banking', () => {
 
     const r1 = processPostRace(
       world.teams, world.drivers, world.finance, world.narrativeEvents, {},
-      results, null, false, 1, 1, playerId, totalRaces, createPRNG(1),
+      results, null, false, 1, 1, playerId, totalRaces, NO_BOARD, createPRNG(1),
     )
     const banked1 = r1.finance[playerId].bankedBonuses
     expect(banked1).toBeGreaterThan(0)
@@ -148,7 +154,7 @@ describe('processPostRace — sponsor bonus cash banking', () => {
     // Round 1 of SEASON 2: dominant → KPIs met again → bonus re-earned.
     const s2 = processPostRace(
       r1.teams, r1.drivers, nextSeason, r1.narrativeEvents, {},
-      results, null, false, 1, 2, playerId, totalRaces, createPRNG(3),
+      results, null, false, 1, 2, playerId, totalRaces, NO_BOARD, createPRNG(3),
     )
     expect(s2.finance[playerId].bankedBonuses).toBeGreaterThan(banked1) // re-earned
   })
