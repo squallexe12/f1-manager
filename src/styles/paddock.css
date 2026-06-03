@@ -744,3 +744,57 @@
   border: 1px solid var(--line-sub);
 }
 .pa-decline-btn:hover { color: var(--sig-red); border-color: var(--sig-red); }
+
+/* ─── Board confidence card ─────────────────────────────────────────────────── */
+
+.pd-board-card { display: flex; flex-direction: column; gap: 8px; }
+
+.pd-board-meter { display: flex; align-items: baseline; gap: 10px; }
+
+.pd-board-value {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ink-hi);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.pd-board-pill {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.pd-board-pill--secure   { color: var(--sig-green);  background: oklch(0.78 0.18 148 / 0.15); }
+.pd-board-pill--pressure { color: var(--sig-amber);  background: oklch(0.82 0.17 80  / 0.15); }
+.pd-board-pill--brink    { color: var(--sig-red);    background: oklch(0.68 0.22 25  / 0.15); }
+
+.pd-board-trend { margin-left: auto; color: var(--ink-mute); font-family: var(--font-mono); font-size: 0.85rem; }
+
+.pd-board-bar { height: 3px; background: var(--bg-void); overflow: hidden; margin-top: 2px; }
+.pd-board-bar-fill { height: 100%; background: var(--sig-cyan); }
+
+.pd-board-objectives {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pd-board-objectives li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--ink-mute);
+}
+.pd-board-objectives li.is-met { color: var(--ink-hi); }
+.pd-board-obj-label { flex: 1; min-width: 0; }
+.pd-board-obj-value { flex-shrink: 0; font-variant-numeric: tabular-nums; }

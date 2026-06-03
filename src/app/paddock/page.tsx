@@ -14,6 +14,7 @@ import { PaddockFeed } from '@/components/paddock/paddock-feed'
 import { RecommendationsPanel } from '@/components/paddock/recommendations-panel'
 import { DepartmentPanel } from '@/components/paddock/department-panel'
 import { PoachingAlerts } from '@/components/paddock/poaching-alerts'
+import { BoardConfidenceCard } from '@/components/paddock/board-confidence-card'
 import { calculateOverallRating as _ignore } from '@/engine/drivers/driver-rating'
 import { calculateOverallRating as calcCarRatingStub } from '@/engine/engineering/car-performance'
 import { getNextRaceBrief } from '@/engine/paddock/race-brief'
@@ -64,11 +65,12 @@ export default function PaddockPage() {
     recommendations: w.recommendations,
     calendar: w.calendar,
     poachingAttempts: w.poachingAttempts,
+    boardExpectations: w.boardExpectations,
   }))
 
   if (!slice) return null
 
-  const { gameState, teams, drivers, finance, narrativeEvents, recommendations, poachingAttempts } = slice
+  const { gameState, teams, drivers, finance, narrativeEvents, recommendations, poachingAttempts, boardExpectations } = slice
   const playerTeam = teams.find((t) => t.id === gameState.playerTeamId)!
   const playerDrivers = drivers.filter((d) => d.teamId === playerTeam.id && !d.isReserve)
   const playerFinance = finance[playerTeam.id]
@@ -177,6 +179,9 @@ export default function PaddockPage() {
               <span className="count">TOP 6</span>
             </div>
             <ConstructorsStandings teams={teams} playerTeamId={playerTeam.id} />
+            {boardExpectations && (
+              <BoardConfidenceCard board={boardExpectations} />
+            )}
             <div className="pd-section-title">
               <span className="dot" />THIS WEEK
               <span className="count">FACTORY</span>
