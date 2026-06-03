@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { salariesSpent, type ContractOffer } from '@/engine/drivers/contract-engine'
 import { releaseDriver as releaseDriverEngine } from '@/engine/drivers/contract-release'
+import { signFreeAgent as signFreeAgentEngine, type SigningParams } from '@/engine/drivers/free-agent-signing'
 import { setCategorySpent } from '@/engine/finance/budget-engine'
 import type { ScenarioType } from '@/types/game'
 import type {
@@ -92,6 +93,8 @@ interface GameStore {
   signContract: (driverId: string, offer: ContractOffer) => void
   /** Terminate a contracted player driver early — moves them to free agency and charges severance. */
   releaseDriver: (driverId: string) => void
+  /** Sign a free agent into a roster slot (CAR-01/CAR-02/RESERVE), optionally displacing the occupant to free agency. Caller (hook) guarantees the offer was accepted and slot/displacement are consistent. */
+  signFreeAgent: (params: SigningParams) => void
 
   // Actions — race runtime
   applyRaceWorkerEvent: (event: WorkerOutEvent) => void
@@ -459,6 +462,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!world) return
     const { world: next } = releaseDriverEngine(world, world.gameState.playerTeamId, driverId)
     set({ world: next })
+  },
+
+  signFreeAgent: (params) => {
+    const { world } = get()
+    if (!world) return
+    const playerTeamId = world.gameState.playerTeamId
+    const { world: next } = signFreeAgentEngine(world, playerTeamId, params)
+    const finance = { ...next.finance }
+    const fs = finance[playerTeamId]
+    finance[playerTeamId] = {
+      ...fs,
+      budget: setCategorySpent(fs.budget, 'Salaries', salariesSpent(next.drivers, playerTeamId)),
+    }
+    set({ world: { ...next, finance } })
   },
 
   applyRaceWorkerEvent: (event) => {
