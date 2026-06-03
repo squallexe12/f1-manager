@@ -1046,12 +1046,12 @@ describe('v14 -> v15 migration (board expectations)', () => {
     expect(typeof MIGRATIONS[14]).toBe('function')
   })
   it('back-fills boardExpectations with a self-contained finish objective', () => {
-    const v14: any = {
+    const v14 = {
       gameState: { playerTeamId: 'mclaren', season: 1, currentRound: 5 },
       teams: [{ id: 'mclaren', constructorPosition: 3 }, { id: 'ferrari', constructorPosition: 2 }],
       finance: {},
-    }
-    const out: any = MIGRATIONS[14](v14)
+    } as unknown as FullGameState
+    const out = MIGRATIONS[14](v14)
     expect(out.boardExpectations.objectives).toHaveLength(1)
     expect(out.boardExpectations.objectives[0].kind).toBe('constructorFinish')
     expect(out.boardExpectations.objectives[0].target).toBe(3)
@@ -1062,17 +1062,17 @@ describe('v14 -> v15 migration (board expectations)', () => {
   it('preserves an existing boardExpectations verbatim (idempotent)', () => {
     const existing = { objectives: [], rivalTeamId: 'x', confidence: 80, confidenceHistory: [1],
       warningsIssued: 2, tenureStatus: 'warned', verdict: 'warning', lastProcessedRound: 9 }
-    const v14: any = { gameState: { playerTeamId: 'mclaren' }, teams: [], finance: {}, boardExpectations: existing }
-    const out: any = MIGRATIONS[14](v14)
+    const v14 = { gameState: { playerTeamId: 'mclaren' }, teams: [], finance: {}, boardExpectations: existing } as unknown as FullGameState
+    const out = MIGRATIONS[14](v14)
     expect(out.boardExpectations).toEqual(existing)
   })
   it('defaults the seeded objective to P6 when the player team is absent', () => {
-    const v14: any = {
+    const v14 = {
       gameState: { playerTeamId: 'unknown-team', season: 1, currentRound: 1 },
       teams: [{ id: 'mclaren', constructorPosition: 3 }],
       finance: {},
-    }
-    const out: any = MIGRATIONS[14](v14)
+    } as unknown as FullGameState
+    const out = MIGRATIONS[14](v14)
     expect(out.boardExpectations.objectives[0].target).toBe(6)
   })
 })
