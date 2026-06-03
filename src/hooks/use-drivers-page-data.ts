@@ -8,7 +8,9 @@ import {
   computeChampionshipSummary,
   buildRivalryIndex,
 } from '@/lib/utils/drivers-page'
-import type { Driver, DriverAttributes } from '@/types/driver'
+import { computeScoutSignal } from '@/engine/drivers/scout-signal'
+import { expectedSalary } from '@/engine/drivers/free-agent-signing'
+import type { Driver, DriverAttributes, ScoutSignal } from '@/types/driver'
 import type { Team } from '@/types/team'
 import type { RivalryDisplay } from '@/lib/utils/drivers-page'
 
@@ -29,6 +31,8 @@ export interface DriversPageData {
   constructorPosition: number
   rosterCount: { active: number; reserve: number }
   phase: string
+  freeAgents: Array<{ driver: Driver; signal: ScoutSignal; asking: number }>
+  freeAgentCount: number
 }
 
 /**
@@ -83,6 +87,10 @@ export function useDriversPageData(): DriversPageData | null {
       ? { id: `R${String(nextRoundEntry.round).padStart(2, '0')}`, name: nextRoundEntry.name }
       : null
 
+    const freeAgents = drivers
+      .filter(d => d.teamId === null)
+      .map(d => ({ driver: d, signal: computeScoutSignal(d), asking: expectedSalary(d) }))
+
     return {
       playerTeam,
       roster: {
@@ -103,6 +111,8 @@ export function useDriversPageData(): DriversPageData | null {
         active: playerDrivers.length,
         reserve: reserveDriver ? 1 : 0,
       },
+      freeAgents,
+      freeAgentCount: freeAgents.length,
     }
   }, [slice])
 }
