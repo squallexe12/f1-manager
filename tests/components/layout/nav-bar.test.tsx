@@ -1,10 +1,11 @@
+import type { ComponentPropsWithoutRef } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 let mockPath = '/paddock'
 vi.mock('next/navigation', () => ({ usePathname: () => mockPath }))
 vi.mock('next/link', () => ({
-  default: ({ children, href, ...props }: any) => (
+  default: ({ children, href, ...props }: ComponentPropsWithoutRef<'a'>) => (
     <a href={href} {...props}>
       {children}
     </a>
@@ -13,7 +14,8 @@ vi.mock('next/link', () => ({
 
 const setActivePage = vi.fn()
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (selector: any) => selector({ setActivePage }),
+  useUIStore: (selector: (s: { setActivePage: typeof setActivePage }) => unknown) =>
+    selector({ setActivePage }),
 }))
 
 import { NavBar } from '@/components/layout/nav-bar'

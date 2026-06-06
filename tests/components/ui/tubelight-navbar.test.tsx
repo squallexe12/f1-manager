@@ -1,3 +1,4 @@
+import type { ComponentPropsWithoutRef } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { Home, Factory } from 'lucide-react'
@@ -7,7 +8,7 @@ let mockPath = '/paddock'
 vi.mock('next/navigation', () => ({ usePathname: () => mockPath }))
 // next/link needs the App Router context in app-router; stub to a plain anchor.
 vi.mock('next/link', () => ({
-  default: ({ children, href, ...props }: any) => (
+  default: ({ children, href, ...props }: ComponentPropsWithoutRef<'a'>) => (
     <a href={href} {...props}>
       {children}
     </a>
