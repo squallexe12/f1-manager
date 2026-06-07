@@ -98,6 +98,18 @@ export interface WeekendState {
   sprintQualifyingResult: QualifyingResult | null // SQ / sprint grid source of truth
 }
 
+/**
+ * Single owner of the standard-vs-sprint free-practice sub-session count.
+ * A standard weekend runs FP1/FP2/FP3 (3); a sprint weekend runs FP1 only (1).
+ * Pure + universally importable (engine, store, and UI all reach it through the
+ * types module without crossing a layer boundary). The active FP index itself is
+ * always derived from `world.weekendState.practiceResults.length`, never a
+ * transient counter — `fpCount` only bounds how many sub-sessions exist.
+ */
+export function fpCount(isSprint: boolean): 1 | 3 {
+  return isSprint ? 1 : 3
+}
+
 export function createEmptyWeekendState(round: number, season: number): WeekendState {
   return {
     round,

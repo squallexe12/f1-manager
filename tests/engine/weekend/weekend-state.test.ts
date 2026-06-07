@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createEmptyWeekendState, type WeekendState } from '@/types/weekend'
+import { createEmptyWeekendState, fpCount, type WeekendState } from '@/types/weekend'
 
 describe('createEmptyWeekendState', () => {
   it('returns an empty weekend bundle stamped with round + season', () => {
@@ -32,5 +32,15 @@ describe('createEmptyWeekendState', () => {
     a.tireLedger.remaining.C5 = 3
     expect(b.practiceResults).toEqual([])
     expect(b.tireLedger.remaining).toEqual({})
+  })
+})
+
+describe('fpCount', () => {
+  it('returns 3 free-practice sub-sessions for a standard weekend', () => {
+    expect(fpCount(false)).toBe(3)
+  })
+
+  it('returns 1 free-practice sub-session for a sprint weekend (FP1 only)', () => {
+    expect(fpCount(true)).toBe(1)
   })
 })
