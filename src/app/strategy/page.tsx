@@ -18,6 +18,7 @@ import { BroadcastChrome } from '@/components/strategy/broadcast-chrome'
 import { HeroStrip } from '@/components/strategy/hero-strip'
 import { GapChart } from '@/components/charts/gap-chart'
 import { PreRaceSetup } from '@/components/strategy/pre-race-setup'
+import { PracticeLiveScreen } from '@/components/strategy/practice-live-screen'
 import { CircuitMap } from '@/components/strategy/circuit-map'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { RaceStartScreen } from '@/components/strategy/race-start-screen'
@@ -330,15 +331,25 @@ export default function StrategyPage() {
   const isRaceFinished = raceSim.phase === 'finished'
   const isRaceErrored = raceSim.workerStatus === 'error' && raceSim.workerError?.fatal === true
 
-  // Pre-race phases
-  if (phase === 'practice' || phase === 'qualifying' || phase === 'sprint-qualifying') {
+  // Practice phase — consequential live practice screen (plan §M5). Self-contained;
+  // reads weekendState + the transient practiceRuntime via usePracticeSession.
+  if (phase === 'practice') {
+    return (
+      <PageShell theme="broadcast">
+        <PracticeLiveScreen />
+      </PageShell>
+    )
+  }
+
+  // Qualifying / sprint-qualifying — still the legacy setup screen until M7.
+  if (phase === 'qualifying' || phase === 'sprint-qualifying') {
     return (
       <PageShell theme="broadcast">
         <PreRaceSetup
           race={currentRace}
           playerTeam={playerTeam}
           playerDrivers={playerDrivers}
-          phase={phase === 'practice' ? 'practice' : 'qualifying'}
+          phase="qualifying"
           onStartSession={handleStartSession}
           onAdvance={handleAdvance}
           onSelectStrategies={setDriverStrategies}
