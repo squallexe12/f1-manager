@@ -72,6 +72,10 @@ export function bootstrapRace(input: RaceBootstrapInput): RaceBootstrapOutput {
     car: { ...d.car },
     attributes: { ...d.attributes },
     mood: { ...d.mood },
+    // M6 setup-confidence consequence. Optional on the bootstrap input; the
+    // synchronous/legacy path defaults to 0 (no effect). The worker payload
+    // always supplies it (required on RaceWorkerDriverInput).
+    setupModifier: d.setupModifier ?? 0,
   }))
 
   const startCompounds: Record<string, TireCompound> = {}

@@ -69,6 +69,7 @@ function makeStartPayload(overrides: Partial<RaceWorkerStartPayload> = {}): Race
         attributes: { pace: 90, racecraft: 88, experience: 75, mentality: 80, marketability: 70, developmentPotential: 60 },
         car: { downforce: 85, straightSpeed: 80, reliability: 90, tireManagement: 85, braking: 88, cornering: 86 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },
+        setupModifier: 0,
       },
       {
         id: 'drv-b',
@@ -77,6 +78,7 @@ function makeStartPayload(overrides: Partial<RaceWorkerStartPayload> = {}): Race
         attributes: { pace: 85, racecraft: 82, experience: 70, mentality: 75, marketability: 65, developmentPotential: 55 },
         car: { downforce: 85, straightSpeed: 80, reliability: 90, tireManagement: 85, braking: 88, cornering: 86 },
         mood: { motivation: 50, frustration: 30, confidence: 60 },
+        setupModifier: 0,
       },
     ],
     ...overrides,
@@ -349,12 +351,14 @@ describe('raceEnd event JSON round-trip', () => {
         attributes: { pace: 70, racecraft: 20, experience: 20, mentality: 60, marketability: 60, developmentPotential: 60 },
         car: { downforce: 70, straightSpeed: 70, reliability: 20, tireManagement: 70, braking: 70, cornering: 70 },
         mood: { motivation: 50, frustration: 95, confidence: 50 },
+        setupModifier: 0,
       },
       {
         id: 'drv-b', teamId: 'team-2', shortName: 'DRB',
         attributes: { pace: 70, racecraft: 95, experience: 95, mentality: 90, marketability: 60, developmentPotential: 60 },
         car: { downforce: 70, straightSpeed: 70, reliability: 99, tireManagement: 70, braking: 70, cornering: 70 },
         mood: { motivation: 50, frustration: 5, confidence: 90 },
+        setupModifier: 0,
       },
     ]
     const longCircuit: Circuit = { ...BAHRAIN, laps: 40 }
@@ -390,5 +394,79 @@ describe('raceEnd event JSON round-trip', () => {
     const cloned = roundTrip(end!)
     expect(cloned).toEqual(end!)
     expect(cloned.finalResults.find((r) => r.driverId === ret.driverId)?.retired).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// M6 — setup-confidence consequence reaches the AUTHORITATIVE worker race path.
+// The critic flagged that `setupModifier` never reached the worker. These tests
+// drive the real worker via __handleMessage and prove the seam end-to-end.
+// ---------------------------------------------------------------------------
+
+const SYM_ATTR = { pace: 80, racecraft: 80, experience: 80, mentality: 80, marketability: 70, developmentPotential: 60 }
+const SYM_CAR = { downforce: 80, straightSpeed: 80, reliability: 98, tireManagement: 80, braking: 80, cornering: 80 }
+const SYM_MOOD = { motivation: 50, frustration: 10, confidence: 60 }
+
+function symDriver(id: string, shortName: string, setupModifier: number): RaceWorkerStartPayload['drivers'][number] {
+  return { id, teamId: 'team-1', shortName, attributes: SYM_ATTR, car: SYM_CAR, mood: SYM_MOOD, setupModifier }
+}
+
+describe('worker protocol — setupModifier seam (M6)', () => {
+  it('a start payload carrying non-zero setupModifier survives JSON round-trip', () => {
+    const msg = buildStartMessage(makeStartPayload({
+      drivers: [symDriver('drv-a', 'DRA', -0.5), symDriver('drv-b', 'DRB', 0.4)],
+    }))
+    expect(roundTrip(msg)).toEqual(msg)
+  })
+
+  it('setupModifier reaches the lap model: the SAME driver runs a quicker lap-1 with a negative modifier', () => {
+    // Isolate the modifier — identical seed + grid + field, varying ONLY drv-a's
+    // setupModifier between runs. Lap-1 processing order is grid order (identical
+    // across runs), so drv-a's own noise draw is the same and the lap-time delta
+    // is purely the injected modifier. Robust to traffic/position effects, which
+    // a "two different drivers, one lap" assertion is not.
+    function drvALap1(modA: number): number {
+      postedMessages.length = 0
+      __resetForTest()
+      __handleMessage(buildStartMessage(makeStartPayload({
+        seed: 555,
+        drivers: [symDriver('drv-a', 'DRA', modA), symDriver('drv-b', 'DRB', 0)],
+      })))
+      vi.advanceTimersByTime(2001) // first lap
+      return findEvent('lapUpdate')!.results.find((r) => r.driverId === 'drv-a')!.lapTime
+    }
+    expect(drvALap1(-1.0)).toBeLessThan(drvALap1(0))
+  })
+
+  it('authoritative worker is byte-identical across two same-seed runs with non-zero setupModifiers', () => {
+    // AGENTS.md mandate: every src/engine/race change ships a seeded twice-run
+    // test through the WORKER (not just synchronous simulateRace). This also
+    // guards the "consequence injection adds zero PRNG draws" invariant — an
+    // accidental draw inside calculateBaseLapTime would desync this immediately.
+    function run(): string {
+      postedMessages.length = 0
+      __resetForTest()
+      __handleMessage(buildStartMessage(makeStartPayload({
+        seed: 777,
+        drivers: [symDriver('drv-a', 'DRA', -0.4), symDriver('drv-b', 'DRB', 0.3)],
+      })))
+      vi.advanceTimersByTime(BAHRAIN.laps * 2000 + 5000)
+      return JSON.stringify(findEvent('raceEnd')!.finalResults)
+    }
+    expect(run()).toBe(run())
+  })
+
+  it('setupModifiers measurably change the worker outcome versus an all-zero baseline', () => {
+    function run(mods: [number, number]): string {
+      postedMessages.length = 0
+      __resetForTest()
+      __handleMessage(buildStartMessage(makeStartPayload({
+        seed: 777,
+        drivers: [symDriver('drv-a', 'DRA', mods[0]), symDriver('drv-b', 'DRB', mods[1])],
+      })))
+      vi.advanceTimersByTime(BAHRAIN.laps * 2000 + 5000)
+      return JSON.stringify(findEvent('raceEnd')!.finalResults)
+    }
+    expect(run([-1.5, 1.5])).not.toBe(run([0, 0]))
   })
 })

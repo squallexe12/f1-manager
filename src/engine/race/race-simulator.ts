@@ -60,6 +60,13 @@ export interface RaceDriver {
    * race loop.
    */
   mood: Mood
+  /**
+   * Setup-confidence consequence (M6): additive lap-time delta in seconds
+   * (negative = faster). Threaded in from `BootstrapDriverInput.setupModifier`
+   * by `bootstrapRace` (defaulting to 0). Read additively by
+   * `calculateBaseLapTime`; adds no PRNG draws.
+   */
+  setupModifier?: number
 }
 
 export interface SimRaceState {
@@ -272,7 +279,19 @@ function emitRadio(
   }
 }
 
-function calculateBaseLapTime(driver: RaceDriver, tirePerf: number, weather: WeatherState): number {
+/**
+ * Base lap time before command/variance terms. The optional `setupModifier`
+ * (M6) is an ADDITIVE seconds delta from setup confidence (negative = faster).
+ * It is pure arithmetic — `calculateBaseLapTime` makes no PRNG calls, so adding
+ * it leaves the race PRNG stream byte-identical (no desync). Omitting it equals
+ * passing 0. Exported for direct unit testing of the consequence injection.
+ */
+export function calculateBaseLapTime(
+  driver: RaceDriver,
+  tirePerf: number,
+  weather: WeatherState,
+  setupModifier = 0,
+): number {
   const { car, attributes } = driver
 
   // Base time from car performance (90 seconds baseline for a mid-range car)
@@ -288,7 +307,8 @@ function calculateBaseLapTime(driver: RaceDriver, tirePerf: number, weather: Wea
   // Weather penalty
   const weatherPenalty = weather === 'wet' ? 8 : weather === 'damp' ? 3 : 0
 
-  return carTime + driverTime + tireTime + weatherPenalty
+  // Setup-confidence consequence (M6): additive, pure, no PRNG.
+  return carTime + driverTime + tireTime + weatherPenalty + setupModifier
 }
 
 export function simulateLap(state: SimRaceState, rng: PRNG, incidentConfig: RaceIncidentConfig = DEFAULT_RACE_INCIDENT_CONFIG): LapSimResult {
@@ -591,8 +611,8 @@ export function simulateLap(state: SimRaceState, rng: PRNG, incidentConfig: Race
 
     const [paceMod, tireMod] = COMMAND_MODIFIERS[strategy.currentCommand]
 
-    // Base lap time
-    let lapTime = calculateBaseLapTime(driver, tirePerf, state.weather.current)
+    // Base lap time (with the M6 setup-confidence consequence, defaulting to 0)
+    let lapTime = calculateBaseLapTime(driver, tirePerf, state.weather.current, driver.setupModifier ?? 0)
 
     // Apply command modifier (push = faster = lower time, divide by paceMod)
     lapTime = lapTime / paceMod

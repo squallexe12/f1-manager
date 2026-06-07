@@ -30,6 +30,7 @@ import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
 import { applyBanSubstitution, applyGridDrops } from '@/engine/race/race-bootstrap'
 import { buildQualifyingOrder } from '@/engine/race/grid-builder'
+import { computeRacePaceModifier } from '@/engine/practice/setup-modifier'
 
 // UI constant — mirrors DEFAULT_TRACK_LIMITS_CONFIG.timePenaltyAt from the engine.
 // Kept local to avoid importing engine values into the UI layer (AGENTS.md rule).
@@ -286,6 +287,10 @@ export default function StrategyPage() {
           attributes: d.attributes,
           car: dTeam.car,
           mood: d.mood,
+          // M6 seam — setup-confidence consequence into the authoritative worker
+          // race. Player drivers carry their accumulated FP confidence; AI (and
+          // any driver without weekend setup) read neutral 50 → modifier 0.
+          setupModifier: computeRacePaceModifier(ws?.driverSetup[d.id]?.setupConfidence ?? 50),
         }
       }),
       strategies: orderedDrivers
