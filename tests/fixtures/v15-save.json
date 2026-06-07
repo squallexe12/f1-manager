@@ -1,0 +1,121 @@
+{
+  "gameState": {
+    "season": 2,
+    "currentRound": 7,
+    "phase": "management",
+    "playerTeamId": "mclaren",
+    "scenario": "title-defence",
+    "seed": 4242,
+    "totalRaces": 22
+  },
+  "teams": [
+    {
+      "id": "mclaren",
+      "name": "McLaren",
+      "shortName": "MCL",
+      "headquarters": "Woking",
+      "morale": 82,
+      "constructorPoints": 188,
+      "constructorPosition": 2,
+      "previousConstructorPosition": 2,
+      "previousMorale": 80,
+      "seasonForm": [2, 1, 3, 2, 1, 2],
+      "lastProcessedRound": 6,
+      "ovrHistory": [86, 87, 88],
+      "lastUpgradeRound": 5,
+      "fastestLapHistory": [],
+      "failureEvents": [],
+      "penaltiesTaken": 0,
+      "pendingComponentSwaps": [],
+      "aeroBookings": [],
+      "upgradeOutcomes": [],
+      "pitCrewChief": null,
+      "pitCrewMembers": [],
+      "staff": [],
+      "components": [
+        { "element": "ice", "used": 1, "limit": 4, "failureProbability": 0.02 },
+        { "element": "turbo", "used": 1, "limit": 4, "failureProbability": 0.03 },
+        { "element": "mgu-k", "used": 1, "limit": 4, "failureProbability": 0.03 },
+        { "element": "ers-battery", "used": 0, "limit": 3, "failureProbability": 0.01 },
+        { "element": "gearbox", "used": 1, "limit": 4, "failureProbability": 0.02 }
+      ],
+      "rndUpgrades": []
+    }
+  ],
+  "drivers": [
+    {
+      "id": "norris",
+      "teamId": "mclaren",
+      "isReserve": false,
+      "isF2": false,
+      "form": [2, 1, 3, 2, 1, 2],
+      "lastRaceResult": 2,
+      "penaltyPoints": [],
+      "warningsThisSeason": 0,
+      "nextRaceGridDrop": 0,
+      "banUntilRound": null,
+      "careerWins": 4,
+      "careerPodiums": 18,
+      "careerStarts": 50,
+      "worldTitles": 0,
+      "pulse": { "headline": "", "detail": "" },
+      "portraitUrl": null,
+      "scoutSignal": "available",
+      "scoutingReports": 0,
+      "seasonStats": {
+        "points": 110,
+        "wins": 1,
+        "podiums": 4,
+        "poles": 2,
+        "dnfs": 0,
+        "penalties": 0,
+        "bestFinish": 1,
+        "averageFinish": 2.1,
+        "lastProcessedRound": 6
+      }
+    }
+  ],
+  "calendar": [],
+  "finance": {
+    "mclaren": {
+      "budget": {
+        "cap": 215000000,
+        "totalSpent": 90000000,
+        "categories": [],
+        "projectedEndOfSeason": 200000000,
+        "penaltyRisk": false
+      },
+      "sponsors": [],
+      "prestige": "A",
+      "prestigeScore": 85,
+      "prizeMoneyEstimate": 0,
+      "marketingBudget": 15000000,
+      "bankedBonuses": 0
+    }
+  },
+  "narrativeEvents": [],
+  "storyArcs": [],
+  "recommendations": [],
+  "stagedStrategies": {},
+  "staffMarket": { "chiefs": [], "members": [], "lastRefreshedSeason": 0 },
+  "poachingAttempts": [],
+  "boardExpectations": {
+    "objectives": [
+      {
+        "kind": "constructorFinish",
+        "label": "Finish P2 in the Constructors'",
+        "target": 2,
+        "weight": 0.5,
+        "current": 2,
+        "met": true
+      }
+    ],
+    "rivalTeamId": "ferrari",
+    "confidence": 62,
+    "confidenceHistory": [50, 55, 62],
+    "warningsIssued": 0,
+    "tenureStatus": "active",
+    "verdict": null,
+    "lastProcessedRound": 6
+  }
+}

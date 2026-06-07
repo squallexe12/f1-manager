@@ -8,13 +8,14 @@ import {
 import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
 import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 import { computeChampionshipSummary } from '@/engine/drivers/championship-summary'
+import { createEmptyWeekendState } from '@/types/weekend'
 
 const DB_NAME = 'mission-control-f1'
 const DB_VERSION = 1
 const STORE_SAVES = 'saves'
 const STORE_META = 'meta'
 
-export const SCHEMA_VERSION = 15
+export const SCHEMA_VERSION = 16
 export const AUTO_SAVE_SLOT = 'auto-save'
 
 export interface SaveRecord {
@@ -428,6 +429,26 @@ export const MIGRATIONS: Record<number, Migration> = {
         verdict: null,
         lastProcessedRound: -1,
       },
+    }
+  },
+  /**
+   * v15 → v16 (Practice + Qualifying weekend): Adds top-level `weekendState` —
+   * the single canonical bundle for the feature (weekend-wide tire-set ledger,
+   * per-driver setup [AI = neutral 50/50], practice results, qualifying +
+   * sprint-qualifying classifications). Additive, self-contained back-fill: an
+   * empty bundle stamped with the save's current round/season. The bundle is
+   * re-initialized at every `management → practice` transition by
+   * `orchestrator.prepareWeekend`, so a migrated mid-weekend save is correct on
+   * the next weekend entry. Pure + idempotent (early-return when present).
+   */
+  15: (data) => {
+    if ((data as { weekendState?: unknown }).weekendState !== undefined) return data
+    return {
+      ...data,
+      weekendState: createEmptyWeekendState(
+        data.gameState?.currentRound ?? 1,
+        data.gameState?.season ?? 1,
+      ),
     }
   },
   3: (data) => {

@@ -9,6 +9,8 @@ import {
   type Migration,
 } from '@/engine/core/save-system'
 import type { FullGameState } from '@/engine/core/state-manager'
+import { createEmptyWeekendState } from '@/types/weekend'
+import v15SaveFixture from '../../fixtures/v15-save.json'
 
 describe('SaveSystem', () => {
   let save: SaveSystem
@@ -1041,8 +1043,10 @@ describe('v13 → v14 migration (Sponsorship KPI cash banking)', () => {
 })
 
 describe('v14 -> v15 migration (board expectations)', () => {
-  it('SCHEMA_VERSION is 15 and migration 14 is registered', () => {
-    expect(SCHEMA_VERSION).toBe(15)
+  it('SCHEMA_VERSION is >= 15 and migration 14 is registered', () => {
+    // Resilient assertion (matches the v13->v14 block): later features bump the
+    // version, so pin >= 15 rather than the literal which breaks on every bump.
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(15)
     expect(typeof MIGRATIONS[14]).toBe('function')
   })
   it('back-fills boardExpectations with a self-contained finish objective', () => {
@@ -1074,6 +1078,76 @@ describe('v14 -> v15 migration (board expectations)', () => {
     } as unknown as FullGameState
     const out = MIGRATIONS[14](v14)
     expect(out.boardExpectations.objectives[0].target).toBe(6)
+  })
+})
+
+describe('v15 -> v16 migration (practice + qualifying weekend state)', () => {
+  function makeV15Save(): FullGameState {
+    return {
+      gameState: { season: 2, currentRound: 7, phase: 'management', playerTeamId: 'mclaren', seed: 123, totalRaces: 22 },
+      teams: [{ id: 'mclaren', constructorPosition: 2 }],
+      drivers: [{ id: 'norris', seasonStats: { poles: 0 } }],
+      calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+      recommendations: [], stagedStrategies: {},
+      staffMarket: { chiefs: [], members: [], lastRefreshedSeason: 0 },
+      poachingAttempts: [],
+      boardExpectations: {
+        objectives: [], rivalTeamId: '', confidence: 50, confidenceHistory: [],
+        warningsIssued: 0, tenureStatus: 'active', verdict: null, lastProcessedRound: -1,
+      },
+    } as unknown as FullGameState
+  }
+
+  it('SCHEMA_VERSION is 16 and MIGRATIONS[15] is registered', () => {
+    expect(SCHEMA_VERSION).toBe(16)
+    expect(typeof MIGRATIONS[15]).toBe('function')
+  })
+
+  it('adds an empty weekendState to a v15 save', () => {
+    const v15 = makeV15Save()
+    const { data, migrated } = migrateToCurrent(v15, 15)
+    expect(migrated).toBe(true)
+    expect(data.weekendState).toEqual(
+      createEmptyWeekendState(v15.gameState.currentRound, v15.gameState.season),
+    )
+    // unrelated top-level fields pass through untouched
+    expect(data.teams).toEqual(v15.teams)
+    expect(data.boardExpectations).toEqual(v15.boardExpectations)
+  })
+
+  it('is idempotent if weekendState already present (preserved by reference)', () => {
+    const v15 = makeV15Save() as FullGameState & { weekendState?: unknown }
+    const existing = createEmptyWeekendState(99, 9)
+    v15.weekendState = existing
+    const out = MIGRATIONS[15](v15) as FullGameState & { weekendState?: unknown }
+    expect(out.weekendState).toBe(existing)
+  })
+
+  it('migrates v1 -> v16 (full chain) and weekendState is defined + empty', () => {
+    const v1 = {
+      gameState: { season: 1, currentRound: 5, phase: 'management', playerTeamId: 'mclaren', seed: 1, totalRaces: 22 },
+      teams: [], drivers: [], calendar: [], finance: {}, narrativeEvents: [], storyArcs: [],
+    } as unknown as FullGameState
+    const { data, migrated } = migrateToCurrent(v1, 1)
+    expect(migrated).toBe(true)
+    expect(data.weekendState).toBeDefined()
+    expect(data.weekendState.qualifyingResult).toBeNull()
+    expect(data.weekendState.sprintQualifyingResult).toBeNull()
+    expect(data.weekendState.practiceResults).toEqual([])
+  })
+})
+
+describe('v15-save.json fixture migrates and round-trips with no class/Date/Map/Set leakage', () => {
+  it('migrates the committed v15 fixture to v16 and stays JSON-serializable', () => {
+    const fixture = JSON.parse(JSON.stringify(v15SaveFixture)) as unknown as FullGameState
+    const { data, migrated } = migrateToCurrent(fixture, 15)
+    expect(migrated).toBe(true)
+    expect(data.weekendState).toEqual(
+      createEmptyWeekendState(fixture.gameState.currentRound, fixture.gameState.season),
+    )
+    // The migrated payload (incl. the new weekendState) is pure JSON — proves no
+    // class / Date / Map / Set leaked into the new field.
+    expect(JSON.parse(JSON.stringify(data))).toEqual(data)
   })
 })
 
