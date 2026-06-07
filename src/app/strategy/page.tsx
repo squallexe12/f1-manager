@@ -29,6 +29,7 @@ import { Button } from '@/components/ui/button'
 import type { DriverStrategies } from '@/components/strategy/strategy-planner'
 import type { RaceWorkerStartPayload } from '@/types/race'
 import { applyBanSubstitution, applyGridDrops } from '@/engine/race/race-bootstrap'
+import { buildQualifyingOrder } from '@/engine/race/grid-builder'
 
 // UI constant — mirrors DEFAULT_TRACK_LIMITS_CONFIG.timePenaltyAt from the engine.
 // Kept local to avoid importing engine values into the UI layer (AGENTS.md rule).
@@ -216,9 +217,19 @@ export default function StrategyPage() {
       state.currentRound,
     )
 
-    // Step 2: Apply grid-position drops — reorder the driver array so the
-    // worker's positions array (built from strategies order) reflects penalties.
-    const qualifyingOrder = substitutedDrivers.map((d) => d.id)
+    // Step 2: Build the EARNED grid from qualifying, then apply grid-position
+    // drops. The classification lives in world.weekendState (persisted) and is
+    // read imperatively here — handleStartRace is a one-shot event handler, not
+    // a subscriber. buildQualifyingOrder returns a permutation of the same
+    // driver set (it only reorders), so Steps 2–3 below are unaffected; it falls
+    // back to roster order only if qualifying was genuinely never run.
+    const isSprintRace = state.phase === 'sprint'
+    const ws = useGameStore.getState().world?.weekendState
+    const classification = isSprintRace ? ws?.sprintQualifyingResult : ws?.qualifyingResult
+    const qualifyingOrder = buildQualifyingOrder(
+      substitutedDrivers.map((d) => d.id),
+      classification ?? null,
+    )
     const gridDrops: Record<string, number> = {}
     for (const d of substitutedDrivers) {
       if (d.nextRaceGridDrop > 0) gridDrops[d.id] = d.nextRaceGridDrop

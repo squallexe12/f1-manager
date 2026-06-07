@@ -14,6 +14,7 @@ import type {
 } from '@/types/race'
 import type { EventConsequence } from '@/types/narrative'
 import type { ComponentElement } from '@/types/team'
+import type { QualifyingResult } from '@/types/weekend'
 import { initializeGame, type FullGameState } from '@/engine/core/state-manager'
 import { startUpgrade, pauseUpgrade } from '@/engine/engineering/rnd-engine'
 import { electComponentSwap as electComponentSwapEngine } from '@/engine/engineering/component-strategy'
@@ -90,6 +91,10 @@ interface GameStore {
    * exactly once per race-start so the penalty is not double-applied on retry.
    */
   consumeGridDrops: (driverIds: string[]) => void
+  /** Persist a finished qualifying classification to world.weekendState (by
+   *  format) and bump the pole-sitter's seasonStats.poles. Only Grand Prix
+   *  qualifying earns an official pole — Sprint Qualifying does not. */
+  commitQualifyingResult: (result: QualifyingResult) => void
   signContract: (driverId: string, offer: ContractOffer) => void
   /** Terminate a contracted player driver early — moves them to free agency and charges severance. */
   releaseDriver: (driverId: string) => void
@@ -426,6 +431,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
         : d,
     )
     set({ world: { ...world, drivers } })
+  },
+
+  commitQualifyingResult: (result) => {
+    const { world } = get()
+    if (!world) return
+    const isSprint = result.format === 'sprint-qualifying'
+    const weekendState = isSprint
+      ? { ...world.weekendState, sprintQualifyingResult: result }
+      : { ...world.weekendState, qualifyingResult: result }
+    // Only the Grand Prix qualifying pole counts toward seasonStats.poles — a
+    // Sprint Qualifying win does not earn an official career pole.
+    const drivers = isSprint
+      ? world.drivers
+      : world.drivers.map((d) =>
+          d.id === result.pole.driverId
+            ? { ...d, seasonStats: { ...d.seasonStats, poles: d.seasonStats.poles + 1 } }
+            : d,
+        )
+    set({ world: { ...world, weekendState, drivers } })
   },
 
   signContract: (driverId, offer) => {
