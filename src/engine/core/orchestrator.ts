@@ -18,6 +18,12 @@ import {
 import { windowResetsIn } from '@/engine/engineering/factory-insights'
 import { deriveBoardObjectives } from '@/engine/board/board-target'
 import { SCENARIOS } from '@/data/scenarios'
+import {
+  defaultDriverSetup,
+  neutralDriverSetup,
+  DEFAULT_WEEKEND_TIRE_SETS,
+} from '@/engine/practice/practice-engine'
+import type { DriverWeekendSetup, WeekendTireLedger } from '@/types/weekend'
 
 /**
  * Process management-phase entry: R&D cycles, technical directives, AI teams.
@@ -181,6 +187,61 @@ function drainPendingSwaps(world: FullGameState): FullGameState {
     })
   }
   return { ...world, teams: updatedTeams, drivers: updatedDrivers }
+}
+
+/**
+ * management → practice entry: (re-)initialize `weekendState` for the upcoming
+ * weekend. Seeds the weekend-wide tire-set ledger positionally from the round's
+ * circuit compounds (hardest → medium → softest), sets every player racer to the
+ * skip baseline (overwritten as they run FP sessions) and every other driver
+ * (AI + player reserve) to the neutral 50/50 baseline (ADR-PQ-004), and clears
+ * practice + qualifying results. Pure — returns a new world. (Wired into
+ * `advanceGamePhase` in M4.)
+ */
+export function prepareWeekend(state: FullGameState): FullGameState {
+  const round = state.gameState.currentRound
+  const [hard, medium, soft] = state.calendar[round - 1].circuit.compounds
+  const remaining: WeekendTireLedger['remaining'] = {}
+  remaining[hard] = DEFAULT_WEEKEND_TIRE_SETS.hard
+  remaining[medium] = DEFAULT_WEEKEND_TIRE_SETS.medium
+  remaining[soft] = DEFAULT_WEEKEND_TIRE_SETS.soft
+
+  const driverSetup: Record<string, DriverWeekendSetup> = {}
+  for (const d of state.drivers) {
+    const isPlayerRacer = d.teamId === state.gameState.playerTeamId && !d.isReserve && !d.isF2
+    driverSetup[d.id] = isPlayerRacer ? defaultDriverSetup(d.id) : neutralDriverSetup(d.id)
+  }
+
+  return {
+    ...state,
+    weekendState: {
+      round,
+      season: state.gameState.season,
+      tireLedger: { remaining },
+      driverSetup,
+      practiceResults: [],
+      qualifyingResult: null,
+      sprintQualifyingResult: null,
+    },
+  }
+}
+
+/**
+ * practice → qualifying exit: any player racer who ran zero FP sessions is given
+ * the skip-default baseline so the grid never inherits a blank/garbage setup.
+ * Idempotent (already default after `prepareWeekend` for a true skipper). Pure.
+ */
+export function processPracticeExit(state: FullGameState): FullGameState {
+  const driverSetup: Record<string, DriverWeekendSetup> = { ...state.weekendState.driverSetup }
+  for (const d of state.drivers) {
+    const isPlayerRacer = d.teamId === state.gameState.playerTeamId && !d.isReserve && !d.isF2
+    if (!isPlayerRacer) continue
+    const cur = driverSetup[d.id]
+    if (!cur || cur.sessionsCompleted === 0) {
+      driverSetup[d.id] = defaultDriverSetup(d.id)
+    }
+  }
+  return { ...state, weekendState: { ...state.weekendState, driverSetup } }
 }
 
 export interface PostRaceOrchestratorResult {
