@@ -19,6 +19,7 @@ import { HeroStrip } from '@/components/strategy/hero-strip'
 import { GapChart } from '@/components/charts/gap-chart'
 import { PreRaceSetup } from '@/components/strategy/pre-race-setup'
 import { PracticeLiveScreen } from '@/components/strategy/practice-live-screen'
+import { QualifyingLiveScreen } from '@/components/strategy/qualifying-live-screen'
 import { CircuitMap } from '@/components/strategy/circuit-map'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { RaceStartScreen } from '@/components/strategy/race-start-screen'
@@ -341,8 +342,19 @@ export default function StrategyPage() {
     )
   }
 
-  // Qualifying / sprint-qualifying — still the legacy setup screen until M7.
-  if (phase === 'qualifying' || phase === 'sprint-qualifying') {
+  // Qualifying (standard) — consequential live knockout screen (plan §M7).
+  // The earned grid is committed to world.weekendState and feeds handleStartRace.
+  if (phase === 'qualifying') {
+    return (
+      <PageShell theme="broadcast">
+        <QualifyingLiveScreen />
+      </PageShell>
+    )
+  }
+
+  // Sprint-qualifying — still the legacy setup screen (M7 sprint flow is a
+  // separate follow-up; the standard Q path lands first).
+  if (phase === 'sprint-qualifying') {
     return (
       <PageShell theme="broadcast">
         <PreRaceSetup

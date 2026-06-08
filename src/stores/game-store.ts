@@ -62,6 +62,37 @@ import {
 } from './qualifying-runtime-slice'
 import { runPracticeSession as runPracticeSessionEngine } from '@/engine/practice/practice-engine'
 import { prepareWeekend, processPracticeExit } from '@/engine/core/orchestrator'
+import {
+  simulateQualifyingSegment,
+  simulateQualifying,
+  collateQualifyingResult,
+} from '@/engine/qualifying/quali-engine'
+import { createPRNG } from '@/engine/core/prng'
+import { deriveRaceSeed } from '@/engine/race/race-bootstrap'
+import { deriveSessionSeed } from '@/engine/weekend/seed-derivation'
+import type { BootstrapDriverInput } from '@/types/race'
+
+/** Build the BootstrapDriverInput list (the whole racing grid) the qualifying
+ *  engine consumes — every non-reserve, non-F2 driver paired with its team car.
+ *  Drivers without a resolvable team are dropped (defensive; the real grid has
+ *  none). Module-local data-shaping, not game logic. */
+function buildQualiBootstrapDrivers(world: FullGameState): BootstrapDriverInput[] {
+  const out: BootstrapDriverInput[] = []
+  for (const d of world.drivers) {
+    if (!d.teamId || d.isReserve || d.isF2) continue
+    const team = world.teams.find((t) => t.id === d.teamId)
+    if (!team) continue
+    out.push({
+      id: d.id,
+      teamId: d.teamId,
+      shortName: d.shortName,
+      attributes: d.attributes,
+      mood: d.mood,
+      car: team.car,
+    })
+  }
+  return out
+}
 
 interface GameStore {
   // World state (persisted via setupPersistence)
@@ -122,6 +153,21 @@ interface GameStore {
    *  format) and bump the pole-sitter's seasonStats.poles. Only Grand Prix
    *  qualifying earns an official pole — Sprint Qualifying does not. */
   commitQualifyingResult: (result: QualifyingResult) => void
+  /** Engine-running qualifying actions (M7). Each calls the pure quali engine and
+   *  persists the weekend tire ledger. `runQualiSegment` runs ONE segment for the
+   *  live timed reveal and returns its result (the hook reveals the attempts);
+   *  `commitLiveQualifyingGrid` collates the live segments into the earned grid;
+   *  `runQualifyingHeadless` is the idle SKIP path (full N-entry classification).
+   *  The last two commit the grid + finish the runtime; transient reveal-state
+   *  dispatch (segmentStart / reveal / segment-end) goes through the thin actions. */
+  runQualiSegment: (args: {
+    segment: QualiSegment
+    entrants: string[]
+    advancingCount: number
+    playerCommands: Record<string, { compound: TireCompound; aborted: boolean }>
+  }) => QualiSegmentResult | null
+  runQualifyingHeadless: (format: QualiFormat) => void
+  commitLiveQualifyingGrid: (format: QualiFormat, segmentResults: QualiSegmentResult[]) => void
   signContract: (driverId: string, offer: ContractOffer) => void
   /** Terminate a contracted player driver early — moves them to free agency and charges severance. */
   releaseDriver: (driverId: string) => void
@@ -540,6 +586,108 @@ export const useGameStore = create<GameStore>((set, get) => ({
             : d,
         )
     set({ world: { ...world, weekendState, drivers } })
+  },
+
+  runQualiSegment: (args) => {
+    const { world } = get()
+    if (!world) return null
+    const { segment, entrants, advancingCount, playerCommands } = args
+    const round = world.gameState.currentRound
+    const race = world.calendar[round - 1]
+    if (!race) return null
+    const perRoundRoot = deriveRaceSeed(world.gameState.seed, round)
+    const prng = createPRNG(deriveSessionSeed(perRoundRoot, segment))
+    // MVP weather: constant 'dry' per segment. ADR-PQ-002 allows between-segment
+    // variation but defers it; the headless simulateQualifying also defaults to
+    // 'dry', so the live earned grid stays byte-identical to a headless run.
+    const weather: WeatherState = 'dry'
+
+    const playerTeamId = world.gameState.playerTeamId
+    const playerDriverIds = new Set(
+      world.drivers
+        .filter((d) => d.teamId === playerTeamId && !d.isReserve && !d.isF2)
+        .map((d) => d.id),
+    )
+
+    const { result, nextLedger } = simulateQualifyingSegment({
+      segment,
+      entrants,
+      advancingCount,
+      drivers: buildQualiBootstrapDrivers(world),
+      circuitCompounds: race.circuit.compounds,
+      weather,
+      setup: world.weekendState.driverSetup,
+      playerDriverIds,
+      playerCommands: new Map(Object.entries(playerCommands)),
+      ledger: world.weekendState.tireLedger,
+      prng,
+    })
+
+    // Final segment (Q3/SQ3) has no elimination, so no cutline (0). Earlier
+    // segments draw the elimination zone after the advancing count.
+    const isFinal = segment === 'Q3' || segment === 'SQ3'
+    const cutlinePosition = isFinal ? 0 : advancingCount
+    // Cosmetic segment clock — the reveal is theatre over the computed result.
+    const timeBudget =
+      segment === 'Q1' || segment === 'SQ1' ? 18 * 60
+      : segment === 'Q2' || segment === 'SQ2' ? 15 * 60
+      : 12 * 60
+
+    set((s) => ({
+      world: { ...world, weekendState: { ...world.weekendState, tireLedger: nextLedger } },
+      qualifyingRuntime: reduceQualiEvent(s.qualifyingRuntime, {
+        type: 'segmentStart',
+        segment,
+        entrants,
+        cutlinePosition,
+        weather,
+        timeBudget,
+      }),
+    }))
+    return result
+  },
+
+  runQualifyingHeadless: (format) => {
+    const { world } = get()
+    if (!world) return
+    const round = world.gameState.currentRound
+    const race = world.calendar[round - 1]
+    if (!race) return
+    const playerTeamId = world.gameState.playerTeamId
+    const playerDriverIds = world.drivers
+      .filter((d) => d.teamId === playerTeamId && !d.isReserve && !d.isF2)
+      .map((d) => d.id)
+    const { result, nextLedger } = simulateQualifying({
+      format,
+      round,
+      raceSeed: world.gameState.seed,
+      drivers: buildQualiBootstrapDrivers(world),
+      circuit: race.circuit,
+      setup: world.weekendState.driverSetup,
+      playerDriverIds,
+      ledger: world.weekendState.tireLedger,
+    })
+    // Persist the consumed ledger, then commit the earned grid (pole bump + format
+    // routing) and finish the runtime with the final classification.
+    set({ world: { ...world, weekendState: { ...world.weekendState, tireLedger: nextLedger } } })
+    get().commitQualifyingResult(result)
+    set((s) => ({
+      qualifyingRuntime: reduceQualiEvent(s.qualifyingRuntime, { type: 'finalise', classification: result }),
+    }))
+  },
+
+  commitLiveQualifyingGrid: (format, segmentResults) => {
+    const { world } = get()
+    if (!world) return
+    const round = world.gameState.currentRound
+    const perRoundRoot = deriveRaceSeed(world.gameState.seed, round)
+    const result = collateQualifyingResult({ format, round, seed: perRoundRoot, segmentResults })
+    // Ledger already consumed per-segment by runQualiSegment; just commit the
+    // earned grid (pole bump + format routing) and finish the runtime.
+    get().commitQualifyingResult(result)
+    set((s) => ({
+      qualifyingRuntime: reduceQualiEvent(s.qualifyingRuntime, { type: 'finalise', classification: result }),
+    }))
   },
 
   signContract: (driverId, offer) => {

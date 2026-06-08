@@ -141,6 +141,66 @@ export function simulateQualifyingSegment(args: {
 }
 
 /**
+ * Pure. Collate an ordered list of completed segment results into the final
+ * classification: grid order (final segment on top, then each earlier segment's
+ * eliminated block oldest-last), per-driver best times, pole, and the session
+ * fastest lap. The single source of truth shared by the headless
+ * `simulateQualifying` and the M7 live store path, which accumulates segments
+ * one reveal at a time and collates them here (so the live earned grid is
+ * byte-identical to a headless run on the same seed). Makes no PRNG draws.
+ */
+export function collateQualifyingResult(args: {
+  format: QualiFormat
+  round: number
+  seed: number
+  segmentResults: QualiSegmentResult[]
+}): QualifyingResult {
+  const { format, round, seed, segmentResults } = args
+
+  const bestTimes: Record<string, number | null> = {}
+  for (const seg of segmentResults) {
+    for (const r of seg.results) {
+      if (r.bestLapTime !== null) {
+        const prev = bestTimes[r.driverId]
+        bestTimes[r.driverId] = prev == null ? r.bestLapTime : Math.min(prev, r.bestLapTime)
+      } else if (!(r.driverId in bestTimes)) {
+        bestTimes[r.driverId] = null
+      }
+    }
+  }
+
+  // Grid: final-segment classification on top, then each earlier segment's
+  // eliminated block (already fastest-first within the segment), oldest last.
+  const finalSeg = segmentResults[segmentResults.length - 1]
+  const gridOrder: string[] = finalSeg.results.map((r) => r.driverId)
+  for (let i = segmentResults.length - 2; i >= 0; i--) {
+    gridOrder.push(...segmentResults[i].eliminated)
+  }
+
+  const poleId = gridOrder[0] ?? ''
+  const poleTime = finalSeg.results.find((r) => r.driverId === poleId)?.bestLapTime ?? null
+  let fastestLap: { driverId: string; time: number } | null = null
+  for (const seg of segmentResults) {
+    for (const r of seg.results) {
+      if (r.bestLapTime !== null && (fastestLap === null || r.bestLapTime < fastestLap.time)) {
+        fastestLap = { driverId: r.driverId, time: r.bestLapTime }
+      }
+    }
+  }
+
+  return {
+    format,
+    round,
+    segments: segmentResults,
+    gridOrder,
+    bestTimes,
+    pole: { driverId: poleId, time: poleTime },
+    fastestLap,
+    seed,
+  }
+}
+
+/**
  * Pure. Full session = 3 segments + grid collation + pole/fastest capture.
  * Used by the headless skip path and determinism tests; the live UI (M7) calls
  * simulateQualifyingSegment per segment for the timed reveal instead. ALWAYS
@@ -165,7 +225,6 @@ export function simulateQualifying(args: {
   let workingLedger: WeekendTireLedger = { remaining: { ...ledger.remaining } }
   let entrants = drivers.map((d) => d.id) // Q1/SQ1 entrants = roster order
   const segmentResults: QualiSegmentResult[] = []
-  const bestTimes: Record<string, number | null> = {}
 
   for (const def of SEGMENTS[format]) {
     const weather = weatherPerSegment?.[def.segment] ?? 'dry'
@@ -186,47 +245,11 @@ export function simulateQualifying(args: {
     })
     workingLedger = nextLedger
     segmentResults.push(result)
-    for (const r of result.results) {
-      if (r.bestLapTime !== null) {
-        const prev = bestTimes[r.driverId]
-        bestTimes[r.driverId] = prev == null ? r.bestLapTime : Math.min(prev, r.bestLapTime)
-      } else if (!(r.driverId in bestTimes)) {
-        bestTimes[r.driverId] = null
-      }
-    }
     entrants = result.advancing
   }
 
-  // Grid: final-segment classification on top, then each earlier segment's
-  // eliminated block (already fastest-first within the segment), oldest last.
-  const finalSeg = segmentResults[segmentResults.length - 1]
-  const gridOrder: string[] = finalSeg.results.map((r) => r.driverId)
-  for (let i = segmentResults.length - 2; i >= 0; i--) {
-    gridOrder.push(...segmentResults[i].eliminated)
-  }
-
-  const poleId = gridOrder[0] ?? ''
-  const poleTime = finalSeg.results.find((r) => r.driverId === poleId)?.bestLapTime ?? null
-  let fastestLap: { driverId: string; time: number } | null = null
-  for (const seg of segmentResults) {
-    for (const r of seg.results) {
-      if (r.bestLapTime !== null && (fastestLap === null || r.bestLapTime < fastestLap.time)) {
-        fastestLap = { driverId: r.driverId, time: r.bestLapTime }
-      }
-    }
-  }
-
   return {
-    result: {
-      format,
-      round,
-      segments: segmentResults,
-      gridOrder,
-      bestTimes,
-      pole: { driverId: poleId, time: poleTime },
-      fastestLap,
-      seed: perRoundRoot,
-    },
+    result: collateQualifyingResult({ format, round, seed: perRoundRoot, segmentResults }),
     nextLedger: workingLedger,
   }
 }
