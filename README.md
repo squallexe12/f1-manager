@@ -13,7 +13,7 @@
 [![Zustand](https://img.shields.io/badge/State-Zustand_5-443E38)](https://github.com/pmndrs/zustand)
 [![Vitest](https://img.shields.io/badge/Tested_with-Vitest-6E9F18?logo=vitest&logoColor=white)](https://vitest.dev/)
 ![Tests](https://img.shields.io/badge/tests-1%2C000%2B%20passing-success)
-![Status](https://img.shields.io/badge/status-MVP%20v0.1.0-CCFF00)
+![Status](https://img.shields.io/badge/status-MVP%20v1.1.0-CCFF00)
 
 <img src="screenshots/01-title-screen.png" alt="F1 Kinetic Command — title screen" width="900" />
 
