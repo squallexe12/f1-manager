@@ -22,12 +22,12 @@ interface QualiBroadcastChromeProps {
   className?: string
 }
 
-const STATUS_BADGE: Record<QualiSessionPhase, { label: string; cls: string }> = {
-  idle: { label: 'STANDBY', cls: 'text-ink-dim' },
-  running: { label: '◉ LIVE', cls: 'text-sig-red' },
-  paused: { label: '⏸ PAUSED', cls: 'text-sig-amber' },
-  'segment-end': { label: '✓ SEGMENT', cls: 'text-sig-green' },
-  finished: { label: '✓ GRID SET', cls: 'text-sig-green' },
+const STATUS_BADGE: Record<QualiSessionPhase, { icon: string; label: string; cls: string }> = {
+  idle: { icon: '', label: 'STANDBY', cls: 'text-ink-dim' },
+  running: { icon: '◉', label: 'LIVE', cls: 'text-sig-red' },
+  paused: { icon: '⏸', label: 'PAUSED', cls: 'text-sig-amber' },
+  'segment-end': { icon: '✓', label: 'SEGMENT', cls: 'text-sig-green' },
+  finished: { icon: '✓', label: 'GRID SET', cls: 'text-sig-green' },
 }
 
 /**
@@ -101,7 +101,8 @@ export function QualiBroadcastChrome({
           <div className="flex flex-col gap-0.5 items-center">
             <span className="font-mono text-[9px] uppercase tracking-[0.2em] text-ink-dim">Status</span>
             <span className={`font-mono font-semibold text-[11px] uppercase tracking-[0.1em] ${badge.cls}`}>
-              {badge.label}
+              {badge.icon && <span aria-hidden="true">{badge.icon} </span>}
+              <span>{badge.label}</span>
             </span>
           </div>
         </div>
@@ -114,6 +115,15 @@ export function QualiBroadcastChrome({
           isPaused={isPaused}
           className="pr-2"
         />
+      </div>
+      {/* Phase-transition announcement — the countdown's role="timer" mutes
+          updates, so this sr-only live region conveys session-state changes to
+          screen readers without per-tick clock spam. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {sessionPhase === 'paused' ? 'Simulation paused'
+          : sessionPhase === 'segment-end' ? `${segmentName} complete`
+          : sessionPhase === 'finished' ? 'Qualifying complete, grid set'
+          : ''}
       </div>
       <RaceTicker entries={tickerEntries} />
     </div>

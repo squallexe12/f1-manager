@@ -51,7 +51,7 @@ export function QualiClassificationReveal({
       {/* Heading */}
       <div className="flex flex-col gap-1">
         <span className="font-mono text-[11px] tracking-[0.3em] text-sig-red font-bold uppercase">
-          ◆ EARNED GRID
+          <span aria-hidden="true">◆ </span>EARNED GRID
         </span>
         <h2
           className="font-display font-extrabold text-ink-hi uppercase leading-none"
@@ -99,19 +99,23 @@ export function QualiClassificationReveal({
         role="table"
         aria-label="Qualifying classification"
       >
-        {/* Header row */}
-        <div
-          className="grid gap-2 px-3 py-1.5 border-b border-line-sub text-[9px] uppercase tracking-[0.14em] text-ink-dim"
-          style={{ gridTemplateColumns: '32px 8px 56px 1fr 84px' }}
-          role="row"
-        >
-          <span role="columnheader" className="text-right">POS</span>
-          <span role="columnheader" />
-          <span role="columnheader">CODE</span>
-          <span role="columnheader">DRIVER</span>
-          <span role="columnheader" className="text-right">TIME</span>
+        {/* Header rowgroup */}
+        <div role="rowgroup" className="contents">
+          <div
+            className="grid gap-2 px-3 py-1.5 border-b border-line-sub text-[9px] uppercase tracking-[0.14em] text-ink-dim"
+            style={{ gridTemplateColumns: '32px 8px 56px 1fr 84px' }}
+            role="row"
+          >
+            <span role="columnheader" className="text-right">POS</span>
+            <span role="columnheader"><span className="sr-only">Team</span></span>
+            <span role="columnheader">CODE</span>
+            <span role="columnheader">DRIVER</span>
+            <span role="columnheader" className="text-right">TIME</span>
+          </div>
         </div>
 
+        {/* Body rowgroup */}
+        <div role="rowgroup" className="contents">
         {rows.map((row, index) => (
           <motion.div
             key={row.driverId}
@@ -119,7 +123,7 @@ export function QualiClassificationReveal({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25, delay: index * 0.04, ease: 'easeOut' }}
             role="row"
-            aria-label={`P${row.position} ${row.driverName}${row.isPole ? ' (pole)' : ''}`}
+            aria-label={`P${row.position} ${row.driverName}${row.isPole ? ' (pole)' : ''}${row.isFastest ? ' (fastest lap)' : ''}`}
             className={`
               relative grid gap-2 px-3 py-[7px] border-b border-line-hair items-center
               transition-[background] duration-[120ms]
@@ -157,7 +161,7 @@ export function QualiClassificationReveal({
               {row.isFastest && (
                 <span
                   className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--accent-cyan)]"
-                  aria-label="fastest lap"
+                  aria-hidden="true"
                 />
               )}
             </span>
@@ -177,6 +181,7 @@ export function QualiClassificationReveal({
             </span>
           </motion.div>
         ))}
+        </div>
       </div>
 
       {/* Confirm Grid CTA */}

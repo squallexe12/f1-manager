@@ -97,6 +97,15 @@ describe('collateQualifyingResult', () => {
     expect(r.format).toBe('qualifying')
   })
 
+  it('returns an empty (non-throwing) result for an empty segment list', () => {
+    const r = collateQualifyingResult({ format: 'qualifying', round: 2, seed: 5, segmentResults: [] })
+    expect(r.gridOrder).toEqual([])
+    expect(r.segments).toEqual([])
+    expect(r.pole).toEqual({ driverId: '', time: null })
+    expect(r.fastestLap).toBeNull()
+    expect(r.seed).toBe(5)
+  })
+
   it('threads the format through and records null bestTimes for a no-time driver', () => {
     // One segment where 'b' aborts (no time) — bestTimes carries an explicit null.
     const { result } = simulateQualifyingSegment({

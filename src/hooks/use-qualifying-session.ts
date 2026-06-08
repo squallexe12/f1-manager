@@ -156,8 +156,13 @@ export function useQualifyingSession() {
   const { weekendState, gameState, drivers, teams, calendar } = world
   const round = gameState?.currentRound ?? 1
   const race = calendar?.[round - 1]
-  const isSprint = race?.isSprint ?? false
-  const format: QualiFormat = isSprint ? 'sprint-qualifying' : 'qualifying'
+  // Format is PHASE-driven, NOT weekend-driven. A sprint weekend runs BOTH a
+  // sprint-qualifying phase (SQ segments → sprintQualifyingResult) and a later
+  // qualifying phase (Q segments → qualifyingResult), and `race.isSprint` is true
+  // for both — only the phase tells them apart. (Standard weekends only ever hit
+  // the qualifying phase.)
+  const format: QualiFormat = gameState?.phase === 'sprint-qualifying' ? 'sprint-qualifying' : 'qualifying'
+  const isSprint = format === 'sprint-qualifying'
   const segmentDefs = QUALI_SEGMENTS[format]
   const totalSegments = segmentDefs.length
   const playerTeamId = gameState?.playerTeamId ?? ''
@@ -198,6 +203,10 @@ export function useQualifyingSession() {
   const allSegmentsRef = useRef<QualiSegmentResult[]>([])
   const segmentIndexRef = useRef(0)
   const segmentBudgetRef = useRef(0)
+  // True once a segment's close branch has fired — an explicit single-fire guard
+  // so the close (endQualiSegment + commitLiveQualifyingGrid) can never run twice,
+  // independent of the reveal-index arithmetic. Reset per segment in startSegment.
+  const segmentClosedRef = useRef(false)
 
   const status = runtime.sessionPhase
   const simSpeed = runtime.simSpeed
@@ -231,7 +240,13 @@ export function useQualifyingSession() {
       const def = QUALI_SEGMENTS[format][idx]
       const entrants =
         idx === 0
-          ? w.drivers.filter((d) => d.teamId && !d.isReserve && !d.isF2).map((d) => d.id)
+          ? // Match buildQualiBootstrapDrivers EXACTLY (also drop any driver whose
+            // teamId doesn't resolve to a team) so the live entrants set can never
+            // diverge from the engine's driver list — otherwise live ≠ headless on
+            // the same seed for a dangling-teamId edge.
+            w.drivers
+              .filter((d) => d.teamId && !d.isReserve && !d.isF2 && w.teams.some((t) => t.id === d.teamId))
+              .map((d) => d.id)
           : allSegmentsRef.current[idx - 1]?.advancing ?? []
       const playerCommands = buildPlayerCommands()
       const result = runQualiSegment({
@@ -249,6 +264,7 @@ export function useQualifyingSession() {
         .map((id) => result.results.find((r) => r.driverId === id))
         .filter((r): r is QualiDriverResult => Boolean(r))
       revealIndexRef.current = 0
+      segmentClosedRef.current = false
       segmentBudgetRef.current = useGameStore.getState().qualifyingRuntime.segmentTimeRemaining
     },
     [format, runQualiSegment, buildPlayerCommands],
@@ -266,13 +282,21 @@ export function useQualifyingSession() {
       if (k < order.length) {
         revealQualiAttempt(order[k])
         revealIndexRef.current = k + 1
+        // Decrement by budget/(order.length+1) so the cosmetic clock NEVER reaches
+        // 0 during the reveal. If it hit 0 on the last reveal tick, the reducer's
+        // tick→0 auto-transition to 'segment-end' would tear down this interval
+        // BEFORE the k===order.length close branch runs — hanging the session with
+        // no committed grid (most reliably on Q3/SQ3, where the budget divides
+        // evenly). The clock stays purely cosmetic; the close is owned solely by
+        // the reveal index below.
         const budget = segmentBudgetRef.current || order.length
-        tickQuali(budget / order.length)
-      } else if (k === order.length) {
+        tickQuali(budget / (order.length + 1))
+      } else if (k === order.length && !segmentClosedRef.current) {
         // Segment over — apply the final classification, then either await the
         // player's "next segment" or (last segment) collate + commit the grid.
+        segmentClosedRef.current = true
         endQualiSegment(full)
-        revealIndexRef.current = k + 1 // guard against an extra tick before cleanup
+        revealIndexRef.current = k + 1 // belt-and-suspenders with segmentClosedRef
         if (segmentIndexRef.current >= totalSegments - 1) {
           commitLiveQualifyingGrid(format, allSegmentsRef.current)
         }

@@ -72,23 +72,34 @@ export function QualiTimingTower({ entries, cutlinePosition, className = '' }: Q
       role="table"
       aria-label="Qualifying timing tower"
     >
-      {/* Header row */}
-      <div
-        className="grid gap-2 px-3 py-1.5 border-b border-line-sub text-[9px] uppercase tracking-[0.14em] text-ink-dim"
-        style={{ gridTemplateColumns: GRID_COLUMNS }}
-        role="row"
-      >
-        <span role="columnheader" className="text-right">POS</span>
-        <span role="columnheader" />
-        <span role="columnheader">CODE</span>
-        <span role="columnheader">DRIVER</span>
-        <span role="columnheader" className="text-right">S1</span>
-        <span role="columnheader" className="text-right">S2</span>
-        <span role="columnheader" className="text-right">S3</span>
-        <span role="columnheader" className="text-right">BEST</span>
-        <span role="columnheader" className="text-right">TIRE</span>
+      {/* Header rowgroup */}
+      <div role="rowgroup" className="contents">
+        <div
+          className="grid gap-2 px-3 py-1.5 border-b border-line-sub text-[9px] uppercase tracking-[0.14em] text-ink-dim"
+          style={{ gridTemplateColumns: GRID_COLUMNS }}
+          role="row"
+        >
+          <span role="columnheader" className="text-right">POS</span>
+          <span role="columnheader"><span className="sr-only">Team</span></span>
+          <span role="columnheader">CODE</span>
+          <span role="columnheader">DRIVER</span>
+          <span role="columnheader" className="text-right">S1</span>
+          <span role="columnheader" className="text-right">S2</span>
+          <span role="columnheader" className="text-right">S3</span>
+          <span role="columnheader" className="text-right">BEST</span>
+          <span role="columnheader" className="text-right">TIRE</span>
+        </div>
       </div>
 
+      {/* Elimination-zone announcement — a single stable live region, announced
+          when cutlinePosition changes (NOT on every row reorder), to avoid the
+          screen-reader spam a per-row aria-live separator would cause. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {cutlinePosition > 0 ? `Elimination zone: P${cutlinePosition + 1} and below are eliminated` : ''}
+      </div>
+
+      {/* Body rowgroup */}
+      <div role="rowgroup" className="contents">
       {entries.map((entry) => {
         const isLeader = entry.position === 1
         const out = entry.eliminated
@@ -109,7 +120,7 @@ export function QualiTimingTower({ entries, cutlinePosition, className = '' }: Q
                 relative grid gap-2 px-3 py-[7px] border-b border-line-hair items-center
                 transition-[background] duration-[120ms]
                 ${out
-                  ? 'opacity-40 [&_span]:line-through'
+                  ? 'opacity-40'
                   : entry.isPlayer
                     ? 'bg-[oklch(0.20_0.03_25_/_0.35)]'
                     : 'hover:bg-surface-raised'
@@ -119,7 +130,7 @@ export function QualiTimingTower({ entries, cutlinePosition, className = '' }: Q
             >
               {/* Player indicator bar */}
               {entry.isPlayer && (
-                <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-sig-red no-underline" />
+                <span className="absolute left-0 top-0 bottom-0 w-[2px] bg-sig-red" />
               )}
 
               {/* POS — leader gets the lime accent */}
@@ -133,30 +144,30 @@ export function QualiTimingTower({ entries, cutlinePosition, className = '' }: Q
 
               {/* Team bar */}
               <span
-                className="w-[4px] h-[22px] rounded-[1px] shrink-0 no-underline"
+                className="w-[4px] h-[22px] rounded-[1px] shrink-0"
                 style={{ backgroundColor: entry.teamColor }}
               />
 
               {/* Driver code */}
-              <span className="font-display font-bold text-[13px] text-ink-hi tracking-[0.02em] uppercase truncate">
+              <span className={`font-display font-bold text-[13px] text-ink-hi tracking-[0.02em] uppercase truncate ${out ? 'line-through' : ''}`}>
                 {entry.code}
               </span>
 
               {/* Name group */}
               <div className="flex flex-col gap-0 min-w-0">
-                <span className="font-body text-[10px] text-ink-dim tracking-[0.02em] truncate">
+                <span className={`font-body text-[10px] text-ink-dim tracking-[0.02em] truncate ${out ? 'line-through' : ''}`}>
                   {entry.driverName}
                 </span>
               </div>
 
               {/* Sector splits */}
-              <span className="text-right text-[11px] text-ink-mute tabular-nums">
+              <span className={`text-right text-[11px] text-ink-mute tabular-nums ${out ? 'line-through' : ''}`}>
                 {hasLap ? formatSector(entry.sectors!.s1) : '—'}
               </span>
-              <span className="text-right text-[11px] text-ink-mute tabular-nums">
+              <span className={`text-right text-[11px] text-ink-mute tabular-nums ${out ? 'line-through' : ''}`}>
                 {hasLap ? formatSector(entry.sectors!.s2) : '—'}
               </span>
-              <span className="text-right text-[11px] text-ink-mute tabular-nums">
+              <span className={`text-right text-[11px] text-ink-mute tabular-nums ${out ? 'line-through' : ''}`}>
                 {hasLap ? formatSector(entry.sectors!.s3) : '—'}
               </span>
 
@@ -164,7 +175,7 @@ export function QualiTimingTower({ entries, cutlinePosition, className = '' }: Q
               <span
                 className={`text-right text-[11px] tabular-nums ${
                   out
-                    ? 'text-sig-red font-bold tracking-[0.1em] no-underline'
+                    ? 'text-sig-red font-bold tracking-[0.1em]'
                     : isLeader
                       ? 'text-sig-amber font-bold tracking-[0.04em]'
                       : 'text-ink-body'
@@ -183,7 +194,6 @@ export function QualiTimingTower({ entries, cutlinePosition, className = '' }: Q
             {showSeparator && (
               <div
                 role="separator"
-                aria-live="polite"
                 className="px-3 py-1 border-t border-sig-red/60 bg-sig-red/[0.06] text-center"
               >
                 <span className="font-mono text-[8px] font-bold uppercase tracking-[0.2em] text-sig-red">
@@ -194,6 +204,7 @@ export function QualiTimingTower({ entries, cutlinePosition, className = '' }: Q
           </Fragment>
         )
       })}
+      </div>
     </div>
   )
 }

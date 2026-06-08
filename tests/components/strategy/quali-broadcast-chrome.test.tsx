@@ -53,12 +53,12 @@ describe('QualiBroadcastChrome', () => {
 
   it('renders the LIVE status badge while running', () => {
     setup({ sessionPhase: 'running' })
-    expect(screen.getByText('◉ LIVE')).toBeInTheDocument()
+    expect(screen.getByText('LIVE')).toBeInTheDocument()
   })
 
   it('renders the GRID SET status badge once finished', () => {
     setup({ sessionPhase: 'finished' })
-    expect(screen.getByText('✓ GRID SET')).toBeInTheDocument()
+    expect(screen.getByText('GRID SET')).toBeInTheDocument()
   })
 
   it('renders the weather uppercased', () => {
@@ -66,13 +66,19 @@ describe('QualiBroadcastChrome', () => {
     expect(screen.getByText('DRY')).toBeInTheDocument()
   })
 
-  it('exposes the countdown clock as role="timer" (not role="status") to avoid SR spam', () => {
+  it('exposes the countdown clock as role="timer", not a per-tick live region', () => {
     setup({ timeRemaining: 754 })
     const timer = screen.getByRole('timer')
     expect(timer).toHaveTextContent('12:34')
     expect(timer).toHaveAttribute('aria-label', 'Session time remaining 12:34')
-    // The countdown updates every reveal tick — a polite live region would
-    // re-announce it many times/sec, so no role="status" anywhere in the chrome.
-    expect(screen.queryByRole('status')).toBeNull()
+    // The countdown updates every reveal tick — it must NOT be a live region (that
+    // would re-announce the clock many times/sec). Phase transitions are announced
+    // separately via a dedicated sr-only role="status" node (asserted below).
+    expect(timer).not.toHaveAttribute('aria-live')
+  })
+
+  it('announces phase transitions via a dedicated sr-only status region', () => {
+    setup({ sessionPhase: 'finished' })
+    expect(screen.getByRole('status')).toHaveTextContent('Qualifying complete, grid set')
   })
 })

@@ -157,6 +157,13 @@ export function collateQualifyingResult(args: {
 }): QualifyingResult {
   const { format, round, seed, segmentResults } = args
 
+  // Defensive: an empty segment list has no grid to collate. Unreachable in the
+  // live + headless flows (both pass ≥1 segment), but keeps a stray
+  // commitLiveQualifyingGrid(format, []) from throwing on the finalSeg access.
+  if (segmentResults.length === 0) {
+    return { format, round, segments: [], gridOrder: [], bestTimes: {}, pole: { driverId: '', time: null }, fastestLap: null, seed }
+  }
+
   const bestTimes: Record<string, number | null> = {}
   for (const seg of segmentResults) {
     for (const r of seg.results) {

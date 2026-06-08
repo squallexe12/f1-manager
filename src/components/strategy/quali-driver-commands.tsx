@@ -65,7 +65,7 @@ export function QualiDriverCommands({
                 className={[
                   'flex items-center gap-1.5 px-2 py-1 rounded-rad border',
                   'font-mono text-[9px] font-bold uppercase tracking-[0.08em]',
-                  'outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50',
+                  'outline-none focus-visible:ring-2 focus-visible:ring-sig-red',
                   'transition-[background,border-color] duration-[120ms]',
                   'disabled:opacity-40 disabled:cursor-not-allowed',
                   active
@@ -89,10 +89,11 @@ export function QualiDriverCommands({
         <button
           type="button"
           disabled={!isRunning}
+          aria-label={`Send lap for ${driverName}`}
           onClick={() => onSendLap(driverId)}
           className={[
             'flex-1 px-2 py-1.5 rounded-rad border font-mono text-[9px] font-bold uppercase tracking-[0.12em]',
-            'outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50',
+            'outline-none focus-visible:ring-2 focus-visible:ring-sig-red',
             'transition-[background,border-color,transform] duration-[120ms]',
             'disabled:opacity-40 disabled:cursor-not-allowed',
             'bg-sig-green/15 border-sig-green/40 text-sig-green enabled:hover:bg-sig-green/25 enabled:active:scale-[0.98]',
@@ -103,10 +104,11 @@ export function QualiDriverCommands({
         <button
           type="button"
           disabled={!isRunning}
+          aria-label={`Abort lap for ${driverName}`}
           onClick={() => onAbortLap(driverId)}
           className={[
             'flex-1 px-2 py-1.5 rounded-rad border font-mono text-[9px] font-bold uppercase tracking-[0.12em]',
-            'outline-none focus-visible:ring-2 focus-visible:ring-sig-red/50',
+            'outline-none focus-visible:ring-2 focus-visible:ring-sig-red',
             'transition-[background,border-color,transform] duration-[120ms]',
             'disabled:opacity-40 disabled:cursor-not-allowed',
             'bg-surface-raised border-line-hair text-ink-mute enabled:hover:bg-surface-hi enabled:hover:text-ink-hi enabled:active:scale-[0.98]',

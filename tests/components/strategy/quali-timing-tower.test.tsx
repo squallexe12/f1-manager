@@ -91,10 +91,13 @@ describe('QualiTimingTower', () => {
     expect(separators[0].textContent).toMatch(/P16/)
   })
 
-  it('exposes the separator as a polite live region', () => {
+  it('keeps the cutline separator OUT of a live region and announces the zone via a stable status node', () => {
     render(<QualiTimingTower entries={grid(20)} cutlinePosition={15} />)
-    const separator = screen.getByRole('separator')
-    expect(separator).toHaveAttribute('aria-live', 'polite')
+    // The visual separator must NOT carry aria-live — it re-renders / moves on
+    // every reorder, so a live region there would spam screen readers.
+    expect(screen.getByRole('separator')).not.toHaveAttribute('aria-live')
+    // A single stable sr-only status announces the elimination zone instead.
+    expect(screen.getByRole('status')).toHaveTextContent(/Elimination zone: P16/i)
   })
 
   it('renders NO separator in the final segment (cutlinePosition = 0)', () => {

@@ -91,6 +91,11 @@ describe('useQualifyingSession — live reveal', () => {
     // The drop zone (positions 16+) is flagged eliminated after the close.
     expect(s.tower.slice(15).every((e) => e.eliminated)).toBe(true)
     expect(s.tower.slice(0, 15).every((e) => !e.eliminated)).toBe(true)
+    // The close is owned by the reveal index, NOT by the cosmetic clock hitting 0
+    // (which would auto-transition to segment-end and tear down the reveal interval
+    // BEFORE the close branch runs — hanging the session in a real browser). The
+    // clock must still be > 0 at segment-end, proving the decoupling.
+    expect(s.segmentTimeRemaining).toBeGreaterThan(0)
   })
 
   it('drives Q1 → Q2 → Q3 to a finished, earned 20-car grid', () => {

@@ -71,12 +71,12 @@ describe('QualiDriverCommands', () => {
 
   it('disables SEND LAP while idle', () => {
     setup('idle')
-    expect(screen.getByRole('button', { name: 'Send Lap' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Send lap for NOR/i })).toBeDisabled()
   })
 
   it('enables SEND LAP while running and fires onSendLap', () => {
     const { onSendLap } = setup('running')
-    const send = screen.getByRole('button', { name: 'Send Lap' })
+    const send = screen.getByRole('button', { name: /Send lap for NOR/i })
     expect(send).toBeEnabled()
     fireEvent.click(send)
     expect(onSendLap).toHaveBeenCalledWith('norris')
@@ -84,7 +84,7 @@ describe('QualiDriverCommands', () => {
 
   it('fires onAbortLap when ABORT is clicked while running', () => {
     const { onAbortLap } = setup('running')
-    const abort = screen.getByRole('button', { name: 'Abort' })
+    const abort = screen.getByRole('button', { name: /Abort lap for NOR/i })
     expect(abort).toBeEnabled()
     fireEvent.click(abort)
     expect(onAbortLap).toHaveBeenCalledWith('norris')
@@ -92,7 +92,7 @@ describe('QualiDriverCommands', () => {
 
   it('disables ABORT while idle', () => {
     setup('idle')
-    expect(screen.getByRole('button', { name: 'Abort' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Abort lap for NOR/i })).toBeDisabled()
   })
 
   it('marks the selected compound with aria-pressed=true and others false', () => {
