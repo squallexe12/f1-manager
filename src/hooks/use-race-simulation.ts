@@ -120,6 +120,10 @@ export function useRaceSimulation({
   const resetRaceRuntime = useGameStore((s) => s.resetRaceRuntime)
   const setDriverCommand = useGameStore((s) => s.setDriverCommand)
   const requestPit = useGameStore((s) => s.requestPit)
+  // M6 — accumulated per-driver tire-deg read feeds strategy-rec confidence.
+  // `world.weekendState.driverSetup` is a stable reference during a race (never
+  // mutated mid-race), so this selector adds no re-renders from race ticks.
+  const weekendDriverSetup = useGameStore((s) => s.world?.weekendState?.driverSetup)
 
   const adapterRef = useRef<RaceWorkerAdapter | null>(null)
   const raceEndFiredRef = useRef(false)
@@ -202,8 +206,12 @@ export function useRaceSimulation({
       circuitTireWear: 'medium',
       pitLossProfile: calibration?.pitLoss,
       stintProfile: calibration?.stint,
+      // M6 — scales rec confidence by the player's tire-deg read (default 50).
+      // No PRNG passed → optimum window stays the noiseless calibration truth;
+      // only the displayed probabilities scale → zero draws on any stream.
+      tireDegReadAccuracy: weekendDriverSetup?.[firstPlayer.id]?.tireDegRead ?? 50,
     })
-  }, [runtime.currentLap, runtime.totalLaps, runtime.tireStates, driverMeta, calibration])
+  }, [runtime.currentLap, runtime.totalLaps, runtime.tireStates, driverMeta, calibration, weekendDriverSetup])
 
   // Update interpolation anchors whenever a new lap arrives.
   useEffect(() => {

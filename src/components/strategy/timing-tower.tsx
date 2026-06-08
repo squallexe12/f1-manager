@@ -10,12 +10,20 @@ interface TimingTowerEntry {
   isPlayer: boolean
   gapToLeader: number
   lastLapTime: number | null
+  /** Best lap of the session — used in practice mode in place of `lastLapTime`. */
+  bestLapTime?: number | null
   tire: string
   retired?: boolean
 }
 
 interface TimingTowerProps {
   entries: TimingTowerEntry[]
+  /**
+   * 'race' (default) shows the LAST lap column from `lastLapTime` — the live
+   * race behaviour, unchanged. 'practice' shows a BEST column from
+   * `bestLapTime`, for the practice live screen (plan §M5).
+   */
+  mode?: 'race' | 'practice'
   className?: string
 }
 
@@ -46,7 +54,8 @@ function tireLetter(tire: string): string {
   return t.charAt(0)
 }
 
-export function TimingTower({ entries, className = '' }: TimingTowerProps) {
+export function TimingTower({ entries, mode = 'race', className = '' }: TimingTowerProps) {
+  const isPractice = mode === 'practice'
   return (
     <div
       className={`flex flex-col font-mono text-[12px] bg-surface-paper border border-line-sub rounded-rad overflow-hidden ${className}`}
@@ -64,7 +73,7 @@ export function TimingTower({ entries, className = '' }: TimingTowerProps) {
         <span role="columnheader">CODE</span>
         <span role="columnheader">DRIVER</span>
         <span role="columnheader" className="text-right">GAP</span>
-        <span role="columnheader" className="text-right">LAST</span>
+        <span role="columnheader" className="text-right">{isPractice ? 'BEST' : 'LAST'}</span>
         <span role="columnheader" className="text-right">TIRE</span>
       </div>
 
@@ -134,9 +143,12 @@ export function TimingTower({ entries, className = '' }: TimingTowerProps) {
               {entry.retired ? 'DNF' : isLeader ? 'LEADER' : `+${entry.gapToLeader.toFixed(3)}`}
             </span>
 
-            {/* Last lap */}
+            {/* Last lap (race) or best lap (practice) */}
             <span className="text-right text-[11px] text-ink-mute tabular-nums">
-              {entry.lastLapTime ? formatTime(entry.lastLapTime) : '—'}
+              {(() => {
+                const t = isPractice ? entry.bestLapTime : entry.lastLapTime
+                return t ? formatTime(t) : '—'
+              })()}
             </span>
 
             {/* Tire */}

@@ -17,6 +17,7 @@ import type { DepartmentHead } from '@/types/team'
 import { derivePulse, type PulseContext } from '@/engine/drivers/pulse'
 import { computeScoutSignal } from '@/engine/drivers/scout-signal'
 import { deriveBoardObjectives } from '@/engine/board/board-target'
+import { createEmptyWeekendState, type WeekendState } from '@/types/weekend'
 
 /**
  * Default contract window (in seasons) applied to each department head at
@@ -61,6 +62,11 @@ export interface FullGameState {
   poachingAttempts: import('@/types/staff').PoachingAttempt[]
   /** Board Objectives — player-only season mandate + live confidence + verdict. */
   boardExpectations: import('@/types/board').BoardExpectations
+  /** Practice + Qualifying weekend bundle (tire ledger, per-driver setup [AI =
+   *  neutral 50/50], practice results, qualifying + sprint-qualifying
+   *  classifications). Re-initialized at each management → practice transition
+   *  by `orchestrator.prepareWeekend`. The sole persisted home for the feature. */
+  weekendState: WeekendState
 }
 
 function applyScenarioToTeam(team: TeamData, scenario: ReturnType<typeof SCENARIOS['find']>, startingSeason: number): Team {
@@ -276,6 +282,7 @@ export function initializeGame(
     staffMarket: generateTalentPool(seed, 1, DEFAULT_STAFF_POOL_SIZE),
     poachingAttempts: [],
     boardExpectations,
+    weekendState: createEmptyWeekendState(1, 1),
   }
 }
 

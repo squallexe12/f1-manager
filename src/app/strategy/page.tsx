@@ -17,7 +17,8 @@ import { DriverCommands } from '@/components/strategy/driver-commands'
 import { BroadcastChrome } from '@/components/strategy/broadcast-chrome'
 import { HeroStrip } from '@/components/strategy/hero-strip'
 import { GapChart } from '@/components/charts/gap-chart'
-import { PreRaceSetup } from '@/components/strategy/pre-race-setup'
+import { PracticeLiveScreen } from '@/components/strategy/practice-live-screen'
+import { QualifyingLiveScreen } from '@/components/strategy/qualifying-live-screen'
 import { CircuitMap } from '@/components/strategy/circuit-map'
 import { PostRaceResults } from '@/components/strategy/post-race-results'
 import { RaceStartScreen } from '@/components/strategy/race-start-screen'
@@ -26,9 +27,12 @@ import { StewardsDecisionsPanel } from '@/components/strategy/stewards-decisions
 import { CautionFlash } from '@/components/strategy/caution-flash'
 import { TrackLimitsCounter } from '@/components/strategy/track-limits-counter'
 import { Button } from '@/components/ui/button'
-import type { DriverStrategies } from '@/components/strategy/strategy-planner'
+import { StrategyPlanner, type DriverStrategies } from '@/components/strategy/strategy-planner'
+import { RaceIntelPanel } from '@/components/strategy/race-intel-panel'
 import type { RaceWorkerStartPayload } from '@/types/race'
 import { applyBanSubstitution, applyGridDrops } from '@/engine/race/race-bootstrap'
+import { buildQualifyingOrder } from '@/engine/race/grid-builder'
+import { computeRacePaceModifier } from '@/engine/practice/setup-modifier'
 
 // UI constant — mirrors DEFAULT_TRACK_LIMITS_CONFIG.timePenaltyAt from the engine.
 // Kept local to avoid importing engine values into the UI layer (AGENTS.md rule).
@@ -95,7 +99,6 @@ export default function StrategyPage() {
   useRequireGame() // guard only
   const advancePhase = useGameStore((s) => s.advancePhase)
   const submitRaceResults = useGameStore((s) => s.submitRaceResults)
-  const applyRecommendation = useGameStore((s) => s.applyRecommendation)
   const consumeGridDrops = useGameStore((s) => s.consumeGridDrops)
   const [driverStrategies, setDriverStrategies] = useState<DriverStrategies>({})
   const [showGapChart, setShowGapChart] = useState(false)
@@ -105,7 +108,6 @@ export default function StrategyPage() {
     teams: w.teams,
     drivers: w.drivers,
     calendar: w.calendar,
-    recommendations: w.recommendations,
   }))
 
   // All hooks must be above early returns.
@@ -116,13 +118,7 @@ export default function StrategyPage() {
   const teams = useMemo(() => slice?.teams ?? [], [slice?.teams])
   const drivers = useMemo(() => slice?.drivers ?? [], [slice?.drivers])
   const calendar = useMemo(() => slice?.calendar ?? [], [slice?.calendar])
-  const recommendations = useMemo(() => slice?.recommendations ?? [], [slice?.recommendations])
   const playerTeamId = gameState?.playerTeamId ?? ''
-
-  // IP-08: surface the active Race Engineer strategy pick in PreRaceSetup.
-  const raceEngineerRec = recommendations.find(
-    (r) => r.role === 'race-engineer' && r.status === 'active' && r.action.startsWith('strategy:'),
-  )
 
   const playerTeam = teams.find((t) => t.id === playerTeamId)
   const playerDrivers = drivers.filter((d) => d.teamId === playerTeamId && !d.isReserve)
@@ -216,9 +212,19 @@ export default function StrategyPage() {
       state.currentRound,
     )
 
-    // Step 2: Apply grid-position drops — reorder the driver array so the
-    // worker's positions array (built from strategies order) reflects penalties.
-    const qualifyingOrder = substitutedDrivers.map((d) => d.id)
+    // Step 2: Build the EARNED grid from qualifying, then apply grid-position
+    // drops. The classification lives in world.weekendState (persisted) and is
+    // read imperatively here — handleStartRace is a one-shot event handler, not
+    // a subscriber. buildQualifyingOrder returns a permutation of the same
+    // driver set (it only reorders), so Steps 2–3 below are unaffected; it falls
+    // back to roster order only if qualifying was genuinely never run.
+    const isSprintRace = state.phase === 'sprint'
+    const ws = useGameStore.getState().world?.weekendState
+    const classification = isSprintRace ? ws?.sprintQualifyingResult : ws?.qualifyingResult
+    const qualifyingOrder = buildQualifyingOrder(
+      substitutedDrivers.map((d) => d.id),
+      classification ?? null,
+    )
     const gridDrops: Record<string, number> = {}
     for (const d of substitutedDrivers) {
       if (d.nextRaceGridDrop > 0) gridDrops[d.id] = d.nextRaceGridDrop
@@ -275,6 +281,10 @@ export default function StrategyPage() {
           attributes: d.attributes,
           car: dTeam.car,
           mood: d.mood,
+          // M6 seam — setup-confidence consequence into the authoritative worker
+          // race. Player drivers carry their accumulated FP confidence; AI (and
+          // any driver without weekend setup) read neutral 50 → modifier 0.
+          setupModifier: computeRacePaceModifier(ws?.driverSetup[d.id]?.setupConfidence ?? 50),
         }
       }),
       strategies: orderedDrivers
@@ -302,34 +312,30 @@ export default function StrategyPage() {
     startRace(payload)
   }
 
-  // Handle practice session start — MVP just advances to qualifying,
-  // so the program id is intentionally ignored (contravariant signature).
-  function handleStartSession() {
-    handleAdvance()
-  }
-
   // Determine which view to show
   const phase = state.phase
   const isRaceActive = raceSim.phase === 'running' || raceSim.phase === 'paused'
   const isRaceFinished = raceSim.phase === 'finished'
   const isRaceErrored = raceSim.workerStatus === 'error' && raceSim.workerError?.fatal === true
 
-  // Pre-race phases
-  if (phase === 'practice' || phase === 'qualifying' || phase === 'sprint-qualifying') {
+  // Practice phase — consequential live practice screen (plan §M5). Self-contained;
+  // reads weekendState + the transient practiceRuntime via usePracticeSession.
+  if (phase === 'practice') {
     return (
       <PageShell theme="broadcast">
-        <PreRaceSetup
-          race={currentRace}
-          playerTeam={playerTeam}
-          playerDrivers={playerDrivers}
-          phase={phase === 'practice' ? 'practice' : 'qualifying'}
-          onStartSession={handleStartSession}
-          onAdvance={handleAdvance}
-          onSelectStrategies={setDriverStrategies}
-          calibration={calibration}
-          raceEngineerRecommendation={raceEngineerRec}
-          onApplyRecommendation={applyRecommendation}
-        />
+        <PracticeLiveScreen />
+      </PageShell>
+    )
+  }
+
+  // Qualifying / sprint-qualifying — consequential live knockout screen (plan §M7).
+  // Both phases use the SAME screen; the hook derives the format (Q vs SQ) from the
+  // phase, so a sprint weekend's sprint-qualifying writes sprintQualifyingResult and
+  // its later qualifying writes qualifyingResult. The earned grid feeds handleStartRace.
+  if (phase === 'qualifying' || phase === 'sprint-qualifying') {
+    return (
+      <PageShell theme="broadcast">
+        <QualifyingLiveScreen />
       </PageShell>
     )
   }
@@ -405,15 +411,31 @@ export default function StrategyPage() {
     }
 
     if (!isRaceActive && !isRaceFinished) {
-      // Race not started yet — Broadcast StartScreen with lights gantry.
+      // Race not started yet — pre-race strategy planning (Intel + StrategyPlanner,
+      // relocated here from the old qualifying-phase PreRaceSetup that M7 replaced
+      // with the live qualifying screen), then the Broadcast StartScreen with the
+      // lights gantry. The planner feeds driverStrategies into handleStartRace.
       return (
         <PageShell theme="broadcast">
-          <RaceStartScreen
-            circuitName={currentRace?.name ?? 'Grand Prix'}
-            laps={currentRace?.circuit.laps ?? 0}
-            isSprint={phase === 'sprint'}
-            onStart={handleStartRace}
-          />
+          <div className="flex flex-col gap-5">
+            {currentRace && calibration && (
+              <RaceIntelPanel circuit={currentRace.circuit} calibration={calibration} />
+            )}
+            {currentRace && (
+              <StrategyPlanner
+                race={currentRace}
+                team={playerTeam}
+                playerDrivers={playerDrivers}
+                onSelectStrategies={setDriverStrategies}
+              />
+            )}
+            <RaceStartScreen
+              circuitName={currentRace?.name ?? 'Grand Prix'}
+              laps={currentRace?.circuit.laps ?? 0}
+              isSprint={phase === 'sprint'}
+              onStart={handleStartRace}
+            />
+          </div>
         </PageShell>
       )
     }

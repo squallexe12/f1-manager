@@ -28,4 +28,33 @@ describe('TimingTower', () => {
     render(<TimingTower entries={[entry({ position: 20, retired: true, lastLapTime: null })]} />)
     expect(screen.getByText('DNF')).toBeInTheDocument()
   })
+
+  it('defaults to race mode with a LAST column header (regression guard)', () => {
+    render(<TimingTower entries={[entry()]} />)
+    expect(screen.getByText('LAST')).toBeInTheDocument()
+    expect(screen.queryByText('BEST')).not.toBeInTheDocument()
+  })
+
+  it('switches the time column header to BEST in practice mode', () => {
+    render(<TimingTower mode="practice" entries={[entry({ bestLapTime: 87.654 })]} />)
+    expect(screen.getByText('BEST')).toBeInTheDocument()
+    expect(screen.queryByText('LAST')).not.toBeInTheDocument()
+  })
+
+  it('renders bestLapTime in practice mode and a dash when absent', () => {
+    render(
+      <TimingTower
+        mode="practice"
+        entries={[
+          entry({ position: 1, bestLapTime: 87.654, lastLapTime: 99.9 }),
+          entry({ position: 2, driverId: 'd2', driverName: 'Oscar Piastri', bestLapTime: null, lastLapTime: 88.0 }),
+        ]}
+      />,
+    )
+    // Practice column reads BEST (bestLapTime), never the race lastLapTime.
+    expect(screen.getByText('1:27.654')).toBeInTheDocument()
+    expect(screen.queryByText('1:39.900')).not.toBeInTheDocument()
+    // Driver without a best lap shows a dash.
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
 })

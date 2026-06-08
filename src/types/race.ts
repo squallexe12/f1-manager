@@ -269,6 +269,15 @@ export interface BootstrapDriverInput {
   mood: Mood
   car: CarPerformance
   teamColor?: string
+  /**
+   * Setup-confidence consequence (M6): an additive lap-time delta in seconds,
+   * negative = faster (a dialled-in car). Optional on the pure bootstrap input —
+   * the synchronous `simulateRace` path and legacy callers default it to 0 in
+   * `bootstrapRace`. REQUIRED on the worker payload (see {@link RaceWorkerDriverInput}).
+   * Consumed additively by `calculateBaseLapTime`, which makes NO PRNG calls, so
+   * the race stream stays byte-identical with or without it (zero desync risk).
+   */
+  setupModifier?: number
 }
 
 export interface BootstrapStrategyInput {
@@ -310,12 +319,26 @@ export interface WorkerErrorRecovery {
 }
 
 /**
- * Worker `start` payload.
- * Strict superset of {@link RaceBootstrapInput}: every field of the bootstrap
- * input is present verbatim, plus worker-only fields that do not belong in the
- * pure bootstrap shape.
+ * Worker `start` driver input — a {@link BootstrapDriverInput} with the
+ * setup-confidence consequence (`setupModifier`) promoted to REQUIRED. This is
+ * the seam (M6) that carries dialled-in-car pace into the authoritative worker
+ * race. Making it required forces every payload builder (the Strategy Room) to
+ * set it explicitly, so the consequence can never silently fail to reach the
+ * simulator.
  */
-export type RaceWorkerStartPayload = RaceBootstrapInput & {
+export type RaceWorkerDriverInput = BootstrapDriverInput & { setupModifier: number }
+
+/**
+ * Worker `start` payload.
+ * Structural superset of {@link RaceBootstrapInput}: every field of the bootstrap
+ * input is present (a value of this type is assignable to RaceBootstrapInput),
+ * plus worker-only fields that do not belong in the pure bootstrap shape. The
+ * `drivers` field is narrowed to {@link RaceWorkerDriverInput} so `setupModifier`
+ * is mandatory on the worker protocol.
+ */
+export type RaceWorkerStartPayload = Omit<RaceBootstrapInput, 'drivers'> & {
+  /** Grid lineup; `setupModifier` is required on every entry (the M6 seam). */
+  drivers: RaceWorkerDriverInput[]
   /** Optional initial simulation speed (defaults to 1× on the worker). */
   simSpeed?: SimSpeed
   /**
