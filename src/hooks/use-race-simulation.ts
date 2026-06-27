@@ -138,10 +138,7 @@ export function useRaceSimulation({
   const lastSyncRef = useRef(0)
   const [carPositions, setCarPositions] = useState<DriverLapProgress[]>([])
 
-  const metaMap = useRef(new Map<string, DriverMeta>())
-  useEffect(() => {
-    metaMap.current = new Map(driverMeta.map((d) => [d.id, d]))
-  }, [driverMeta])
+  const metaMap = useMemo(() => new Map(driverMeta.map((d) => [d.id, d])), [driverMeta])
 
   // Build the derived timing tower directly from raw lap results. The engine
   // now emits a row for every driver — running cars carry `retired:false`,
@@ -152,7 +149,7 @@ export function useRaceSimulation({
 
     const sorted = [...runtime.lastLapResults].sort((a, b) => a.position - b.position)
     return sorted.map((r) => {
-      const meta = metaMap.current.get(r.driverId)
+      const meta = metaMap.get(r.driverId)
       return {
         driverId: r.driverId,
         driverName: meta?.shortName ?? r.driverId.substring(0, 3).toUpperCase(),
@@ -174,8 +171,8 @@ export function useRaceSimulation({
     for (let i = 1; i < sorted.length && out.length < 3; i++) {
       const gap = Math.abs(sorted[i].gapToAhead)
       if (gap < 2.0) {
-        const attacker = metaMap.current.get(sorted[i].driverId)
-        const defender = metaMap.current.get(sorted[i - 1].driverId)
+        const attacker = metaMap.get(sorted[i].driverId)
+        const defender = metaMap.get(sorted[i - 1].driverId)
         if (attacker && defender) {
           const prob = Math.max(0.1, Math.min(0.9, 1 - gap / 2.0))
           out.push({
@@ -250,7 +247,7 @@ export function useRaceSimulation({
     const entries = Object.entries(lapProgressRef.current)
     if (entries.length > 0) {
       const positions: DriverLapProgress[] = entries.map(([driverId, info]) => {
-        const meta = metaMap.current.get(driverId)
+        const meta = metaMap.get(driverId)
         const speedVariation = 90 / Math.max(80, info.baseLapTime)
         const animatedProgress = ((info.progress + tickFraction * speedVariation) % 1 + 1) % 1
         return {
@@ -276,7 +273,7 @@ export function useRaceSimulation({
       }
     }
     rafRef.current = requestAnimationFrame(runInterpolation)
-  }, [timing])
+  }, [timing, metaMap])
 
   // Bridge runtime phase → interpolation loop.
   useEffect(() => {
